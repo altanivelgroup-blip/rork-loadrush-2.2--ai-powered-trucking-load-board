@@ -1,0 +1,377 @@
+import { Load, DriverProfile, ShipperProfile, MaintenanceRecord, AnalyticsData, BackhaulSuggestion } from '@/types';
+
+export const dummyDriverProfile: DriverProfile = {
+  firstName: "John",
+  lastName: "Smith",
+  phone: "(555) 123-4567",
+  dotNumber: "1234567",
+  mcNumber: "MC-987654",
+  truckInfo: {
+    make: "Freightliner",
+    model: "Cascadia",
+    year: 2021,
+    vin: "1FUJGHDV8MLBR1234",
+    mpg: 7.2,
+  },
+  trailerInfo: {
+    type: "Dry Van",
+    length: 53,
+    capacity: 45000,
+  },
+  equipment: ["Lift Gate", "Pallet Jack", "Load Straps", "E-Track"],
+  wallet: 12450.75,
+  documents: {},
+  maintenanceRecords: [],
+};
+
+export const dummyMaintenanceRecords: MaintenanceRecord[] = [
+  {
+    id: "m1",
+    date: "2025-09-15",
+    mileage: 145000,
+    type: "Oil Change",
+    description: "Full synthetic oil change and filter replacement",
+    cost: 285.00,
+    nextServiceMileage: 160000,
+    nextServiceDate: "2025-12-15",
+  },
+  {
+    id: "m2",
+    date: "2025-08-20",
+    mileage: 142000,
+    type: "Tire Rotation",
+    description: "Rotated all tires and checked pressure",
+    cost: 150.00,
+  },
+  {
+    id: "m3",
+    date: "2025-07-10",
+    mileage: 138000,
+    type: "Brake Inspection",
+    description: "Inspected brake pads and rotors - all good",
+    cost: 95.00,
+    nextServiceMileage: 158000,
+  },
+];
+
+export const dummyShipperProfile: ShipperProfile = {
+  companyName: "",
+  contactName: "",
+  phone: "",
+  email: "",
+  address: "",
+  paymentMethod: "Net 30",
+  creditLimit: 500000,
+};
+
+export const dummyLoads: Load[] = [
+  {
+    id: "load1",
+    shipperId: "shipper1",
+    shipperName: "Test Shipper",
+    status: "posted",
+    pickup: {
+      location: "Amazon Fulfillment Center",
+      city: "Dallas",
+      state: "TX",
+      date: "2025-10-05",
+      time: "08:00",
+    },
+    dropoff: {
+      location: "Walmart Distribution Center",
+      city: "Phoenix",
+      state: "AZ",
+      date: "2025-10-06",
+      time: "14:00",
+    },
+    cargo: {
+      type: "Consumer Electronics",
+      weight: 42000,
+      description: "Palletized electronics - temperature controlled",
+    },
+    rate: 2850,
+    distance: 1050,
+    ratePerMile: 2.71,
+    aiScore: 95,
+    createdAt: "2025-10-02T10:30:00Z",
+    updatedAt: "2025-10-02T10:30:00Z",
+  },
+  {
+    id: "load2",
+    shipperId: "shipper2",
+    shipperName: "National Freight Co.",
+    status: "posted",
+    pickup: {
+      location: "Manufacturing Plant",
+      city: "Chicago",
+      state: "IL",
+      date: "2025-10-04",
+      time: "06:00",
+    },
+    dropoff: {
+      location: "Distribution Hub",
+      city: "Atlanta",
+      state: "GA",
+      date: "2025-10-05",
+      time: "18:00",
+    },
+    cargo: {
+      type: "Auto Parts",
+      weight: 38000,
+      description: "Automotive components - fragile",
+    },
+    rate: 1950,
+    distance: 715,
+    ratePerMile: 2.73,
+    aiScore: 88,
+    createdAt: "2025-10-02T09:15:00Z",
+    updatedAt: "2025-10-02T09:15:00Z",
+  },
+  {
+    id: "load3",
+    shipperId: "shipper1",
+    shipperName: "Test Shipper",
+    status: "matched",
+    pickup: {
+      location: "Food Processing Facility",
+      city: "Los Angeles",
+      state: "CA",
+      date: "2025-10-03",
+      time: "05:00",
+    },
+    dropoff: {
+      location: "Grocery Distribution Center",
+      city: "Seattle",
+      state: "WA",
+      date: "2025-10-04",
+      time: "16:00",
+    },
+    cargo: {
+      type: "Refrigerated Food",
+      weight: 44000,
+      description: "Frozen foods - maintain 0°F",
+    },
+    rate: 3200,
+    distance: 1135,
+    ratePerMile: 2.82,
+    matchedDriverId: "driver1",
+    matchedDriverName: "John Smith",
+    aiScore: 92,
+    createdAt: "2025-10-01T14:20:00Z",
+    updatedAt: "2025-10-02T08:45:00Z",
+  },
+  {
+    id: "load4",
+    shipperId: "shipper3",
+    shipperName: "TransAmerica Shipping",
+    status: "in_transit",
+    pickup: {
+      location: "Port of Houston",
+      city: "Houston",
+      state: "TX",
+      date: "2025-10-01",
+      time: "10:00",
+    },
+    dropoff: {
+      location: "Warehouse Complex",
+      city: "Memphis",
+      state: "TN",
+      date: "2025-10-02",
+      time: "20:00",
+    },
+    cargo: {
+      type: "Industrial Equipment",
+      weight: 45000,
+      description: "Heavy machinery parts",
+    },
+    rate: 1680,
+    distance: 560,
+    ratePerMile: 3.00,
+    matchedDriverId: "driver1",
+    matchedDriverName: "John Smith",
+    createdAt: "2025-09-30T11:00:00Z",
+    updatedAt: "2025-10-01T10:15:00Z",
+  },
+  {
+    id: "load5",
+    shipperId: "shipper2",
+    shipperName: "National Freight Co.",
+    status: "posted",
+    pickup: {
+      location: "Paper Mill",
+      city: "Portland",
+      state: "OR",
+      date: "2025-10-06",
+      time: "07:00",
+    },
+    dropoff: {
+      location: "Printing Facility",
+      city: "Denver",
+      state: "CO",
+      date: "2025-10-07",
+      time: "19:00",
+    },
+    cargo: {
+      type: "Paper Products",
+      weight: 40000,
+      description: "Rolls of industrial paper",
+    },
+    rate: 2400,
+    distance: 1245,
+    ratePerMile: 1.93,
+    aiScore: 78,
+    createdAt: "2025-10-02T11:45:00Z",
+    updatedAt: "2025-10-02T11:45:00Z",
+  },
+];
+
+export const dummyDriverAnalytics: AnalyticsData = {
+  totalEarnings: 45280.50,
+  totalMiles: 18450,
+  avgRatePerMile: 2.45,
+  loadsCompleted: 23,
+  avgMpg: 7.2,
+  fuelCost: 9225.00,
+  netEarnings: 36055.50,
+  trend: 'up',
+  trendPercentage: 12.5,
+};
+
+export const dummyBackhaulSuggestions: BackhaulSuggestion[] = [
+  {
+    load: {
+      id: "backhaul1",
+      shipperId: "shipper4",
+      shipperName: "Western Freight Lines",
+      status: "posted",
+      pickup: {
+        location: "Distribution Center",
+        city: "Phoenix",
+        state: "AZ",
+        date: "2025-10-07",
+        time: "08:00",
+      },
+      dropoff: {
+        location: "Retail Hub",
+        city: "Dallas",
+        state: "TX",
+        date: "2025-10-08",
+        time: "16:00",
+      },
+      cargo: {
+        type: "General Freight",
+        weight: 35000,
+        description: "Mixed retail goods",
+      },
+      rate: 2100,
+      distance: 1050,
+      ratePerMile: 2.00,
+      aiScore: 85,
+      createdAt: "2025-10-02T12:00:00Z",
+      updatedAt: "2025-10-02T12:00:00Z",
+    },
+    deadheadMiles: 45,
+    efficiency: 95,
+  },
+  {
+    load: {
+      id: "backhaul2",
+      shipperId: "shipper5",
+      shipperName: "Desert Transport",
+      status: "posted",
+      pickup: {
+        location: "Manufacturing Plant",
+        city: "Tucson",
+        state: "AZ",
+        date: "2025-10-07",
+        time: "10:00",
+      },
+      dropoff: {
+        location: "Assembly Plant",
+        city: "San Antonio",
+        state: "TX",
+        date: "2025-10-08",
+        time: "18:00",
+      },
+      cargo: {
+        type: "Auto Parts",
+        weight: 38000,
+        description: "Engine components",
+      },
+      rate: 1850,
+      distance: 920,
+      ratePerMile: 2.01,
+      aiScore: 82,
+      createdAt: "2025-10-02T13:15:00Z",
+      updatedAt: "2025-10-02T13:15:00Z",
+    },
+    deadheadMiles: 120,
+    efficiency: 87,
+  },
+];
+
+export const dummyShipperAnalytics = {
+  totalLoadsPosted: 156,
+  activeLoads: 12,
+  completedLoads: 144,
+  totalSpent: 387450.00,
+  avgCostPerMile: 2.35,
+  onTimeDeliveryRate: 96.5,
+  topRoutes: [
+    { route: "Dallas, TX → Phoenix, AZ", count: 23, avgCost: 2850 },
+    { route: "Chicago, IL → Atlanta, GA", count: 18, avgCost: 1950 },
+    { route: "Los Angeles, CA → Seattle, WA", count: 15, avgCost: 3200 },
+  ],
+};
+
+export const dummyAdminAnalytics = {
+  totalUsers: 1247,
+  totalDrivers: 856,
+  totalShippers: 378,
+  totalAdmins: 13,
+  activeLoads: 234,
+  completedLoads: 8945,
+  totalRevenue: 2847560.00,
+  monthlyRevenue: 387450.00,
+  revenueGrowth: 18.5,
+  topRoutes: [
+    { route: "Dallas, TX → Phoenix, AZ", volume: 145, revenue: 412850 },
+    { route: "Chicago, IL → Atlanta, GA", volume: 132, revenue: 257400 },
+    { route: "Los Angeles, CA → Seattle, WA", volume: 98, revenue: 313600 },
+    { route: "Houston, TX → Memphis, TN", volume: 87, revenue: 146160 },
+  ],
+  pendingDocuments: 23,
+};
+
+export const dummyTopDrivers = [
+  { id: 'd1', name: 'John Smith', completedLoads: 145, rating: 4.9, avgDeliveryTime: '18.5 hrs', earnings: 87450 },
+  { id: 'd2', name: 'Maria Garcia', completedLoads: 132, rating: 4.8, avgDeliveryTime: '19.2 hrs', earnings: 78920 },
+  { id: 'd3', name: 'David Johnson', completedLoads: 128, rating: 4.7, avgDeliveryTime: '20.1 hrs', earnings: 76340 },
+  { id: 'd4', name: 'Sarah Williams', completedLoads: 119, rating: 4.9, avgDeliveryTime: '17.8 hrs', earnings: 82150 },
+  { id: 'd5', name: 'Michael Brown', completedLoads: 115, rating: 4.6, avgDeliveryTime: '21.3 hrs', earnings: 68900 },
+];
+
+export const dummyTopShippers = [
+  { id: 's1', company: 'Amazon Logistics', loadsPosted: 234, fillRate: 98.5, spend: 687450 },
+  { id: 's2', company: 'Walmart Supply Chain', loadsPosted: 198, fillRate: 96.2, spend: 542300 },
+  { id: 's3', company: 'Target Distribution', loadsPosted: 176, fillRate: 94.8, spend: 478920 },
+  { id: 's4', company: 'Home Depot Freight', loadsPosted: 145, fillRate: 97.1, spend: 412850 },
+  { id: 's5', company: 'Costco Wholesale', loadsPosted: 132, fillRate: 95.3, spend: 389760 },
+];
+
+export const dummyLoadsByStatus = [
+  { status: 'Posted', count: 234, color: '#2563EB' },
+  { status: 'In Transit', count: 187, color: '#F97316' },
+  { status: 'Completed', count: 456, color: '#10B981' },
+  { status: 'Delayed', count: 23, color: '#EF4444' },
+];
+
+export const dummyDriverActivityTrend = [
+  { day: 'Mon', activeDrivers: 645 },
+  { day: 'Tue', activeDrivers: 678 },
+  { day: 'Wed', activeDrivers: 712 },
+  { day: 'Thu', activeDrivers: 698 },
+  { day: 'Fri', activeDrivers: 734 },
+  { day: 'Sat', activeDrivers: 589 },
+  { day: 'Sun', activeDrivers: 512 },
+];
