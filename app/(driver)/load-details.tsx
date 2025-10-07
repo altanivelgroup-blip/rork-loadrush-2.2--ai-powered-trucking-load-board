@@ -30,6 +30,14 @@ export default function LoadDetailsScreen() {
 
   const handleNavigateToPickup = () => {
     console.log('Navigate to pickup');
+    router.push({
+      pathname: '/(driver)/navigation-screen',
+      params: {
+        destinationLat: 32.7767,
+        destinationLng: -96.7970,
+        destinationName: `${load.pickup.city}, ${load.pickup.state}`,
+      },
+    });
   };
 
   const handleConfirmPickup = () => {
