@@ -10,27 +10,37 @@ import {
   TouchableOpacity,
   Animated,
   Pressable,
+  Switch,
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
 
 // Platform-specific map import handled via .native.tsx extension
 
 export default function CommandCenter() {
-  const { drivers, isLoading, error } = useCommandCenterDrivers();
+  const { drivers, isLoading } = useCommandCenterDrivers();
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const [panelAnimation] = useState(new Animated.Value(0));
   const [popupDriver, setPopupDriver] = useState<string | null>(null);
   const [popupAnimation] = useState(new Animated.Value(0));
   const [activeFilter, setActiveFilter] = useState<DriverStatus | 'all'>('all');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [projectorMode, setProjectorMode] = useState(false);
+  const [currentCycleIndex, setCurrentCycleIndex] = useState(0);
+  const cycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const projectorOverlayAnim = useRef(new Animated.Value(0)).current;
+  const isWindowFocused = useRef(true);
+
+  const filteredDrivers = activeFilter === 'all' 
+    ? drivers 
+    : drivers.filter((d) => d.status === activeFilter);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -38,7 +48,69 @@ export default function CommandCenter() {
       duration: 800,
       useNativeDriver: true,
     }).start();
+  }, [fadeAnim]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (Platform.OS === 'web') {
+        isWindowFocused.current = !document.hidden;
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
   }, []);
+
+  useEffect(() => {
+    if (projectorMode && filteredDrivers.length > 0) {
+      Animated.timing(projectorOverlayAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+
+      const startCycle = () => {
+        if (cycleTimerRef.current) {
+          clearInterval(cycleTimerRef.current);
+        }
+
+        cycleTimerRef.current = setInterval(() => {
+          if (isWindowFocused.current) {
+            setCurrentCycleIndex((prev) => (prev + 1) % filteredDrivers.length);
+          }
+        }, 15000);
+      };
+
+      startCycle();
+
+      return () => {
+        if (cycleTimerRef.current) {
+          clearInterval(cycleTimerRef.current);
+        }
+      };
+    } else {
+      Animated.timing(projectorOverlayAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+
+      if (cycleTimerRef.current) {
+        clearInterval(cycleTimerRef.current);
+      }
+    }
+  }, [projectorMode, filteredDrivers.length, projectorOverlayAnim]);
+
+  useEffect(() => {
+    if (projectorMode && filteredDrivers.length > 0) {
+      const currentDriver = filteredDrivers[currentCycleIndex];
+      console.log(`[Projector Mode] Cycling to driver: ${currentDriver.name} (${currentDriver.driverId})`);
+    }
+  }, [currentCycleIndex, projectorMode, filteredDrivers]);
 
   const openPanel = (driverId: string) => {
     setSelectedDriver(driverId);
@@ -83,20 +155,9 @@ export default function CommandCenter() {
   const selectedDriverData = drivers.find((d) => d.id === selectedDriver);
   const popupDriverData = drivers.find((d) => d.id === popupDriver);
 
-  const filteredDrivers = activeFilter === 'all' 
-    ? drivers 
-    : drivers.filter((d) => d.status === activeFilter);
-
   const getStatusCount = (status: DriverStatus | 'all') => {
     if (status === 'all') return drivers.length;
     return drivers.filter((d) => d.status === status).length;
-  };
-
-  const initialRegion = {
-    latitude: 39.8283,
-    longitude: -98.5795,
-    latitudeDelta: 25,
-    longitudeDelta: 25,
   };
 
   if (isLoading) {
@@ -125,13 +186,27 @@ export default function CommandCenter() {
             </Text>
           </View>
         </View>
-        <View style={styles.statusBadge}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>System Stable</Text>
+        <View style={styles.headerRight}>
+          <View style={styles.projectorToggle}>
+            <Monitor size={18} color="#60A5FA" />
+            <Text style={styles.projectorLabel}>Projector Mode</Text>
+            <Switch
+              value={projectorMode}
+              onValueChange={setProjectorMode}
+              trackColor={{ false: '#334155', true: '#2563EB' }}
+              thumbColor={projectorMode ? '#60A5FA' : '#94A3B8'}
+              ios_backgroundColor="#334155"
+            />
+          </View>
+          <View style={styles.statusBadge}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>System Stable</Text>
+          </View>
         </View>
       </Animated.View>
 
-      <Animated.View style={[styles.filterBar, { opacity: fadeAnim }]}>
+      {!projectorMode && (
+        <Animated.View style={[styles.filterBar, { opacity: fadeAnim }]}>
         <FilterButton
           label="All"
           count={getStatusCount('all')}
@@ -166,10 +241,12 @@ export default function CommandCenter() {
           onPress={() => setActiveFilter('breakdown')}
           color="#EF4444"
         />
-      </Animated.View>
+        </Animated.View>
+      )}
 
       <View style={styles.content}>
-        <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
+        {!projectorMode && (
+          <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
           <View style={styles.sidebarHeader}>
             <Text style={styles.sidebarTitle}>Active Drivers</Text>
             <View style={styles.driverCount}>
@@ -197,9 +274,10 @@ export default function CommandCenter() {
               />
             ))}
           </ScrollView>
-        </Animated.View>
+          </Animated.View>
+        )}
 
-        <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.mapContainer, projectorMode && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
           <View style={styles.darkMapPlaceholder}>
             <View style={styles.mapGrid}>
               {filteredDrivers.map((driver) => (
@@ -224,7 +302,14 @@ export default function CommandCenter() {
         </Animated.View>
       </View>
 
-      {selectedDriver && selectedDriverData && (
+      {projectorMode && filteredDrivers.length > 0 && (
+        <ProjectorOverlay
+          driver={filteredDrivers[currentCycleIndex]}
+          animation={projectorOverlayAnim}
+        />
+      )}
+
+      {selectedDriver && selectedDriverData && !projectorMode && (
         <DriverDetailPanel
           driver={selectedDriverData}
           animation={panelAnimation}
@@ -232,7 +317,7 @@ export default function CommandCenter() {
         />
       )}
 
-      {popupDriver && popupDriverData && (
+      {popupDriver && popupDriverData && !projectorMode && (
         <DriverPopup
           driver={popupDriverData}
           animation={popupAnimation}
@@ -380,7 +465,7 @@ function PulsingDot({ color, size }: PulsingDotProps) {
     );
     animation.start();
     return () => animation.stop();
-  }, []);
+  }, [pulseAnim]);
 
   return (
     <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
@@ -493,7 +578,6 @@ interface AnimatedMarkerProps {
 
 function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const pulseSpeed = driver.status === 'breakdown' ? 1500 : 1000;
@@ -513,7 +597,7 @@ function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
     );
     animation.start();
     return () => animation.stop();
-  }, [driver.status]);
+  }, [driver.status, pulseAnim]);
 
   const markerColor = getStatusColor(driver.status);
   const markerSize = isSelected ? 24 : 18;
@@ -974,6 +1058,117 @@ function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProp
   );
 }
 
+interface ProjectorOverlayProps {
+  driver: {
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
+    currentLoad?: string;
+    pickupLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+    dropoffLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  animation: Animated.Value;
+}
+
+function ProjectorOverlay({ driver, animation }: ProjectorOverlayProps) {
+  const { routeData } = useDriverRoute({
+    origin: driver.location,
+    destination: driver.dropoffLocation || null,
+    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+  });
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-100, 0],
+  });
+
+  const opacity = animation;
+
+  return (
+    <Animated.View
+      style={[
+        styles.projectorOverlay,
+        {
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.projectorBanner,
+          { borderColor: getStatusColor(driver.status) + '80' },
+        ]}
+      >
+        <View style={styles.projectorHeader}>
+          <View style={styles.projectorDriverInfo}>
+            <Text style={styles.projectorDriverNumber}>{driver.driverId}</Text>
+            <Text style={styles.projectorDriverName}>{driver.name}</Text>
+          </View>
+          <View
+            style={[
+              styles.projectorStatusBadge,
+              { backgroundColor: getStatusColor(driver.status) + '30' },
+            ]}
+          >
+            <PulsingDot color={getStatusColor(driver.status)} size={12} />
+            <Text
+              style={[
+                styles.projectorStatusText,
+                { color: getStatusColor(driver.status) },
+              ]}
+            >
+              {getStatusLabel(driver.status)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.projectorDivider} />
+
+        <View style={styles.projectorDetails}>
+          {driver.currentLoad && (
+            <View style={styles.projectorDetailItem}>
+              <Package size={16} color="#60A5FA" />
+              <Text style={styles.projectorDetailLabel}>Load ID</Text>
+              <Text style={styles.projectorDetailValue}>{driver.currentLoad}</Text>
+            </View>
+          )}
+
+          {routeData && (
+            <>
+              <View style={styles.projectorDetailItem}>
+                <Clock size={16} color="#60A5FA" />
+                <Text style={styles.projectorDetailLabel}>ETA</Text>
+                <Text style={styles.projectorDetailValue}>
+                  {routeData.durationFormatted}
+                </Text>
+              </View>
+              <View style={styles.projectorDetailItem}>
+                <Route size={16} color="#60A5FA" />
+                <Text style={styles.projectorDetailLabel}>Distance</Text>
+                <Text style={styles.projectorDetailValue}>
+                  {Math.round(routeData.distanceMiles)} mi
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1030,6 +1225,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
     fontWeight: '500' as const,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  projectorToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.3)',
+  },
+  projectorLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1223,6 +1439,9 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: 'relative',
+  },
+  mapContainerFullscreen: {
+    width: '100%',
   },
   darkMapPlaceholder: {
     flex: 1,
@@ -1693,5 +1912,100 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     marginTop: 2,
+  },
+  projectorOverlay: {
+    position: 'absolute',
+    top: isSmallScreen ? 80 : 100,
+    left: '50%',
+    width: isSmallScreen ? width * 0.95 : Math.min(900, width * 0.7),
+    zIndex: 1001,
+    ...(Platform.OS === 'web' && {
+      transform: [{ translateX: '-50%' }],
+    }),
+    ...(!isWeb && {
+      marginLeft: isSmallScreen ? -(width * 0.475) : -Math.min(450, width * 0.35),
+    }),
+  },
+  projectorBanner: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 16,
+    borderWidth: 2,
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(16px)',
+    }),
+  },
+  projectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  projectorDriverInfo: {
+    flex: 1,
+  },
+  projectorDriverNumber: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+    marginBottom: 6,
+    letterSpacing: 1,
+  },
+  projectorDriverName: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  projectorStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 10,
+  },
+  projectorStatusText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  projectorDivider: {
+    height: 1,
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
+    marginVertical: 16,
+  },
+  projectorDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  projectorDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
+  },
+  projectorDetailLabel: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '600' as const,
+    marginRight: 4,
+  },
+  projectorDetailValue: {
+    fontSize: 15,
+    color: '#F1F5F9',
+    fontWeight: '700' as const,
   },
 });
