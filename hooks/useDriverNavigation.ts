@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
 export interface NavigationLocation {
@@ -23,7 +23,7 @@ export interface UseDriverNavigationReturn {
   duration: number;
   getRoute: (origin: NavigationLocation, destination: NavigationLocation) => Promise<void>;
   setDestination: (destination: NavigationLocation | null) => void;
-  startNavigation: (destination: NavigationLocation) => void;
+  startNavigation: (destination: NavigationLocation, loadId?: string) => void;
   stopNavigation: () => void;
 }
 
@@ -51,10 +51,22 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   const [destination, setDestination] = useState<NavigationLocation | null>(null);
   const routeRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const destinationRef = useRef<NavigationLocation | null>(null);
+  const activeLoadIdRef = useRef<string | null>(null);
+  const previousDistanceRef = useRef<number>(0);
+  const previousETARef = useRef<number>(0);
+  const stopNavigationRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     destinationRef.current = destination;
   }, [destination]);
+
+  useEffect(() => {
+    previousDistanceRef.current = distance;
+  }, [distance]);
+
+  useEffect(() => {
+    previousETARef.current = duration;
+  }, [duration]);
 
   const syncLocationToFirestore = useCallback(async (
     location: NavigationLocation,
@@ -170,7 +182,41 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
                 destinationRef.current.lng
               );
 
-              if (distanceToDestination < 0.2) {
+              if (distanceToDestination < 0.1) {
+                console.log('🎉 Route completed! Driver reached destination (within 0.1 mi)');
+                
+                try {
+                  if (!driverId.startsWith('test-')) {
+                    const driverRef = doc(db, 'drivers', driverId);
+                    await updateDoc(driverRef, {
+                      status: 'completed',
+                      location: updatedLocation,
+                      eta: 0,
+                      distanceRemaining: 0,
+                      completedAt: serverTimestamp(),
+                    });
+
+                    const tripsRef = collection(db, 'drivers', driverId, 'trips');
+                    await addDoc(tripsRef, {
+                      destination: destinationRef.current,
+                      completedAt: serverTimestamp(),
+                      totalDistance: previousDistanceRef.current,
+                      durationMinutes: previousETARef.current,
+                      loadId: activeLoadIdRef.current || null,
+                      status: 'completed',
+                    });
+
+                    console.log('Route completed successfully - trip logged to Firestore');
+                  }
+                } catch (err) {
+                  console.error('[useDriverNavigation] Error completing route:', err);
+                }
+
+                if (stopNavigationRef.current) {
+                  await stopNavigationRef.current();
+                }
+                return;
+              } else if (distanceToDestination < 0.2) {
                 status = 'arrived_pickup';
                 console.log('Driver status: arrived_pickup (within 0.2 mi)');
               } else if (distanceToDestination < 5) {
@@ -319,10 +365,11 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     };
   }, [destination, currentLocation, getRoute]);
 
-  const startNavigation = useCallback((dest: NavigationLocation) => {
+  const startNavigation = useCallback((dest: NavigationLocation, loadId?: string) => {
     console.log('[useDriverNavigation] Starting navigation to:', dest);
     setDestination(dest);
     setIsNavigating(true);
+    activeLoadIdRef.current = loadId || null;
   }, []);
 
   const stopNavigation = useCallback(async () => {
@@ -332,6 +379,9 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     setRouteCoords([]);
     setDistance(0);
     setDuration(0);
+    activeLoadIdRef.current = null;
+    previousDistanceRef.current = 0;
+    previousETARef.current = 0;
     
     if (routeRefreshIntervalRef.current) {
       clearInterval(routeRefreshIntervalRef.current);
@@ -347,6 +397,10 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       );
     }
   }, [currentLocation, syncLocationToFirestore]);
+
+  useEffect(() => {
+    stopNavigationRef.current = stopNavigation;
+  }, [stopNavigation]);
 
   return {
     currentLocation,
