@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,12 +11,22 @@ type NavItem = {
   icon: React.ReactNode;
 };
 
+type HourlyDataPoint = {
+  hour: string;
+  value: number;
+};
+
+type MonthlyDataPoint = {
+  month: string;
+  value: number;
+};
+
 export default function AdminDashboard() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [amPmFilter, setAmPmFilter] = useState<'am' | 'pm'>('pm');
+  const [timePeriod, setTimePeriod] = useState<'am' | 'pm'>('pm');
   const analytics = useAdminAnalytics();
 
   const isMobile = width < 768;
@@ -28,7 +38,22 @@ export default function AdminDashboard() {
     { id: 'delay', label: 'Delay', icon: <AlertTriangle size={20} color="#FFFFFF" /> },
   ];
 
-  const hourlyData = [
+  const amHourlyData: HourlyDataPoint[] = [
+    { hour: '12AM', value: 28 },
+    { hour: '1AM', value: 22 },
+    { hour: '2AM', value: 18 },
+    { hour: '3AM', value: 15 },
+    { hour: '4AM', value: 20 },
+    { hour: '5AM', value: 32 },
+    { hour: '6AM', value: 45 },
+    { hour: '7AM', value: 58 },
+    { hour: '8AM', value: 72 },
+    { hour: '9AM', value: 85 },
+    { hour: '10AM', value: 78 },
+    { hour: '11AM', value: 68 },
+  ];
+
+  const pmHourlyData: HourlyDataPoint[] = [
     { hour: '12PM', value: 45 },
     { hour: '1PM', value: 52 },
     { hour: '2PM', value: 68 },
@@ -43,7 +68,7 @@ export default function AdminDashboard() {
     { hour: '11PM', value: 38 },
   ];
 
-  const monthlyData = [
+  const monthlyData: MonthlyDataPoint[] = [
     { month: 'January', value: 45 },
     { month: 'February', value: 38 },
     { month: 'March', value: 52 },
@@ -53,6 +78,26 @@ export default function AdminDashboard() {
     { month: 'July', value: 73 },
     { month: 'August', value: 78 },
   ];
+
+  const topDrivers = [
+    'Jake Miller',
+    'Sarah Lopez',
+    'Tony Reed',
+    'John Davis',
+    'Rachel Carter',
+  ];
+
+  const topDestinations = [
+    'Houston, TX',
+    'Phoenix, AZ',
+    'Atlanta, GA',
+    'Miami, FL',
+    'Denver, CO',
+  ];
+
+  const hourlyData = useMemo(() => {
+    return timePeriod === 'am' ? amHourlyData : pmHourlyData;
+  }, [timePeriod]);
 
   const renderSidebar = () => {
     if (isMobile && !sidebarOpen) return null;
@@ -102,6 +147,303 @@ export default function AdminDashboard() {
     );
   };
 
+  const renderMetricCards = () => {
+    if (analytics.isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      );
+    }
+
+    if (analytics.error) {
+      return (
+        <View style={styles.errorContainer}>
+          <AlertTriangle size={48} color="#EF4444" />
+          <Text style={styles.errorText}>Error loading analytics</Text>
+          <Text style={styles.errorSubtext}>{analytics.error}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Total Active Loads</Text>
+              <Text style={styles.metricValue}>{analytics.activeLoads.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+              <Package size={40} color="#2563EB" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Delivered Loads</Text>
+              <Text style={styles.metricValue}>{analytics.deliveredLoads.toLocaleString()}</Text>
+              <Text style={styles.metricSubtitle}>
+                {analytics.loadCounts.total > 0
+                  ? ((analytics.deliveredLoads / analytics.loadCounts.total) * 100).toFixed(2)
+                  : '0.00'}%
+              </Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
+              <CheckCircle size={40} color="#10B981" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Delayed or Pending</Text>
+              <Text style={styles.metricValue}>{analytics.delayedLoads.toLocaleString()}</Text>
+              <Text style={styles.metricSubtitle}>
+                {analytics.loadCounts.total > 0
+                  ? ((analytics.delayedLoads / analytics.loadCounts.total) * 100).toFixed(2)
+                  : '0.00'}%
+              </Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <AlertTriangle size={40} color="#F59E0B" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+          </View>
+        </View>
+
+        <View style={[styles.metricCard, { marginBottom: 24 }]}>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricTitle}>In-Transit Shipments</Text>
+            <Text style={styles.metricValue}>{analytics.inTransitLoads.toLocaleString()}</Text>
+          </View>
+          <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
+            <Truck size={40} color="#8B5CF6" />
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
+        </View>
+
+        <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Total Revenue</Text>
+              <Text style={styles.metricValue}>${analytics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
+              <TrendingUp size={40} color="#10B981" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Avg Rate/Mile</Text>
+              <Text style={styles.metricValue}>${analytics.avgRate.toFixed(2)}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+              <Package size={40} color="#2563EB" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Avg MPG</Text>
+              <Text style={styles.metricValue}>{analytics.avgMPG.toFixed(1)}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Truck size={40} color="#F59E0B" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+          </View>
+        </View>
+
+        <View style={styles.aiInsightWidget}>
+          <View style={styles.aiInsightHeader}>
+            <View style={styles.aiInsightIconContainer}>
+              <TrendingUp size={26} color="#2563EB" />
+            </View>
+            <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
+          </View>
+          <Text style={styles.aiInsightContent}>
+            Live data connected. {analytics.loadCounts.total} total loads tracked. Average rate of ${analytics.avgRate.toFixed(2)}/mile with {analytics.avgMPG.toFixed(1)} MPG efficiency. {analytics.activeLoads} loads currently active.
+          </Text>
+        </View>
+      </>
+    );
+  };
+
+  const renderHourlyChart = () => {
+    const maxValue = Math.max(...hourlyData.map(d => d.value));
+    
+    return (
+      <View style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Load Distribution by Hour</Text>
+          <View style={styles.toggleButtons}>
+            <TouchableOpacity
+              style={[styles.toggleButton, timePeriod === 'am' && styles.toggleButtonActive]}
+              onPress={() => setTimePeriod('am')}
+            >
+              <Text style={[styles.toggleButtonText, timePeriod === 'am' && styles.toggleButtonTextActive]}>
+                AM
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, timePeriod === 'pm' && styles.toggleButtonActive]}
+              onPress={() => setTimePeriod('pm')}
+            >
+              <Text style={[styles.toggleButtonText, timePeriod === 'pm' && styles.toggleButtonTextActive]}>
+                PM
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.barChart}>
+          {hourlyData.map((item, index) => {
+            const barHeight = (item.value / maxValue) * 180;
+            return (
+              <View key={index} style={styles.barContainer}>
+                <View style={styles.barWrapper}>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: barHeight, backgroundColor: '#1E3A8A' }
+                    ]}
+                  />
+                </View>
+                <Text style={styles.barLabel}>{item.hour}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const renderMonthlyChart = () => {
+    const maxValue = Math.max(...monthlyData.map(d => d.value));
+    
+    return (
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>Load Volume Trend (12-Month)</Text>
+        <View style={styles.lineChart}>
+          {monthlyData.map((item, index) => {
+            const barHeight = (item.value / maxValue) * 120;
+            return (
+              <View key={index} style={styles.lineBarContainer}>
+                <View style={styles.lineBarWrapper}>
+                  <View
+                    style={[
+                      styles.lineBar,
+                      { height: barHeight, backgroundColor: '#1E3A8A' }
+                    ]}
+                  />
+                </View>
+                <Text style={styles.lineBarLabel}>{item.month.substring(0, 3)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const renderDonutCharts = () => {
+    return (
+      <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
+        <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+          <Text style={styles.chartTitle}>Total Booking by Day Type</Text>
+          <View style={styles.donutContainer}>
+            <View style={styles.donutChart}>
+              <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
+              <View style={styles.donutCenter} />
+            </View>
+            <View style={styles.donutLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
+                <Text style={styles.legendText}>Weekday 2,202</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
+                <Text style={styles.legendText}>Weekend 277</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+          <Text style={styles.chartTitle}>Total Booking by Route Type</Text>
+          <View style={styles.donutContainer}>
+            <View style={styles.donutChart}>
+              <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
+              <View style={styles.donutCenter} />
+            </View>
+            <View style={styles.donutLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
+                <Text style={styles.legendText}>Inter City 76%</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
+                <Text style={styles.legendText}>Intra City 24%</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderTopDriversAndDestinations = () => {
+    const driverWidths = [100, 85, 78, 72, 65];
+    const destinationWidths = [100, 88, 75, 68, 55];
+
+    return (
+      <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
+        <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+          <Text style={styles.chartTitle}>Top 5 Most Booked Drivers</Text>
+          <View style={styles.horizontalBarChart}>
+            {topDrivers.map((name, index) => (
+              <View key={index} style={styles.horizontalBarItem}>
+                <Text style={styles.horizontalBarLabel}>{name}</Text>
+                <View style={styles.horizontalBarWrapper}>
+                  <View 
+                    style={[
+                      styles.horizontalBar,
+                      { width: `${driverWidths[index]}%`, backgroundColor: '#1E3A8A' }
+                    ]} 
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+          <Text style={styles.chartTitle}>Top 5 Destinations</Text>
+          <View style={styles.horizontalBarChart}>
+            {topDestinations.map((name, index) => (
+              <View key={index} style={styles.horizontalBarItem}>
+                <Text style={styles.horizontalBarLabel}>{name}</Text>
+                <View style={styles.horizontalBarWrapper}>
+                  <View 
+                    style={[
+                      styles.horizontalBar,
+                      { width: `${destinationWidths[index]}%`, backgroundColor: '#1E3A8A' }
+                    ]} 
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.outerContainer}>
       {renderSidebar()}
@@ -142,283 +484,21 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {analytics.isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Loading analytics...</Text>
-          </View>
-        ) : analytics.error ? (
-          <View style={styles.errorContainer}>
-            <AlertTriangle size={48} color="#EF4444" />
-            <Text style={styles.errorText}>Error loading analytics</Text>
-            <Text style={styles.errorSubtext}>{analytics.error}</Text>
-          </View>
-        ) : (
-          <>
-            <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Total Active Loads</Text>
-                  <Text style={styles.metricValue}>{analytics.activeLoads.toLocaleString()}</Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
-                  <Package size={40} color="#2563EB" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
-              </View>
-
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Delivered Loads</Text>
-                  <Text style={styles.metricValue}>{analytics.deliveredLoads.toLocaleString()}</Text>
-                  <Text style={styles.metricSubtitle}>
-                    {analytics.loadCounts.total > 0
-                      ? ((analytics.deliveredLoads / analytics.loadCounts.total) * 100).toFixed(2)
-                      : '0.00'}%
-                  </Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
-                  <CheckCircle size={40} color="#10B981" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
-              </View>
-
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Delayed or Pending</Text>
-                  <Text style={styles.metricValue}>{analytics.delayedLoads.toLocaleString()}</Text>
-                  <Text style={styles.metricSubtitle}>
-                    {analytics.loadCounts.total > 0
-                      ? ((analytics.delayedLoads / analytics.loadCounts.total) * 100).toFixed(2)
-                      : '0.00'}%
-                  </Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                  <AlertTriangle size={40} color="#F59E0B" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
-              </View>
-            </View>
-
-            <View style={[styles.metricCard, { marginBottom: 24 }]}>
-              <View style={styles.metricContent}>
-                <Text style={styles.metricTitle}>In-Transit Shipments</Text>
-                <Text style={styles.metricValue}>{analytics.inTransitLoads.toLocaleString()}</Text>
-              </View>
-              <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
-                <Truck size={40} color="#8B5CF6" />
-              </View>
-              <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
-            </View>
-
-            <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Total Revenue</Text>
-                  <Text style={styles.metricValue}>${analytics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
-                  <TrendingUp size={40} color="#10B981" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
-              </View>
-
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Avg Rate/Mile</Text>
-                  <Text style={styles.metricValue}>${analytics.avgRate.toFixed(2)}</Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
-                  <Package size={40} color="#2563EB" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
-              </View>
-
-              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-                <View style={styles.metricContent}>
-                  <Text style={styles.metricTitle}>Avg MPG</Text>
-                  <Text style={styles.metricValue}>{analytics.avgMPG.toFixed(1)}</Text>
-                </View>
-                <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
-                  <Truck size={40} color="#F59E0B" />
-                </View>
-                <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
-              </View>
-            </View>
-
-            <View style={styles.aiInsightWidget}>
-              <View style={styles.aiInsightHeader}>
-                <View style={styles.aiInsightIconContainer}>
-                  <TrendingUp size={26} color="#2563EB" />
-                </View>
-                <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
-              </View>
-              <Text style={styles.aiInsightContent}>
-                Live data connected. {analytics.loadCounts.total} total loads tracked. Average rate of ${analytics.avgRate.toFixed(2)}/mile with {analytics.avgMPG.toFixed(1)} MPG efficiency. {analytics.activeLoads} loads currently active.
-              </Text>
-            </View>
-
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Load Distribution by Hour</Text>
-            <View style={styles.toggleButtons}>
-              <TouchableOpacity
-                style={[styles.toggleButton, amPmFilter === 'am' && styles.toggleButtonActive]}
-                onPress={() => setAmPmFilter('am')}
-              >
-                <Text style={[styles.toggleButtonText, amPmFilter === 'am' && styles.toggleButtonTextActive]}>
-                  AM
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, amPmFilter === 'pm' && styles.toggleButtonActive]}
-                onPress={() => setAmPmFilter('pm')}
-              >
-                <Text style={[styles.toggleButtonText, amPmFilter === 'pm' && styles.toggleButtonTextActive]}>
-                  PM
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.barChart}>
-            {hourlyData.map((item, index) => {
-              const maxValue = Math.max(...hourlyData.map(d => d.value));
-              const barHeight = (item.value / maxValue) * 180;
-              return (
-                <View key={index} style={styles.barContainer}>
-                  <View style={styles.barWrapper}>
-                    <View
-                      style={[
-                        styles.bar,
-                        { height: barHeight, backgroundColor: '#1E3A8A' }
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.barLabel}>{item.hour}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Load Volume Trend (12-Month)</Text>
-          <View style={styles.lineChart}>
-            {monthlyData.map((item, index) => {
-              const maxValue = Math.max(...monthlyData.map(d => d.value));
-              const barHeight = (item.value / maxValue) * 120;
-              return (
-                <View key={index} style={styles.lineBarContainer}>
-                  <View style={styles.lineBarWrapper}>
-                    <View
-                      style={[
-                        styles.lineBar,
-                        { height: barHeight, backgroundColor: '#1E3A8A' }
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.lineBarLabel}>{item.month.substring(0, 3)}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
-          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
-            <Text style={styles.chartTitle}>Total Booking by Day Type</Text>
-            <View style={styles.donutContainer}>
-              <View style={styles.donutChart}>
-                <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
-                <View style={styles.donutCenter} />
-              </View>
-              <View style={styles.donutLegend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
-                  <Text style={styles.legendText}>Weekday 2,202</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
-                  <Text style={styles.legendText}>Weekend 277</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
-            <Text style={styles.chartTitle}>Total Booking by Route Type</Text>
-            <View style={styles.donutContainer}>
-              <View style={styles.donutChart}>
-                <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
-                <View style={styles.donutCenter} />
-              </View>
-              <View style={styles.donutLegend}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
-                  <Text style={styles.legendText}>Inter City 76%</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
-                  <Text style={styles.legendText}>Intra City 24%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
-          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
-            <Text style={styles.chartTitle}>Top 5 Most Booked Drivers</Text>
-            <View style={styles.horizontalBarChart}>
-              {['Jake Miller', 'Sarah Lopez', 'Tony Reed', 'John Davis', 'Rachel Carter'].map((name, index) => {
-                const widths = [100, 85, 78, 72, 65];
-                return (
-                  <View key={index} style={styles.horizontalBarItem}>
-                    <Text style={styles.horizontalBarLabel}>{name}</Text>
-                    <View style={styles.horizontalBarWrapper}>
-                      <View 
-                        style={[
-                          styles.horizontalBar,
-                          { width: `${widths[index]}%`, backgroundColor: '#1E3A8A' }
-                        ]} 
-                      />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
-            <Text style={styles.chartTitle}>Top 5 Destinations</Text>
-            <View style={styles.horizontalBarChart}>
-              {['Houston, TX', 'Phoenix, AZ', 'Atlanta, GA', 'Miami, FL', 'Denver, CO'].map((name, index) => {
-                const widths = [100, 88, 75, 68, 55];
-                return (
-                  <View key={index} style={styles.horizontalBarItem}>
-                    <Text style={styles.horizontalBarLabel}>{name}</Text>
-                    <View style={styles.horizontalBarWrapper}>
-                      <View 
-                        style={[
-                          styles.horizontalBar,
-                          { width: `${widths[index]}%`, backgroundColor: '#1E3A8A' }
-                        ]} 
-                      />
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-          </>
-        )}
-      </ScrollView>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {renderMetricCards()}
+          {!analytics.isLoading && !analytics.error && (
+            <>
+              {renderHourlyChart()}
+              {renderMonthlyChart()}
+              {renderDonutCharts()}
+              {renderTopDriversAndDestinations()}
+            </>
+          )}
+        </ScrollView>
 
         {isMobile && sidebarOpen && (
           <TouchableOpacity 
