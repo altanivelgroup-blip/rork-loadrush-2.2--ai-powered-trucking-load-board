@@ -317,8 +317,8 @@ export default function AdminDashboard() {
           <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
             <Text style={styles.chartTitle}>Top 5 Most Booked Drivers</Text>
             <View style={styles.horizontalBarChart}>
-              {['RASIAH', 'MANU', 'MURUGAN', 'SUDHAKAR', 'RAJA'].map((name, index) => {
-                const widths = [100, 35, 35, 30, 28];
+              {['Jake Miller', 'Sarah Lopez', 'Tony Reed', 'John Davis', 'Rachel Carter'].map((name, index) => {
+                const widths = [100, 85, 78, 72, 65];
                 return (
                   <View key={index} style={styles.horizontalBarItem}>
                     <Text style={styles.horizontalBarLabel}>{name}</Text>
@@ -339,8 +339,8 @@ export default function AdminDashboard() {
           <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
             <Text style={styles.chartTitle}>Top 5 Destinations</Text>
             <View style={styles.horizontalBarChart}>
-              {['Tamil Nadu', 'Haryana', 'Gujarat', 'Maharashtra', 'Karnataka'].map((name, index) => {
-                const widths = [100, 45, 40, 38, 35];
+              {['Houston, TX', 'Phoenix, AZ', 'Atlanta, GA', 'Miami, FL', 'Denver, CO'].map((name, index) => {
+                const widths = [100, 88, 75, 68, 55];
                 return (
                   <View key={index} style={styles.horizontalBarItem}>
                     <Text style={styles.horizontalBarLabel}>{name}</Text>

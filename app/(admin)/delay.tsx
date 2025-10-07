@@ -38,22 +38,22 @@ export default function DelayAnalytics() {
   ];
 
   const cityRoutes: RouteData[] = [
-    { route: 'Hosur-To-Hosur', delays: 0, delayRate: 0.02, avgETADays: 0.03, avgNetTripDays: 126.25, avgDistanceDays: 4.17, avgPlanETADays: 0 },
-    { route: 'Kanchipuram-To-Kanchipuram', delays: 6, delayRate: 1.8, avgETADays: 1.05, avgNetTripDays: 1.06, avgDistanceDays: 120.99, avgPlanETADays: 4.17 },
-    { route: 'Gurgaon-To-Ahmedabad', delays: 18, delayRate: 23.7, avgETADays: 3.57, avgNetTripDays: 3.28, avgDistanceDays: 996.71, avgPlanETADays: 4.17 },
-    { route: 'Kanchipuram-To-Pune', delays: 70, delayRate: 73.7, avgETADays: 6.57, avgNetTripDays: 6.02, avgDistanceDays: 1017.55, avgPlanETADays: 3.36 },
-    { route: 'Pune-To-Kanchipuram', delays: 84, delayRate: 59.2, avgETADays: 7.03, avgNetTripDays: 6.75, avgDistanceDays: 1287.42, avgPlanETADays: 4.14 },
-    { route: 'Gurgaon-To-Kanchipuram', delays: 117, delayRate: 73.1, avgETADays: 7.35, avgNetTripDays: 7.19, avgDistanceDays: 2419.53, avgPlanETADays: 4.17 },
-    { route: 'Kanchipuram-To-Ahmedabad', delays: 79, delayRate: 86.8, avgETADays: 7.76, avgNetTripDays: 7.72, avgDistanceDays: 1669.64, avgPlanETADays: 3.41 },
+    { route: 'Dallas-To-Houston', delays: 12, delayRate: 4.9, avgETADays: 0.85, avgNetTripDays: 0.88, avgDistanceDays: 240.50, avgPlanETADays: 0.80 },
+    { route: 'Los Angeles-To-Phoenix', delays: 28, delayRate: 14.1, avgETADays: 1.45, avgNetTripDays: 1.52, avgDistanceDays: 372.80, avgPlanETADays: 1.35 },
+    { route: 'Chicago-To-Atlanta', delays: 45, delayRate: 25.6, avgETADays: 2.20, avgNetTripDays: 2.35, avgDistanceDays: 715.20, avgPlanETADays: 2.05 },
+    { route: 'Miami-To-Orlando', delays: 18, delayRate: 11.7, avgETADays: 0.90, avgNetTripDays: 0.95, avgDistanceDays: 235.60, avgPlanETADays: 0.85 },
+    { route: 'Seattle-To-Portland', delays: 15, delayRate: 11.4, avgETADays: 0.70, avgNetTripDays: 0.74, avgDistanceDays: 173.40, avgPlanETADays: 0.65 },
+    { route: 'Denver-To-Salt Lake City', delays: 32, delayRate: 18.8, avgETADays: 1.55, avgNetTripDays: 1.62, avgDistanceDays: 525.30, avgPlanETADays: 1.45 },
+    { route: 'New York-To-Boston', delays: 22, delayRate: 13.2, avgETADays: 0.95, avgNetTripDays: 1.00, avgDistanceDays: 215.80, avgPlanETADays: 0.90 },
   ];
 
   const stateRoutes: RouteData[] = [
-    { route: 'TamilNadu-To-TamilNadu', delays: 43, delayRate: 12.0, avgETADays: 2.41, avgNetTripDays: 4.15, avgDistanceDays: 314.23, avgPlanETADays: 2.15 },
-    { route: 'Gujarat-To-Gujarat', delays: 23, delayRate: 18.0, avgETADays: 4.51, avgNetTripDays: 7.01, avgDistanceDays: 419.13, avgPlanETADays: 3.82 },
-    { route: 'Odisha-To-Odisha', delays: 58, delayRate: 27.0, avgETADays: 5.05, avgNetTripDays: 8.56, avgDistanceDays: 293.45, avgPlanETADays: 4.21 },
-    { route: 'Maharashtra-To-TamilNadu', delays: 92, delayRate: 45.5, avgETADays: 6.12, avgNetTripDays: 9.34, avgDistanceDays: 1156.78, avgPlanETADays: 5.03 },
-    { route: 'Haryana-To-Gujarat', delays: 67, delayRate: 38.2, avgETADays: 5.89, avgNetTripDays: 8.91, avgDistanceDays: 987.45, avgPlanETADays: 4.67 },
-    { route: 'Karnataka-To-Maharashtra', delays: 105, delayRate: 52.8, avgETADays: 6.78, avgNetTripDays: 10.12, avgDistanceDays: 1345.89, avgPlanETADays: 5.45 },
+    { route: 'Texas-To-Texas', delays: 58, delayRate: 11.9, avgETADays: 1.85, avgNetTripDays: 1.92, avgDistanceDays: 285.50, avgPlanETADays: 1.75 },
+    { route: 'California-To-California', delays: 64, delayRate: 18.1, avgETADays: 2.45, avgNetTripDays: 2.58, avgDistanceDays: 420.75, avgPlanETADays: 2.30 },
+    { route: 'Florida-To-Florida', delays: 36, delayRate: 12.1, avgETADays: 1.50, avgNetTripDays: 1.56, avgDistanceDays: 195.30, avgPlanETADays: 1.42 },
+    { route: 'Illinois-To-Georgia', delays: 48, delayRate: 25.7, avgETADays: 2.20, avgNetTripDays: 2.35, avgDistanceDays: 715.20, avgPlanETADays: 2.05 },
+    { route: 'Washington-To-Oregon', delays: 28, delayRate: 21.2, avgETADays: 0.70, avgNetTripDays: 0.74, avgDistanceDays: 173.40, avgPlanETADays: 0.65 },
+    { route: 'Arizona-To-Texas', delays: 72, delayRate: 30.5, avgETADays: 3.15, avgNetTripDays: 3.35, avgDistanceDays: 1050.80, avgPlanETADays: 2.95 },
   ];
 
   const delaysByMonth = [
@@ -67,27 +67,27 @@ export default function DelayAnalytics() {
   ];
 
   const topDelayCustomers = [
-    { name: 'Larsen & Toubro Limited', value: 92 },
-    { name: 'Ford India Private Limited', value: 81 },
-    { name: 'Ericsson India Private Limited', value: 67 },
-    { name: 'Daimler India Commercial Vehi...', value: 52 },
-    { name: 'Brakes India Private Ltd', value: 41 },
+    { name: 'FedEx Logistics', value: 92 },
+    { name: 'Tesla Parts Supply', value: 81 },
+    { name: 'Amazon Warehousing', value: 67 },
+    { name: 'Ford Motor Transport', value: 52 },
+    { name: 'UPS Freight', value: 41 },
   ];
 
   const topDelaySuppliers = [
-    { name: 'TransLog Supply Co.', value: 85 },
-    { name: 'HaulPro Logistics', value: 70 },
-    { name: 'NextHaul Freight', value: 55 },
-    { name: 'RoadKing Supply', value: 44 },
-    { name: 'Velocity Transport', value: 33 },
+    { name: 'Kroger Distribution', value: 85 },
+    { name: 'Walmart Supply Chain', value: 70 },
+    { name: 'Target Logistics', value: 55 },
+    { name: 'Home Depot Freight', value: 44 },
+    { name: 'Costco Wholesale', value: 33 },
   ];
 
   const topDelayMaterials = [
-    { name: 'Steel', value: 89 },
-    { name: 'Electronics', value: 76 },
-    { name: 'Automotive Parts', value: 63 },
-    { name: 'Textiles', value: 45 },
-    { name: 'Machinery', value: 31 },
+    { name: 'Consumer Electronics', value: 89 },
+    { name: 'Automotive Parts', value: 76 },
+    { name: 'Refrigerated Food', value: 63 },
+    { name: 'Industrial Equipment', value: 45 },
+    { name: 'Paper Products', value: 31 },
   ];
 
   const topDelayData = 

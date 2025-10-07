@@ -50,34 +50,34 @@ export default function RouteAnalytics() {
   ];
 
   const stateRoutes: RouteData[] = [
-    { route: 'Gujarat-To-Gujarat', totalBooking: 63, avgDisPerTrip: 177.54, avgTripLeadHrs: 0.00, avgETADays: 0.27, avgNetTripDays: 0.27 },
-    { route: 'Karnataka-To-Karnataka', totalBooking: 154, avgDisPerTrip: 73.69, avgTripLeadHrs: 1.26, avgETADays: 7.04, avgNetTripDays: 6.98 },
-    { route: 'Odisha-To-Odisha', totalBooking: 35, avgDisPerTrip: 29.86, avgTripLeadHrs: 3.54, avgETADays: 10.48, avgNetTripDays: 10.33 },
-    { route: 'Pondicherry-To-Pondicherry', totalBooking: 43, avgDisPerTrip: 293.02, avgTripLeadHrs: -1.12, avgETADays: 1.37, avgNetTripDays: 1.41 },
-    { route: 'Tamil Nadu-To-Tamil Nadu', totalBooking: 487, avgDisPerTrip: 153.34, avgTripLeadHrs: -0.36, avgETADays: 4.57, avgNetTripDays: 4.58 },
+    { route: 'Texas-To-Texas', totalBooking: 487, avgDisPerTrip: 285.50, avgTripLeadHrs: 2.15, avgETADays: 1.85, avgNetTripDays: 1.82 },
+    { route: 'California-To-California', totalBooking: 354, avgDisPerTrip: 420.75, avgTripLeadHrs: 3.20, avgETADays: 2.45, avgNetTripDays: 2.40 },
+    { route: 'Florida-To-Florida', totalBooking: 298, avgDisPerTrip: 195.30, avgTripLeadHrs: 1.85, avgETADays: 1.50, avgNetTripDays: 1.48 },
+    { route: 'Illinois-To-Illinois', totalBooking: 187, avgDisPerTrip: 165.80, avgTripLeadHrs: 1.60, avgETADays: 1.25, avgNetTripDays: 1.23 },
+    { route: 'Georgia-To-Georgia', totalBooking: 156, avgDisPerTrip: 145.25, avgTripLeadHrs: 1.40, avgETADays: 1.10, avgNetTripDays: 1.08 },
   ];
 
   const cityRoutes: RouteData[] = [
-    { route: 'Chennai-To-Bangalore', totalBooking: 89, avgDisPerTrip: 345.20, avgTripLeadHrs: 2.15, avgETADays: 1.5, avgNetTripDays: 1.48 },
-    { route: 'Mumbai-To-Pune', totalBooking: 124, avgDisPerTrip: 148.50, avgTripLeadHrs: 1.80, avgETADays: 0.75, avgNetTripDays: 0.73 },
-    { route: 'Delhi-To-Jaipur', totalBooking: 67, avgDisPerTrip: 280.30, avgTripLeadHrs: 2.50, avgETADays: 1.2, avgNetTripDays: 1.18 },
-    { route: 'Kolkata-To-Bhubaneswar', totalBooking: 52, avgDisPerTrip: 445.60, avgTripLeadHrs: 3.20, avgETADays: 2.1, avgNetTripDays: 2.08 },
-    { route: 'Hyderabad-To-Vijayawada', totalBooking: 98, avgDisPerTrip: 275.40, avgTripLeadHrs: 1.95, avgETADays: 1.3, avgNetTripDays: 1.28 },
+    { route: 'Dallas-To-Houston', totalBooking: 245, avgDisPerTrip: 240.50, avgTripLeadHrs: 2.10, avgETADays: 0.85, avgNetTripDays: 0.83 },
+    { route: 'Los Angeles-To-Phoenix', totalBooking: 198, avgDisPerTrip: 372.80, avgTripLeadHrs: 2.85, avgETADays: 1.45, avgNetTripDays: 1.42 },
+    { route: 'Chicago-To-Atlanta', totalBooking: 176, avgDisPerTrip: 715.20, avgTripLeadHrs: 4.50, avgETADays: 2.20, avgNetTripDays: 2.18 },
+    { route: 'Miami-To-Orlando', totalBooking: 154, avgDisPerTrip: 235.60, avgTripLeadHrs: 2.05, avgETADays: 0.90, avgNetTripDays: 0.88 },
+    { route: 'Seattle-To-Portland', totalBooking: 132, avgDisPerTrip: 173.40, avgTripLeadHrs: 1.75, avgETADays: 0.70, avgNetTripDays: 0.68 },
   ];
 
   const allDriverData: DriverData[] = [
-    { name: 'AAMIN', booking: 2, avgOrderCycle: 0.5, avgDistance: 925, ontime: 2, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
-    { name: 'AARIF KHAN', booking: 3, avgOrderCycle: 1.0, avgDistance: 1000, ontime: 3, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
-    { name: 'ABDUL MANRA...', booking: 1, avgOrderCycle: 1.0, avgDistance: 427, ontime: 1, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
-    { name: 'ABDUL MOJID', booking: 1, avgOrderCycle: 0.0, avgDistance: 451, ontime: 1, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
-    { name: 'ABDUL RASHID', booking: 1, avgOrderCycle: 4.0, avgDistance: 525, ontime: 1, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
-    { name: 'AJRU', booking: 2, avgOrderCycle: 2.5, avgDistance: 1000, ontime: 2, late: 0, ontimePercent: 100.00, latePercent: 0.00 },
+    { name: 'Jake Miller', booking: 145, avgOrderCycle: 2.8, avgDistance: 1250, ontime: 132, late: 13, ontimePercent: 91.03, latePercent: 8.97 },
+    { name: 'Sarah Lopez', booking: 128, avgOrderCycle: 2.5, avgDistance: 1180, ontime: 118, late: 10, ontimePercent: 92.19, latePercent: 7.81 },
+    { name: 'Tony Reed', booking: 112, avgOrderCycle: 3.1, avgDistance: 1320, ontime: 98, late: 14, ontimePercent: 87.50, latePercent: 12.50 },
+    { name: 'John Davis', booking: 98, avgOrderCycle: 2.7, avgDistance: 1095, ontime: 89, late: 9, ontimePercent: 90.82, latePercent: 9.18 },
+    { name: 'Rachel Carter', booking: 87, avgOrderCycle: 2.9, avgDistance: 1240, ontime: 78, late: 9, ontimePercent: 89.66, latePercent: 10.34 },
+    { name: 'Mike Johnson', booking: 76, avgOrderCycle: 3.2, avgDistance: 1380, ontime: 65, late: 11, ontimePercent: 85.53, latePercent: 14.47 },
   ];
 
   const customerData: DriverData[] = [
-    { name: 'ABC Corp', booking: 45, avgOrderCycle: 3.2, avgDistance: 1250, ontime: 38, late: 7, ontimePercent: 84.44, latePercent: 15.56 },
-    { name: 'XYZ Industries', booking: 32, avgOrderCycle: 2.8, avgDistance: 980, ontime: 29, late: 3, ontimePercent: 90.63, latePercent: 9.37 },
-    { name: 'Global Logistics', booking: 28, avgOrderCycle: 4.1, avgDistance: 1450, ontime: 22, late: 6, ontimePercent: 78.57, latePercent: 21.43 },
+    { name: 'FedEx Logistics', booking: 156, avgOrderCycle: 2.4, avgDistance: 1180, ontime: 142, late: 14, ontimePercent: 91.03, latePercent: 8.97 },
+    { name: 'Tesla Parts Supply', booking: 132, avgOrderCycle: 2.8, avgDistance: 1320, ontime: 118, late: 14, ontimePercent: 89.39, latePercent: 10.61 },
+    { name: 'Kroger Distribution', booking: 98, avgOrderCycle: 2.6, avgDistance: 1095, ontime: 87, late: 11, ontimePercent: 88.78, latePercent: 11.22 },
   ];
 
   const opsData: DriverData[] = [
@@ -105,35 +105,35 @@ export default function RouteAnalytics() {
   ];
 
   const interStateDriversBooking = [
-    { name: 'KUMAR', value: 145 },
-    { name: 'SINGH', value: 98 },
-    { name: 'PATEL', value: 87 },
-    { name: 'SHARMA', value: 76 },
-    { name: 'REDDY', value: 65 },
+    { name: 'Jake Miller', value: 145 },
+    { name: 'Sarah Lopez', value: 128 },
+    { name: 'Tony Reed', value: 112 },
+    { name: 'John Davis', value: 98 },
+    { name: 'Rachel Carter', value: 87 },
   ];
 
   const interStateDriversETA = [
-    { name: 'KUMAR', value: 2.8 },
-    { name: 'SINGH', value: 3.2 },
-    { name: 'PATEL', value: 2.5 },
-    { name: 'SHARMA', value: 3.5 },
-    { name: 'REDDY', value: 2.9 },
+    { name: 'Jake Miller', value: 2.8 },
+    { name: 'Sarah Lopez', value: 2.5 },
+    { name: 'Tony Reed', value: 3.1 },
+    { name: 'John Davis', value: 2.7 },
+    { name: 'Rachel Carter', value: 2.9 },
   ];
 
   const intraStateDriversBooking = [
-    { name: 'RASIAH', value: 487 },
-    { name: 'MANU', value: 154 },
-    { name: 'MURUGAN', value: 154 },
-    { name: 'SUDHAKAR', value: 143 },
-    { name: 'RAJA', value: 120 },
+    { name: 'Jake Miller', value: 245 },
+    { name: 'Sarah Lopez', value: 198 },
+    { name: 'Tony Reed', value: 176 },
+    { name: 'John Davis', value: 154 },
+    { name: 'Rachel Carter', value: 132 },
   ];
 
   const intraStateDriversETA = [
-    { name: 'RASIAH', value: 4.6 },
-    { name: 'MANU', value: 7.0 },
-    { name: 'MURUGAN', value: 6.8 },
-    { name: 'SUDHAKAR', value: 5.2 },
-    { name: 'RAJA', value: 5.8 },
+    { name: 'Jake Miller', value: 2.1 },
+    { name: 'Sarah Lopez', value: 2.8 },
+    { name: 'Tony Reed', value: 4.5 },
+    { name: 'John Davis', value: 2.0 },
+    { name: 'Rachel Carter', value: 1.7 },
   ];
 
   const filteredRoutes = useMemo(() => {
@@ -559,8 +559,8 @@ export default function RouteAnalytics() {
           <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
             <Text style={styles.chartTitle}>Top 5 Destinations</Text>
             <View style={styles.horizontalBarChart}>
-              {['Tamil Nadu', 'Haryana', 'Gujarat', 'Maharashtra', 'Karnataka'].map((name, index) => {
-                const widths = [100, 45, 40, 38, 35];
+              {['Houston, TX', 'Phoenix, AZ', 'Atlanta, GA', 'Miami, FL', 'Denver, CO'].map((name, index) => {
+                const widths = [100, 88, 75, 68, 55];
                 return (
                   <View key={index} style={styles.horizontalBarItem}>
                     <Text style={styles.horizontalBarLabel}>{name}</Text>

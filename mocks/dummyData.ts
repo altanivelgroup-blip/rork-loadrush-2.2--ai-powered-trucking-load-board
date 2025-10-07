@@ -228,9 +228,9 @@ export const dummyLoads: Load[] = [
 export const dummyDriverAnalytics: AnalyticsData = {
   totalEarnings: 45280.50,
   totalMiles: 18450,
-  avgRatePerMile: 2.45,
+  avgRatePerMile: 2.85,
   loadsCompleted: 23,
-  avgMpg: 7.2,
+  avgMpg: 7.5,
   fuelCost: 9225.00,
   netEarnings: 36055.50,
   trend: 'up',
@@ -315,12 +315,12 @@ export const dummyShipperAnalytics = {
   activeLoads: 12,
   completedLoads: 144,
   totalSpent: 387450.00,
-  avgCostPerMile: 2.35,
+  avgCostPerMile: 2.85,
   onTimeDeliveryRate: 96.5,
   topRoutes: [
-    { route: "Dallas, TX → Phoenix, AZ", count: 23, avgCost: 2850 },
-    { route: "Chicago, IL → Atlanta, GA", count: 18, avgCost: 1950 },
-    { route: "Los Angeles, CA → Seattle, WA", count: 15, avgCost: 3200 },
+    { route: "Dallas, TX → Houston, TX", count: 23, avgCost: 2395 },
+    { route: "Los Angeles, CA → Phoenix, AZ", count: 18, avgCost: 2850 },
+    { route: "Chicago, IL → Atlanta, GA", count: 15, avgCost: 1950 },
   ],
 };
 
@@ -335,28 +335,28 @@ export const dummyAdminAnalytics = {
   monthlyRevenue: 387450.00,
   revenueGrowth: 18.5,
   topRoutes: [
-    { route: "Dallas, TX → Phoenix, AZ", volume: 145, revenue: 412850 },
-    { route: "Chicago, IL → Atlanta, GA", volume: 132, revenue: 257400 },
-    { route: "Los Angeles, CA → Seattle, WA", volume: 98, revenue: 313600 },
-    { route: "Houston, TX → Memphis, TN", volume: 87, revenue: 146160 },
+    { route: "Dallas, TX → Houston, TX", volume: 245, revenue: 587250 },
+    { route: "Los Angeles, CA → Phoenix, AZ", volume: 198, revenue: 564240 },
+    { route: "Chicago, IL → Atlanta, GA", volume: 176, revenue: 343232 },
+    { route: "Miami, FL → Orlando, FL", volume: 154, revenue: 362780 },
   ],
   pendingDocuments: 23,
 };
 
 export const dummyTopDrivers = [
-  { id: 'd1', name: 'John Smith', completedLoads: 145, rating: 4.9, avgDeliveryTime: '18.5 hrs', earnings: 87450 },
-  { id: 'd2', name: 'Maria Garcia', completedLoads: 132, rating: 4.8, avgDeliveryTime: '19.2 hrs', earnings: 78920 },
-  { id: 'd3', name: 'David Johnson', completedLoads: 128, rating: 4.7, avgDeliveryTime: '20.1 hrs', earnings: 76340 },
-  { id: 'd4', name: 'Sarah Williams', completedLoads: 119, rating: 4.9, avgDeliveryTime: '17.8 hrs', earnings: 82150 },
-  { id: 'd5', name: 'Michael Brown', completedLoads: 115, rating: 4.6, avgDeliveryTime: '21.3 hrs', earnings: 68900 },
+  { id: 'd1', name: 'Jake Miller', completedLoads: 145, rating: 4.9, avgDeliveryTime: '18.5 hrs', earnings: 87450 },
+  { id: 'd2', name: 'Sarah Lopez', completedLoads: 132, rating: 4.8, avgDeliveryTime: '19.2 hrs', earnings: 78920 },
+  { id: 'd3', name: 'Tony Reed', completedLoads: 128, rating: 4.7, avgDeliveryTime: '20.1 hrs', earnings: 76340 },
+  { id: 'd4', name: 'John Davis', completedLoads: 119, rating: 4.9, avgDeliveryTime: '17.8 hrs', earnings: 82150 },
+  { id: 'd5', name: 'Rachel Carter', completedLoads: 115, rating: 4.6, avgDeliveryTime: '21.3 hrs', earnings: 68900 },
 ];
 
 export const dummyTopShippers = [
-  { id: 's1', company: 'Amazon Logistics', loadsPosted: 234, fillRate: 98.5, spend: 687450 },
-  { id: 's2', company: 'Walmart Supply Chain', loadsPosted: 198, fillRate: 96.2, spend: 542300 },
-  { id: 's3', company: 'Target Distribution', loadsPosted: 176, fillRate: 94.8, spend: 478920 },
-  { id: 's4', company: 'Home Depot Freight', loadsPosted: 145, fillRate: 97.1, spend: 412850 },
-  { id: 's5', company: 'Costco Wholesale', loadsPosted: 132, fillRate: 95.3, spend: 389760 },
+  { id: 's1', company: 'FedEx Logistics', loadsPosted: 234, fillRate: 98.5, spend: 687450 },
+  { id: 's2', company: 'Tesla Parts Supply', loadsPosted: 198, fillRate: 96.2, spend: 542300 },
+  { id: 's3', company: 'Kroger Distribution', loadsPosted: 176, fillRate: 94.8, spend: 478920 },
+  { id: 's4', company: 'UPS Freight', loadsPosted: 145, fillRate: 97.1, spend: 412850 },
+  { id: 's5', company: 'Amazon Warehousing', loadsPosted: 132, fillRate: 95.3, spend: 389760 },
 ];
 
 export const dummyLoadsByStatus = [
