@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 
 export interface NavigationLocation {
   lat: number;
@@ -20,6 +22,7 @@ export interface UseDriverNavigationReturn {
   distance: number;
   duration: number;
   getRoute: (origin: NavigationLocation, destination: NavigationLocation) => Promise<void>;
+  setDestination: (destination: NavigationLocation | null) => void;
 }
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
@@ -31,6 +34,29 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   const [routeCoords, setRouteCoords] = useState<NavigationLocation[]>([]);
   const [distance, setDistance] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
+  const [destination, setDestination] = useState<NavigationLocation | null>(null);
+  const routeRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const syncLocationToFirestore = useCallback(async (location: NavigationLocation) => {
+    if (!driverId || driverId.startsWith('test-')) {
+      console.log('[useDriverNavigation] Test user - skipping Firestore sync');
+      return;
+    }
+
+    try {
+      const driverRef = doc(db, 'drivers', driverId);
+      await updateDoc(driverRef, {
+        location: {
+          lat: location.lat,
+          lng: location.lng,
+          timestamp: serverTimestamp(),
+        },
+      });
+      console.log('[useDriverNavigation] Location synced to Firestore:', location);
+    } catch (err) {
+      console.error('[useDriverNavigation] Error syncing to Firestore:', err);
+    }
+  }, [driverId]);
 
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription | null = null;
@@ -48,10 +74,13 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
           accuracy: Location.Accuracy.Balanced,
         });
 
-        setCurrentLocation({
+        const newLocation: NavigationLocation = {
           lat: location.coords.latitude,
           lng: location.coords.longitude,
-        });
+        };
+
+        setCurrentLocation(newLocation);
+        await syncLocationToFirestore(newLocation);
 
         locationSubscription = await Location.watchPositionAsync(
           {
@@ -59,11 +88,13 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
             timeInterval: 5000,
             distanceInterval: 10,
           },
-          (newLocation) => {
-            setCurrentLocation({
+          async (newLocation) => {
+            const updatedLocation: NavigationLocation = {
               lat: newLocation.coords.latitude,
               lng: newLocation.coords.longitude,
-            });
+            };
+            setCurrentLocation(updatedLocation);
+            await syncLocationToFirestore(updatedLocation);
           }
         );
 
@@ -83,7 +114,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
         locationSubscription.remove();
       }
     };
-  }, [driverId]);
+  }, [driverId, syncLocationToFirestore]);
 
   const getRoute = useCallback(async (origin: NavigationLocation, destination: NavigationLocation) => {
     if (!MAPBOX_TOKEN) {
@@ -144,6 +175,33 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     }
   }, []);
 
+  useEffect(() => {
+    if (routeRefreshIntervalRef.current) {
+      clearInterval(routeRefreshIntervalRef.current);
+      routeRefreshIntervalRef.current = null;
+    }
+
+    if (destination && currentLocation) {
+      console.log('[useDriverNavigation] Setting up auto-refresh for route every 15 seconds');
+      
+      getRoute(currentLocation, destination);
+
+      routeRefreshIntervalRef.current = setInterval(() => {
+        if (currentLocation && destination) {
+          console.log('[useDriverNavigation] Auto-refreshing route...');
+          getRoute(currentLocation, destination);
+        }
+      }, 15000);
+    }
+
+    return () => {
+      if (routeRefreshIntervalRef.current) {
+        clearInterval(routeRefreshIntervalRef.current);
+        routeRefreshIntervalRef.current = null;
+      }
+    };
+  }, [destination, currentLocation, getRoute]);
+
   return {
     currentLocation,
     isNavigating,
@@ -152,5 +210,6 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     distance,
     duration,
     getRoute,
+    setDestination,
   };
 }
