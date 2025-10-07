@@ -8,12 +8,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
-  Modal,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
   Calendar,
-  MapPin,
   Package,
   DollarSign,
   ChevronLeft,
@@ -72,9 +70,8 @@ export default function PostSingleLoadWizard() {
   // Step 5: Review
   const [contact, setContact] = useState<string>('');
 
-  const [dateModal, setDateModal] = useState<{ visible: boolean; target: 'pickup' | 'delivery' | null; temp: Date }>(
-    { visible: false, target: null, temp: new Date() },
-  );
+  const [inlinePickerTarget, setInlinePickerTarget] = useState<'pickup' | 'delivery' | null>(null);
+  const [inlinePickerValue, setInlinePickerValue] = useState<Date>(new Date());
 
   const formatDate = useCallback((date: Date | null): string => {
     if (!date) return '';
@@ -99,15 +96,16 @@ export default function PostSingleLoadWizard() {
       return;
     }
 
-    setDateModal({ visible: true, target, temp: current });
+    setInlinePickerTarget(target);
+    setInlinePickerValue(current);
   }, [pickupDate, deliveryDate]);
 
-  const closeDateModalConfirm = useCallback(() => {
-    if (!dateModal.visible || !dateModal.target) return;
-    if (dateModal.target === 'pickup') setPickupDate(dateModal.temp);
-    if (dateModal.target === 'delivery') setDeliveryDate(dateModal.temp);
-    setDateModal({ visible: false, target: null, temp: new Date() });
-  }, [dateModal]);
+  const onInlineDateChange = useCallback((d: Date | undefined) => {
+    if (!inlinePickerTarget || !d) return;
+    if (inlinePickerTarget === 'pickup') setPickupDate(d);
+    if (inlinePickerTarget === 'delivery') setDeliveryDate(d);
+    setInlinePickerTarget(null);
+  }, [inlinePickerTarget]);
 
   const next = useCallback(() => {
     setStepIndex((i) => Math.min(i + 1, steps.length - 1));
@@ -207,7 +205,7 @@ export default function PostSingleLoadWizard() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerTitle}>Post Load - Step {stepIndex + 1}</Text>
-        {renderStepIndicator}
+        <View>{renderStepIndicator}</View>
 
         {steps[stepIndex].key === 'details' && (
           <>
@@ -278,6 +276,18 @@ export default function PostSingleLoadWizard() {
               <Calendar size={18} color="#6b7280" />
               <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>{formatDate(pickupDate) || 'Oct 7, 2025'}</Text>
             </TouchableOpacity>
+            {inlinePickerTarget === 'pickup' && (
+              <View style={{ marginTop: 8 }}>
+                <DateTimePicker
+                  testID="inline-pickup-date-picker"
+                  value={inlinePickerValue}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  minimumDate={new Date()}
+                  onChange={(_e, d) => onInlineDateChange(d ?? undefined)}
+                />
+              </View>
+            )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Date</Text>
             <TouchableOpacity
@@ -289,6 +299,18 @@ export default function PostSingleLoadWizard() {
               <Calendar size={18} color="#6b7280" />
               <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>{formatDate(deliveryDate) || 'Oct 8, 2025'}</Text>
             </TouchableOpacity>
+            {inlinePickerTarget === 'delivery' && (
+              <View style={{ marginTop: 8 }}>
+                <DateTimePicker
+                  testID="inline-delivery-date-picker"
+                  value={inlinePickerValue}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                  minimumDate={new Date()}
+                  onChange={(_e, d) => onInlineDateChange(d ?? undefined)}
+                />
+              </View>
+            )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Time (HH:MM)</Text>
             <TextInput testID="delivery-time" style={styles.input} value={deliveryTime} onChangeText={setDeliveryTime} placeholder="17:00" placeholderTextColor="#9CA3AF" />
@@ -381,34 +403,7 @@ export default function PostSingleLoadWizard() {
         </View>
       </ScrollView>
 
-      <Modal visible={dateModal.visible} transparent animationType="fade" onRequestClose={() => setDateModal({ visible: false, target: null, temp: new Date() })}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{dateModal.target === 'pickup' ? 'Pickup Date' : 'Delivery Date'}</Text>
-            <View style={{ alignSelf: 'stretch' }}>
-              <DateTimePicker
-                testID="ios-web-date-picker"
-                value={dateModal.temp}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                minimumDate={new Date()}
-                onChange={(_e, d) => {
-                  if (!d) return;
-                  setDateModal((prev) => ({ ...prev, temp: d }));
-                }}
-              />
-            </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSecondary]} onPress={() => setDateModal((prev) => ({ ...prev, temp: new Date() }))}>
-                <Text style={styles.modalBtnSecondaryText}>Today</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={closeDateModalConfirm}>
-                <Text style={styles.modalBtnPrimaryText}>Use this date</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+
     </View>
   );
 }
@@ -469,13 +464,5 @@ const styles = StyleSheet.create({
   nextBtnText: { fontSize: 16, fontWeight: '600' as const, color: '#fff' },
   nextBtnDisabled: { opacity: 0.5 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 16, width: '100%', maxWidth: 520 },
-  modalTitle: { fontSize: 18, fontWeight: '700' as const, color: '#1a1a1a', textAlign: 'center', marginBottom: 8 },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
-  modalBtnSecondary: { backgroundColor: '#E5E7EB' },
-  modalBtnPrimary: { backgroundColor: '#1f2a69' },
-  modalBtnSecondaryText: { fontSize: 15, fontWeight: '700' as const, color: '#374151' },
-  modalBtnPrimaryText: { fontSize: 15, fontWeight: '700' as const, color: '#fff' },
+
 });
