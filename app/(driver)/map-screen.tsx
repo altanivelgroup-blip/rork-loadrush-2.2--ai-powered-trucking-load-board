@@ -100,6 +100,31 @@ export default function DriverMapScreen() {
     }
   }, [location, pickup, dropoff, getRoute]);
 
+  useEffect(() => {
+    const testORS = async () => {
+      try {
+        console.log('🔑 ORS API Key loaded:', process.env.EXPO_PUBLIC_ORS_API_KEY ? '✅ OK' : '❌ MISSING');
+
+        const testUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${process.env.EXPO_PUBLIC_ORS_API_KEY}&start=-96.7970,32.7767&end=-97.7431,30.2672`;
+        const res = await fetch(testUrl);
+        const data = await res.json();
+
+        if (data.features) {
+          const summary = data.features[0].properties.summary;
+          console.log(
+            `✅ ORS working! Distance: ${(summary.distance / 1000).toFixed(1)} km | ETA: ${(summary.duration / 60).toFixed(0)} min`
+          );
+        } else {
+          console.log('⚠️ ORS returned unexpected data:', data);
+        }
+      } catch (err) {
+        console.log('❌ ORS Test Failed:', err);
+      }
+    };
+
+    testORS();
+  }, []);
+
   const handleClose = () => {
     router.back();
   };
