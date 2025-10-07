@@ -468,94 +468,193 @@ export default function PostSingleLoadScreen() {
         </View>
       </ScrollView>
 
-      {Platform.OS === 'ios' && showPickupDatePicker && (
-        <Modal
-          transparent
-          animationType="slide"
-          visible={showPickupDatePicker}
-          onRequestClose={() => setShowPickupDatePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.datePickerModal}>
-              <View style={styles.datePickerHeader}>
-                <Text style={styles.datePickerTitle}>Select Pickup Date</Text>
-                <TouchableOpacity
-                  onPress={() => setShowPickupDatePicker(false)}
-                  style={styles.closeButton}
-                >
-                  <X size={24} color="#6b7280" />
-                </TouchableOpacity>
+      {Platform.OS === 'web' ? (
+        <>
+          {showPickupDatePicker && (
+            <Modal
+              transparent
+              animationType="fade"
+              visible={showPickupDatePicker}
+              onRequestClose={() => setShowPickupDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Select Pickup Date</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowPickupDatePicker(false)}
+                      style={styles.closeButton}
+                    >
+                      <X size={24} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.webDatePickerContainer}>
+                    <input
+                      type="date"
+                      value={pickupDate}
+                      onChange={(e: any) => {
+                        const selectedDate = new Date(e.target.value);
+                        setPickupDateObj(selectedDate);
+                        setPickupDate(formatDate(selectedDate));
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        fontSize: '16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                      }}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => setShowPickupDatePicker(false)}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <DateTimePicker
-                value={pickupDateObj}
-                mode="date"
-                display="spinner"
-                onChange={handlePickupDateChange}
-                textColor="#1a1a1a"
-              />
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => setShowPickupDatePicker(false)}
-              >
-                <Text style={styles.confirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
-
-      {Platform.OS === 'android' && showPickupDatePicker && (
-        <DateTimePicker
-          value={pickupDateObj}
-          mode="date"
-          display="default"
-          onChange={handlePickupDateChange}
-        />
-      )}
-
-      {Platform.OS === 'ios' && showDeliveryDatePicker && (
-        <Modal
-          transparent
-          animationType="slide"
-          visible={showDeliveryDatePicker}
-          onRequestClose={() => setShowDeliveryDatePicker(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.datePickerModal}>
-              <View style={styles.datePickerHeader}>
-                <Text style={styles.datePickerTitle}>Select Delivery Date</Text>
-                <TouchableOpacity
-                  onPress={() => setShowDeliveryDatePicker(false)}
-                  style={styles.closeButton}
-                >
-                  <X size={24} color="#6b7280" />
-                </TouchableOpacity>
+            </Modal>
+          )}
+          {showDeliveryDatePicker && (
+            <Modal
+              transparent
+              animationType="fade"
+              visible={showDeliveryDatePicker}
+              onRequestClose={() => setShowDeliveryDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Select Delivery Date</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDeliveryDatePicker(false)}
+                      style={styles.closeButton}
+                    >
+                      <X size={24} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.webDatePickerContainer}>
+                    <input
+                      type="date"
+                      value={deliveryDate}
+                      onChange={(e: any) => {
+                        const selectedDate = new Date(e.target.value);
+                        setDeliveryDateObj(selectedDate);
+                        setDeliveryDate(formatDate(selectedDate));
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        fontSize: '16px',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                      }}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => setShowDeliveryDatePicker(false)}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <DateTimePicker
-                value={deliveryDateObj}
-                mode="date"
-                display="spinner"
-                onChange={handleDeliveryDateChange}
-                textColor="#1a1a1a"
-              />
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={() => setShowDeliveryDatePicker(false)}
-              >
-                <Text style={styles.confirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
+            </Modal>
+          )}
+        </>
+      ) : (
+        <>
+          {Platform.OS === 'ios' && showPickupDatePicker && (
+            <Modal
+              transparent
+              animationType="slide"
+              visible={showPickupDatePicker}
+              onRequestClose={() => setShowPickupDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Select Pickup Date</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowPickupDatePicker(false)}
+                      style={styles.closeButton}
+                    >
+                      <X size={24} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={pickupDateObj}
+                    mode="date"
+                    display="spinner"
+                    onChange={handlePickupDateChange}
+                    textColor="#1a1a1a"
+                  />
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => setShowPickupDatePicker(false)}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          )}
 
-      {Platform.OS === 'android' && showDeliveryDatePicker && (
-        <DateTimePicker
-          value={deliveryDateObj}
-          mode="date"
-          display="default"
-          onChange={handleDeliveryDateChange}
-        />
+          {Platform.OS === 'android' && showPickupDatePicker && (
+            <DateTimePicker
+              value={pickupDateObj}
+              mode="date"
+              display="default"
+              onChange={handlePickupDateChange}
+            />
+          )}
+
+          {Platform.OS === 'ios' && showDeliveryDatePicker && (
+            <Modal
+              transparent
+              animationType="slide"
+              visible={showDeliveryDatePicker}
+              onRequestClose={() => setShowDeliveryDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerHeader}>
+                    <Text style={styles.datePickerTitle}>Select Delivery Date</Text>
+                    <TouchableOpacity
+                      onPress={() => setShowDeliveryDatePicker(false)}
+                      style={styles.closeButton}
+                    >
+                      <X size={24} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={deliveryDateObj}
+                    mode="date"
+                    display="spinner"
+                    onChange={handleDeliveryDateChange}
+                    textColor="#1a1a1a"
+                  />
+                  <TouchableOpacity
+                    style={styles.confirmButton}
+                    onPress={() => setShowDeliveryDatePicker(false)}
+                  >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          )}
+
+          {Platform.OS === 'android' && showDeliveryDatePicker && (
+            <DateTimePicker
+              value={deliveryDateObj}
+              mode="date"
+              display="default"
+              onChange={handleDeliveryDateChange}
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -735,5 +834,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: '#fff',
+  },
+  webDatePickerContainer: {
+    padding: 20,
   },
 });
