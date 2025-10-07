@@ -145,6 +145,7 @@ export default function PostSingleLoadScreen() {
     try {
       const shipperId = user?.id || 'TEST_SHIPPER';
       console.log('📦 Posting load with shipperId:', shipperId);
+      console.log('📦 User object:', { id: user?.id, email: user?.email, role: user?.role });
 
       const loadData = {
         shipperId,
@@ -176,8 +177,10 @@ export default function PostSingleLoadScreen() {
         updatedAt: serverTimestamp(),
       };
 
+      console.log('📦 Load data to be saved:', JSON.stringify(loadData, null, 2));
       const docRef = await addDoc(collection(db, 'loads'), loadData);
       console.log('✅ Load posted successfully with ID:', docRef.id);
+      console.log('✅ Load document path: loads/' + docRef.id);
 
       const successMessage = status === 'posted' ? 'Load posted successfully!' : 'Draft saved successfully!';
       Alert.alert('Success', successMessage, [
