@@ -1,811 +1,857 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Dimensions,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
-import { Stack } from 'expo-router';
-import { useAdminAnalytics, RecentLoad } from '@/hooks/useAdminAnalytics';
-import { useAdminAlerts, Alert as AlertType } from '@/hooks/useAdminAlerts';
-import { trpc } from '@/lib/trpc';
-import {
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Users,
-  Package,
-  Bell,
-  AlertCircle,
-  UserCheck,
-} from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Users, Package, CheckCircle, AlertTriangle, Truck, TrendingUp, LayoutDashboard, Menu, X } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
-const isSmallScreen = width < 768;
+type NavItem = {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+};
 
 export default function AdminDashboard() {
-  const analytics = useAdminAnalytics();
-  const alerts = useAdminAlerts();
-  const [phoneNumber, setPhoneNumber] = useState<string>('');
-  const [message, setMessage] = useState<string>('');
-  
-  const sendSmsMutation = trpc.sendSms.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        Alert.alert('Success', 'SMS sent successfully!');
-        setPhoneNumber('');
-        setMessage('');
-      } else {
-        Alert.alert('Error', data.error || 'Failed to send SMS');
-      }
-    },
-    onError: (error) => {
-      Alert.alert('Error', error.message || 'Failed to send SMS');
-    },
-  });
-  
-  const handleSendSms = () => {
-    if (!phoneNumber.trim()) {
-      Alert.alert('Error', 'Please enter a phone number');
-      return;
-    }
-    if (!message.trim()) {
-      Alert.alert('Error', 'Please enter a message');
-      return;
-    }
-    sendSmsMutation.mutate({ to: phoneNumber, message });
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [amPmFilter, setAmPmFilter] = useState<'am' | 'pm'>('pm');
+
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
+
+  const navItems: NavItem[] = [
+    { id: 'overall', label: 'Overall', icon: <LayoutDashboard size={20} color="#FFFFFF" /> },
+    { id: 'route', label: 'Route', icon: <TrendingUp size={20} color="#FFFFFF" /> },
+    { id: 'delay', label: 'Delay', icon: <AlertTriangle size={20} color="#FFFFFF" /> },
+  ];
+
+  const hourlyData = [
+    { hour: '12PM', value: 45 },
+    { hour: '1PM', value: 52 },
+    { hour: '2PM', value: 68 },
+    { hour: '3PM', value: 78 },
+    { hour: '4PM', value: 72 },
+    { hour: '5PM', value: 85 },
+    { hour: '6PM', value: 62 },
+    { hour: '7PM', value: 58 },
+    { hour: '8PM', value: 55 },
+    { hour: '9PM', value: 48 },
+    { hour: '10PM', value: 42 },
+    { hour: '11PM', value: 38 },
+  ];
+
+  const monthlyData = [
+    { month: 'January', value: 45 },
+    { month: 'February', value: 38 },
+    { month: 'March', value: 52 },
+    { month: 'April', value: 61 },
+    { month: 'May', value: 58 },
+    { month: 'June', value: 67 },
+    { month: 'July', value: 73 },
+    { month: 'August', value: 78 },
+  ];
+
+  const renderSidebar = () => {
+    if (isMobile && !sidebarOpen) return null;
+
+    return (
+      <View style={[
+        styles.sidebar,
+        isMobile && styles.sidebarMobile,
+        isTablet && styles.sidebarTablet,
+      ]}>
+        {isMobile && (
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setSidebarOpen(false)}
+          >
+            <X size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.sidebarHeader}>
+          <Text style={styles.sidebarTitle}>Navigate</Text>
+        </View>
+
+        <View style={styles.navList}>
+          {navItems.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.navItem,
+                item.id === 'overall' && styles.navItemActive,
+              ]}
+              onPress={() => {
+                if (isMobile) setSidebarOpen(false);
+                if (item.id === 'route') {
+                  router.push('/(admin)/route');
+                } else if (item.id === 'delay') {
+                  router.push('/(admin)/delay');
+                }
+              }}
+            >
+              <View style={styles.navIcon}>{item.icon}</View>
+              <Text style={styles.navLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
   };
 
-  if (analytics.isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Stack.Screen options={{ title: 'Admin Dashboard' }} />
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading Analytics...</Text>
-      </View>
-    );
-  }
-
-  if (analytics.error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Stack.Screen options={{ title: 'Admin Dashboard' }} />
-        <XCircle size={48} color="#EF4444" />
-        <Text style={styles.errorText}>Error loading analytics</Text>
-        <Text style={styles.errorSubtext}>{analytics.error}</Text>
-      </View>
-    );
-  }
-
-  const maxLoadCount = Math.max(...analytics.loadsByDay.map((d: { count: number }) => d.count), 1);
-
   return (
-    <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Admin Dashboard' }} />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.alertsSection}>
-          <View style={styles.alertsHeader}>
-            <Bell size={20} color="#3B82F6" />
-            <Text style={styles.alertsTitle}>Live Alerts</Text>
-          </View>
-          {alerts.isLoading ? (
-            <View style={styles.alertsLoading}>
-              <ActivityIndicator size="small" color="#3B82F6" />
-            </View>
-          ) : alerts.alerts.length > 0 ? (
-            <View style={styles.alertsList}>
-              {alerts.alerts.map((alert) => (
-                <AlertItem key={alert.id} alert={alert} />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.alertsEmpty}>
-              <Text style={styles.alertsEmptyText}>No recent alerts</Text>
-            </View>
+    <View style={styles.outerContainer}>
+      {renderSidebar()}
+
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          {isMobile && (
+            <TouchableOpacity 
+              style={styles.menuButton}
+              onPress={() => setSidebarOpen(true)}
+            >
+              <Menu size={24} color="#FFFFFF" />
+            </TouchableOpacity>
           )}
-        </View>
-
-        <View style={styles.overviewSection}>
-          <Text style={styles.sectionTitle}>Overview</Text>
-          <View style={styles.statsGrid}>
-            <StatCard
-              icon={<TrendingUp size={24} color="#3B82F6" />}
-              label="Active Loads"
-              value={analytics.loadCounts.active}
-              color="#3B82F6"
-            />
-            <StatCard
-              icon={<Clock size={24} color="#F59E0B" />}
-              label="Pending Loads"
-              value={analytics.loadCounts.pending}
-              color="#F59E0B"
-            />
-            <StatCard
-              icon={<CheckCircle size={24} color="#10B981" />}
-              label="Delivered"
-              value={analytics.loadCounts.delivered}
-              color="#10B981"
-            />
-            <StatCard
-              icon={<XCircle size={24} color="#EF4444" />}
-              label="Cancelled"
-              value={analytics.loadCounts.cancelled}
-              color="#EF4444"
-            />
-            <StatCard
-              icon={<Users size={24} color="#8B5CF6" />}
-              label="Total Drivers"
-              value={analytics.driverCount}
-              color="#8B5CF6"
-            />
-            <StatCard
-              icon={<Package size={24} color="#EC4899" />}
-              label="Total Shippers"
-              value={analytics.shipperCount}
-              color="#EC4899"
-            />
+          
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              LoadRush Admin Analytics Console
+            </Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              Live Overview • Drivers • Shippers • Loads • Performance
+            </Text>
           </View>
-        </View>
 
-        <View style={styles.chartsSection}>
-          <Text style={styles.sectionTitle}>Load Status Distribution</Text>
-          <View style={styles.chartCard}>
-            <View style={styles.barChart}>
-              <BarChartItem
-                label="Active"
-                value={analytics.loadCounts.active}
-                max={analytics.loadCounts.total}
-                color="#3B82F6"
-              />
-              <BarChartItem
-                label="Pending"
-                value={analytics.loadCounts.pending}
-                max={analytics.loadCounts.total}
-                color="#F59E0B"
-              />
-              <BarChartItem
-                label="Delivered"
-                value={analytics.loadCounts.delivered}
-                max={analytics.loadCounts.total}
-                color="#10B981"
-              />
-              <BarChartItem
-                label="Cancelled"
-                value={analytics.loadCounts.cancelled}
-                max={analytics.loadCounts.total}
-                color="#EF4444"
-              />
+          <View style={styles.headerRight}>
+            <View style={styles.systemStatusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.systemStatusText}>System Stable</Text>
+            </View>
+            <View style={styles.userBadge}>
+              <View style={styles.userIcon}>
+                <Users size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.userText} numberOfLines={1}>
+                Welcome Admin — LoadRush Control Center
+              </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.chartsSection}>
-          <Text style={styles.sectionTitle}>Loads Created (Last 7 Days)</Text>
-          <View style={styles.chartCard}>
-            {analytics.loadsByDay.length > 0 ? (
-              <View style={styles.lineChart}>
-                {analytics.loadsByDay.map((day: { date: string; count: number }) => (
-                  <View key={day.date} style={styles.lineChartBar}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Total Active Loads</Text>
+              <Text style={styles.metricValue}>2,479</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+              <Package size={40} color="#2563EB" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Delivered On-Time</Text>
+              <Text style={styles.metricValue}>953</Text>
+              <Text style={styles.metricSubtitle}>38.44%</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
+              <CheckCircle size={40} color="#10B981" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+          </View>
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Delayed or Pending</Text>
+              <Text style={styles.metricValue}>1,526</Text>
+              <Text style={styles.metricSubtitle}>61.56%</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <AlertTriangle size={40} color="#F59E0B" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+          </View>
+        </View>
+
+        <View style={[styles.metricCard, { marginBottom: 24 }]}>
+          <View style={styles.metricContent}>
+            <Text style={styles.metricTitle}>In-Transit Shipments</Text>
+            <Text style={styles.metricValue}>847</Text>
+          </View>
+          <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
+            <Truck size={40} color="#8B5CF6" />
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
+        </View>
+
+        <View style={styles.aiInsightWidget}>
+          <View style={styles.aiInsightHeader}>
+            <View style={styles.aiInsightIconContainer}>
+              <TrendingUp size={26} color="#2563EB" />
+            </View>
+            <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
+          </View>
+          <Text style={styles.aiInsightContent}>
+            Fetching live insights... (AI analysis will summarize load performance, delays, and route optimization data from Firestore)
+          </Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Load Distribution by Hour</Text>
+            <View style={styles.toggleButtons}>
+              <TouchableOpacity
+                style={[styles.toggleButton, amPmFilter === 'am' && styles.toggleButtonActive]}
+                onPress={() => setAmPmFilter('am')}
+              >
+                <Text style={[styles.toggleButtonText, amPmFilter === 'am' && styles.toggleButtonTextActive]}>
+                  AM
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, amPmFilter === 'pm' && styles.toggleButtonActive]}
+                onPress={() => setAmPmFilter('pm')}
+              >
+                <Text style={[styles.toggleButtonText, amPmFilter === 'pm' && styles.toggleButtonTextActive]}>
+                  PM
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.barChart}>
+            {hourlyData.map((item, index) => {
+              const maxValue = Math.max(...hourlyData.map(d => d.value));
+              const barHeight = (item.value / maxValue) * 180;
+              return (
+                <View key={index} style={styles.barContainer}>
+                  <View style={styles.barWrapper}>
                     <View
                       style={[
-                        styles.lineChartBarFill,
-                        {
-                          height: `${(day.count / maxLoadCount) * 100}%`,
-                          backgroundColor: '#3B82F6',
-                        },
+                        styles.bar,
+                        { height: barHeight, backgroundColor: '#1E3A8A' }
                       ]}
                     />
-                    <Text style={styles.lineChartLabel}>
-                      {new Date(day.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </Text>
-                    <Text style={styles.lineChartValue}>{day.count}</Text>
                   </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.emptyText}>No load data available</Text>
-            )}
+                  <Text style={styles.barLabel}>{item.hour}</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
 
-        <View style={styles.recentSection}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          {analytics.recentLoads.length > 0 ? (
-            <View style={styles.tableCard}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderText, styles.colId]}>Load ID</Text>
-                <Text style={[styles.tableHeaderText, styles.colRoute]}>Route</Text>
-                <Text style={[styles.tableHeaderText, styles.colStatus]}>Status</Text>
-                <Text style={[styles.tableHeaderText, styles.colRate]}>Rate</Text>
-              </View>
-              {analytics.recentLoads.map((load: RecentLoad) => (
-                <View key={load.id} style={styles.tableRow}>
-                  <Text style={[styles.tableCell, styles.colId]} numberOfLines={1}>
-                    {load.id.substring(0, 8)}...
-                  </Text>
-                  <Text style={[styles.tableCell, styles.colRoute]} numberOfLines={1}>
-                    {load.originCity} → {load.destinationCity}
-                  </Text>
-                  <View style={[styles.colStatus, styles.statusPillContainer]}>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Load Volume Trend (12-Month)</Text>
+          <View style={styles.lineChart}>
+            {monthlyData.map((item, index) => {
+              const maxValue = Math.max(...monthlyData.map(d => d.value));
+              const barHeight = (item.value / maxValue) * 120;
+              return (
+                <View key={index} style={styles.lineBarContainer}>
+                  <View style={styles.lineBarWrapper}>
                     <View
                       style={[
-                        styles.statusPill,
-                        { backgroundColor: getStatusColor(load.status) },
+                        styles.lineBar,
+                        { height: barHeight, backgroundColor: '#1E3A8A' }
                       ]}
-                    >
-                      <Text style={styles.statusText}>{load.status}</Text>
-                    </View>
+                    />
                   </View>
-                  <Text style={[styles.tableCell, styles.colRate]}>
-                    ${load.rate?.toLocaleString() || '0'}
-                  </Text>
+                  <Text style={styles.lineBarLabel}>{item.month.substring(0, 3)}</Text>
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <Package size={48} color="#9CA3AF" />
-              <Text style={styles.emptyText}>No load data available</Text>
-            </View>
-          )}
+              );
+            })}
+          </View>
         </View>
 
-        <View style={styles.twilioSection}>
-          <Text style={styles.sectionTitle}>Twilio Test Message</Text>
-          <View style={styles.twilioCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="+1234567890"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
-                editable={!sendSmsMutation.isPending}
-              />
+        <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
+          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+            <Text style={styles.chartTitle}>Total Booking by Day Type</Text>
+            <View style={styles.donutContainer}>
+              <View style={styles.donutChart}>
+                <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
+                <View style={styles.donutCenter} />
+              </View>
+              <View style={styles.donutLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
+                  <Text style={styles.legendText}>Weekday 2,202</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
+                  <Text style={styles.legendText}>Weekend 277</Text>
+                </View>
+              </View>
             </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Message</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Enter your message here..."
-                value={message}
-                onChangeText={setMessage}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                editable={!sendSmsMutation.isPending}
-              />
+          </View>
+
+          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+            <Text style={styles.chartTitle}>Total Booking by Route Type</Text>
+            <View style={styles.donutContainer}>
+              <View style={styles.donutChart}>
+                <View style={[styles.donutSegment, { backgroundColor: '#1E3A8A' }]} />
+                <View style={styles.donutCenter} />
+              </View>
+              <View style={styles.donutLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#1E3A8A' }]} />
+                  <Text style={styles.legendText}>Inter City 76%</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#E5E7EB' }]} />
+                  <Text style={styles.legendText}>Intra City 24%</Text>
+                </View>
+              </View>
             </View>
-            
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                sendSmsMutation.isPending && styles.sendButtonDisabled,
-              ]}
-              onPress={handleSendSms}
-              disabled={sendSmsMutation.isPending}
-            >
-              {sendSmsMutation.isPending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.sendButtonText}>Send SMS</Text>
-              )}
-            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.chartsSection, isMobile && styles.chartsSectionMobile]}>
+          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+            <Text style={styles.chartTitle}>Top 5 Most Booked Drivers</Text>
+            <View style={styles.horizontalBarChart}>
+              {['RASIAH', 'MANU', 'MURUGAN', 'SUDHAKAR', 'RAJA'].map((name, index) => {
+                const widths = [100, 35, 35, 30, 28];
+                return (
+                  <View key={index} style={styles.horizontalBarItem}>
+                    <Text style={styles.horizontalBarLabel}>{name}</Text>
+                    <View style={styles.horizontalBarWrapper}>
+                      <View 
+                        style={[
+                          styles.horizontalBar,
+                          { width: `${widths[index]}%`, backgroundColor: '#1E3A8A' }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={[styles.chartCard, isMobile && styles.chartCardMobile]}>
+            <Text style={styles.chartTitle}>Top 5 Destinations</Text>
+            <View style={styles.horizontalBarChart}>
+              {['Tamil Nadu', 'Haryana', 'Gujarat', 'Maharashtra', 'Karnataka'].map((name, index) => {
+                const widths = [100, 45, 40, 38, 35];
+                return (
+                  <View key={index} style={styles.horizontalBarItem}>
+                    <Text style={styles.horizontalBarLabel}>{name}</Text>
+                    <View style={styles.horizontalBarWrapper}>
+                      <View 
+                        style={[
+                          styles.horizontalBar,
+                          { width: `${widths[index]}%`, backgroundColor: '#1E3A8A' }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </View>
       </ScrollView>
-    </View>
-  );
-}
 
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  color: string;
-}
-
-function StatCard({ icon, label, value }: StatCardProps) {
-  return (
-    <View style={styles.statCard}>
-      <View style={styles.iconContainer}>{icon}</View>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-interface BarChartItemProps {
-  label: string;
-  value: number;
-  max: number;
-  color: string;
-}
-
-function BarChartItem({ label, value, max, color }: BarChartItemProps) {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-
-  return (
-    <View style={styles.barChartItem}>
-      <Text style={styles.barChartLabel}>{label}</Text>
-      <View style={styles.barChartBarContainer}>
-        <View
-          style={[
-            styles.barChartBarFill,
-            { width: `${percentage}%`, backgroundColor: color },
-          ]}
-        />
-      </View>
-      <Text style={styles.barChartValue}>{value}</Text>
-    </View>
-  );
-}
-
-interface AlertItemProps {
-  alert: AlertType;
-}
-
-function AlertItem({ alert }: AlertItemProps) {
-  const getAlertIcon = () => {
-    switch (alert.type) {
-      case 'loadCreated':
-        return <Package size={16} color="#10B981" />;
-      case 'statusChanged':
-        return <AlertCircle size={16} color="#F59E0B" />;
-      case 'driverAssigned':
-        return <UserCheck size={16} color="#3B82F6" />;
-      default:
-        return <Bell size={16} color="#6B7280" />;
-    }
-  };
-
-  const getAlertColor = () => {
-    switch (alert.type) {
-      case 'loadCreated':
-        return '#10B981';
-      case 'statusChanged':
-        return '#F59E0B';
-      case 'driverAssigned':
-        return '#3B82F6';
-      default:
-        return '#6B7280';
-    }
-  };
-
-  const formatTimestamp = (timestamp: any) => {
-    if (!timestamp) return 'Just now';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  return (
-    <View style={[styles.alertItem, { borderLeftColor: getAlertColor() }]}>
-      <View style={styles.alertIconContainer}>
-        {getAlertIcon()}
-      </View>
-      <View style={styles.alertContent}>
-        <Text style={styles.alertMessage} numberOfLines={2}>
-          {alert.message}
-        </Text>
-        <Text style={styles.alertTimestamp}>
-          {formatTimestamp(alert.timestamp)}
-        </Text>
+        {isMobile && sidebarOpen && (
+          <TouchableOpacity 
+            style={styles.overlay}
+            activeOpacity={1}
+            onPress={() => setSidebarOpen(false)}
+          />
+        )}
       </View>
     </View>
   );
-}
-
-function getStatusColor(status: string): string {
-  const statusLower = status?.toLowerCase() || '';
-  switch (statusLower) {
-    case 'active':
-      return '#3B82F6';
-    case 'pending':
-      return '#F59E0B';
-    case 'delivered':
-      return '#10B981';
-    case 'cancelled':
-      return '#EF4444';
-    default:
-      return '#6B7280';
-  }
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#0A1B2A',
+  },
+  sidebar: {
+    width: 140,
+    backgroundColor: '#0A1B2A',
+    paddingTop: 40,
+    paddingHorizontal: 16,
+    ...Platform.select({
+      web: {
+        position: 'sticky' as any,
+        top: 0,
+        height: '100vh',
+      },
+    }),
+  },
+  sidebarMobile: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  sidebarTablet: {
+    width: 100,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 20,
+    right: 16,
+    zIndex: 10,
+    padding: 8,
+  },
+  sidebarHeader: {
+    paddingBottom: 32,
+  },
+  sidebarTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  navList: {
+    paddingTop: 16,
+  },
+  navItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    gap: 8,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  navItemActive: {
+    backgroundColor: '#1E3A8A',
+  },
+  navIcon: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navLabel: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  menuButton: {
+    padding: 8,
+  },
+  header: {
+    backgroundColor: '#0A1E57',
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    maxHeight: 130,
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorContainer: {
+  headerContent: {
     flex: 1,
-    justifyContent: 'center',
+    minWidth: 200,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 4,
+    letterSpacing: -0.2,
+  },
+  headerRight: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 24,
+    gap: 12,
   },
-  errorText: {
-    marginTop: 16,
-    fontSize: 18,
-    fontWeight: '600' as const,
-    color: '#EF4444',
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 24,
   },
-  errorSubtext: {
-    marginTop: 8,
+  userIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userText: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    fontWeight: '500' as const,
+    color: '#FFFFFF',
+  },
+  systemStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E6F9E8',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+  },
+  systemStatusText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#16A34A',
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 16,
+  content: {
+    padding: 20,
+    marginTop: 12,
   },
-  overviewSection: {
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 16,
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 20,
+  metricsColumn: {
+    flexDirection: 'column',
+  },
+  metricCard: {
+    flex: 1,
+    minWidth: 200,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 15,
+    borderWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  metricCardMobile: {
+    minWidth: '100%',
+  },
+  metricIconContainer: {
+    width: 78,
+    height: 78,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricContent: {
+    flex: 1,
+  },
+  metricTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#6B7280',
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  metricValue: {
+    fontSize: 32,
     fontWeight: '700' as const,
     color: '#111827',
-    marginBottom: 16,
+    letterSpacing: -0.5,
   },
-  statsGrid: {
+  metricSubtitle: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 24,
+  },
+  sectionHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
     flexWrap: 'wrap',
     gap: 12,
   },
-  statCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    width: isSmallScreen ? '48%' : '31%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statValue: {
-    fontSize: 28,
+  sectionTitle: {
+    fontSize: 17,
     fontWeight: '700' as const,
     color: '#111827',
-    marginBottom: 4,
+    letterSpacing: 0.2,
   },
-  statLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
+  toggleButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  chartsSection: {
-    marginBottom: 24,
-  },
-  chartCard: {
+  toggleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#1E3A8A',
+    borderColor: '#1E3A8A',
+  },
+  toggleButtonText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: '#6B7280',
+  },
+  toggleButtonTextActive: {
+    color: '#FFFFFF',
   },
   barChart: {
-    gap: 16,
-  },
-  barChartItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 220,
+    paddingTop: 10,
+  },
+  barContainer: {
     alignItems: 'center',
-    gap: 12,
-  },
-  barChartLabel: {
-    width: 80,
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500' as const,
-  },
-  barChartBarContainer: {
     flex: 1,
-    height: 24,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-    overflow: 'hidden',
   },
-  barChartBarFill: {
-    height: '100%',
+  barWrapper: {
+    height: 200,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bar: {
+    width: 32,
     borderRadius: 4,
   },
-  barChartValue: {
-    width: 40,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#111827',
-    textAlign: 'right',
+  barLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   lineChart: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    height: 200,
-    paddingTop: 20,
+    height: 180,
+    paddingTop: 10,
   },
-  lineChartBar: {
-    flex: 1,
+  lineBarContainer: {
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginHorizontal: 4,
+    flex: 1,
   },
-  lineChartBarFill: {
-    width: '100%',
-    minHeight: 4,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+  lineBarWrapper: {
+    height: 150,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  lineChartLabel: {
-    fontSize: 10,
+  lineBar: {
+    width: 28,
+    borderRadius: 4,
+  },
+  lineBarLabel: {
+    fontSize: 9,
     color: '#6B7280',
-    marginTop: 4,
     textAlign: 'center',
   },
-  lineChartValue: {
-    fontSize: 12,
-    fontWeight: '600' as const,
+  chartsSection: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+  },
+  chartsSectionMobile: {
+    flexDirection: 'column',
+  },
+  chartCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    minHeight: 280,
+  },
+  chartCardMobile: {
+    flex: 1,
+  },
+  chartTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 20,
+    letterSpacing: 0.2,
   },
-  recentSection: {
-    marginBottom: 24,
-  },
-  tableCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tableHeaderText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#6B7280',
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+  donutContainer: {
     alignItems: 'center',
+    gap: 16,
   },
-  tableCell: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  colId: {
-    width: '20%',
-  },
-  colRoute: {
-    width: '35%',
-  },
-  colStatus: {
-    width: '25%',
-  },
-  colRate: {
-    width: '20%',
-    textAlign: 'right',
-  },
-  statusPillContainer: {
-    alignItems: 'flex-start',
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#FFFFFF',
-    textTransform: 'capitalize',
-  },
-  emptyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 48,
+  donutChart: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    position: 'relative',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    justifyContent: 'center',
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#9CA3AF',
-    textAlign: 'center',
+  donutSegment: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
-  alertsSection: {
-    marginBottom: 24,
+  donutCenter: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
   },
-  alertsHeader: {
+  donutLegend: {
+    gap: 8,
+  },
+  legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
   },
-  alertsTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  horizontalBarChart: {
+    gap: 16,
+  },
+  horizontalBarItem: {
+    gap: 8,
+  },
+  horizontalBarLabel: {
+    fontSize: 13,
+    fontWeight: '500' as const,
     color: '#111827',
   },
-  alertsList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+  horizontalBarWrapper: {
+    height: 24,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 4,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  alertsLoading: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  horizontalBar: {
+    height: '100%',
+    borderRadius: 4,
   },
-  alertsEmpty: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
   },
-  alertsEmptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-  },
-  alertItem: {
-    flexDirection: 'row',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    borderLeftWidth: 3,
-    alignItems: 'center',
-  },
-  alertIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertMessage: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500' as const,
-    marginBottom: 4,
-  },
-  alertTimestamp: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  twilioSection: {
-    marginBottom: 24,
-  },
-  twilioCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+  aiInsightWidget: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 20,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#111827',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 10,
+  aiInsightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
   },
-  sendButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    paddingVertical: 12,
+  aiInsightIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#E0EDFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
   },
-  sendButtonDisabled: {
-    backgroundColor: '#93C5FD',
-  },
-  sendButtonText: {
+  aiInsightTitle: {
     fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#FFFFFF',
+    fontWeight: '700' as const,
+    color: '#111827',
+    letterSpacing: 0.2,
+  },
+  aiInsightContent: {
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: '#475569',
+    lineHeight: 22,
   },
 });
