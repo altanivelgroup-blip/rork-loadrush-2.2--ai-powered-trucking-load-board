@@ -240,6 +240,7 @@ export default function PostSingleLoadWizard() {
                 onChangeText={setTitle}
                 placeholder="e.g., Furniture delivery - Dallas to Houston"
                 placeholderTextColor="#9CA3AF"
+                editable={true}
               />
 
               <Text style={[styles.label, { marginTop: 12 }]}>Description *</Text>
@@ -253,6 +254,7 @@ export default function PostSingleLoadWizard() {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                editable={true}
               />
 
               <Text style={[styles.label, { marginTop: 12 }]}>Vehicle Type Required</Text>
@@ -278,16 +280,16 @@ export default function PostSingleLoadWizard() {
         {steps[stepIndex].key === 'locations' && (
           <Section title="Pickup & Delivery">
             <Text style={styles.label}>Pickup Location *</Text>
-            <TextInput testID="pickup" style={styles.input} value={pickupLocation} onChangeText={setPickupLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="pickup" style={styles.input} value={pickupLocation} onChangeText={setPickupLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" editable={true} />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Location *</Text>
-            <TextInput testID="delivery" style={styles.input} value={deliveryLocation} onChangeText={setDeliveryLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="delivery" style={styles.input} value={deliveryLocation} onChangeText={setDeliveryLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" editable={true} />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Weight</Text>
-            <TextInput testID="weight" style={styles.input} value={weight} onChangeText={setWeight} placeholder="7000" placeholderTextColor="#9CA3AF" keyboardType="numeric" />
+            <TextInput testID="weight" style={styles.input} value={weight} onChangeText={setWeight} placeholder="7000" placeholderTextColor="#9CA3AF" keyboardType="numeric" editable={true} />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Dimensions (L x W x H)</Text>
-            <TextInput testID="dimensions" style={styles.input} value={dimensions} onChangeText={setDimensions} placeholder="6 x 36ft" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="dimensions" style={styles.input} value={dimensions} onChangeText={setDimensions} placeholder="6 x 36ft" placeholderTextColor="#9CA3AF" editable={true} />
           </Section>
         )}
 
@@ -331,10 +333,10 @@ export default function PostSingleLoadWizard() {
             )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Time (HH:MM)</Text>
-            <TextInput testID="delivery-time" style={styles.input} value={deliveryTime} onChangeText={setDeliveryTime} placeholder="17:00" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="delivery-time" style={styles.input} value={deliveryTime} onChangeText={setDeliveryTime} placeholder="17:00" placeholderTextColor="#9CA3AF" editable={true} />
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Timezone</Text>
-            <TextInput testID="timezone" style={styles.input} value={timezone} onChangeText={setTimezone} placeholder="America/Phoenix" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="timezone" style={styles.input} value={timezone} onChangeText={setTimezone} placeholder="America/Phoenix" placeholderTextColor="#9CA3AF" editable={true} />
 
             <View style={styles.notice}>
               <FileText size={16} color="#6b7280" />
@@ -357,6 +359,7 @@ export default function PostSingleLoadWizard() {
                 placeholder="1350"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
+                editable={true}
               />
             </View>
 
@@ -371,7 +374,7 @@ export default function PostSingleLoadWizard() {
             </View>
 
             <Text style={[styles.label, { marginTop: 12 }]}>Special Requirements</Text>
-            <TextInput testID="special-req" style={[styles.input, styles.textArea]} value={specialReq} onChangeText={setSpecialReq} placeholder="Any special requirements" placeholderTextColor="#9CA3AF" multiline numberOfLines={3} textAlignVertical="top" />
+            <TextInput testID="special-req" style={[styles.input, styles.textArea]} value={specialReq} onChangeText={setSpecialReq} placeholder="Any special requirements" placeholderTextColor="#9CA3AF" multiline numberOfLines={3} textAlignVertical="top" editable={true} />
           </Section>
         )}
 
@@ -379,7 +382,7 @@ export default function PostSingleLoadWizard() {
         {steps[stepIndex].key === 'review' && (
           <Section title="Contact & Review">
             <Text style={styles.label}>Contact Information</Text>
-            <TextInput testID="contact" style={styles.input} value={contact} onChangeText={setContact} placeholder="Phone number or email for carriers" placeholderTextColor="#9CA3AF" />
+            <TextInput testID="contact" style={styles.input} value={contact} onChangeText={setContact} placeholder="Phone number or email for carriers" placeholderTextColor="#9CA3AF" editable={true} />
 
             <Text style={[styles.label, { marginTop: 16 }]}>Photos</Text>
             <View style={styles.photosBox}>
