@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Load } from '@/types';
 import { db } from '@/config/firebase';
-import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export interface DriverLoadMetrics {
   totalActive: number;
@@ -26,28 +26,31 @@ export function useDriverLoads() {
 
     console.log('[Driver Loads] Setting up query for driverId:', driverId);
 
-    const now = Timestamp.now();
     const q = query(
       collection(db, 'loads'),
-      where('status', '==', 'Available'),
-      where('expiresAt', '>=', now)
+      where('status', '==', 'Available')
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        const now = new Date();
         const loads: Load[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
-          loads.push({
-            ...data,
-            id: doc.id,
-            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          } as unknown as Load);
+          const expiresAt = data.expiresAt?.toDate?.() || new Date();
+          
+          if (expiresAt >= now) {
+            loads.push({
+              ...data,
+              id: doc.id,
+              createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              expiresAt: expiresAt.toISOString(),
+            } as unknown as Load);
+          }
         });
-        console.log('[Driver Loads] Received', loads.length, 'non-expired loads from Firestore');
+        console.log('[Driver Loads] Received', loads.length, 'non-expired loads from Firestore (filtered in memory)');
         setRawData(loads);
         setLoading(false);
         setError(null);
