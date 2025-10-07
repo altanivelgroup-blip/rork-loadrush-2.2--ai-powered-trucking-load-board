@@ -14,9 +14,10 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Play, Pause, RotateCcw, FastForward, Film, ChevronDown } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
+import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -37,10 +38,49 @@ export default function CommandCenter() {
   const cycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const projectorOverlayAnim = useRef(new Animated.Value(0)).current;
   const isWindowFocused = useRef(true);
+  const [playbackMode, setPlaybackMode] = useState(false);
+  const [selectedPlaybackDriver, setSelectedPlaybackDriver] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeedState] = useState(1);
+  const playbackToolbarAnim = useRef(new Animated.Value(0)).current;
 
   const filteredDrivers = activeFilter === 'all' 
     ? drivers 
     : drivers.filter((d) => d.status === activeFilter);
+
+  const getMockLocationHistory = (driverId: string): PlaybackLocation[] => {
+    const baseLocations: { [key: string]: PlaybackLocation[] } = {
+      'mock-1': [
+        { latitude: 32.7767, longitude: -96.7970, timestamp: Date.now() - 3600000 },
+        { latitude: 32.5, longitude: -96.5, timestamp: Date.now() - 3000000 },
+        { latitude: 32.0, longitude: -96.0, timestamp: Date.now() - 2400000 },
+        { latitude: 31.5, longitude: -95.8, timestamp: Date.now() - 1800000 },
+        { latitude: 31.0, longitude: -95.6, timestamp: Date.now() - 1200000 },
+        { latitude: 30.5, longitude: -95.5, timestamp: Date.now() - 600000 },
+        { latitude: 29.7604, longitude: -95.3698, timestamp: Date.now() },
+      ],
+      'mock-2': [
+        { latitude: 29.7604, longitude: -95.3698, timestamp: Date.now() - 7200000 },
+        { latitude: 30.5, longitude: -98.0, timestamp: Date.now() - 6000000 },
+        { latitude: 31.5, longitude: -101.0, timestamp: Date.now() - 4800000 },
+        { latitude: 32.5, longitude: -105.0, timestamp: Date.now() - 3600000 },
+        { latitude: 33.0, longitude: -110.0, timestamp: Date.now() - 2400000 },
+        { latitude: 33.5, longitude: -115.0, timestamp: Date.now() - 1200000 },
+        { latitude: 34.0522, longitude: -118.2437, timestamp: Date.now() },
+      ],
+    };
+    return baseLocations[driverId] || [];
+  };
+
+  const driversWithHistory = filteredDrivers.filter((d) => getMockLocationHistory(d.id).length > 0);
+  const selectedPlaybackDriverData = drivers.find((d) => d.id === selectedPlaybackDriver);
+  const playbackLocations = selectedPlaybackDriver ? getMockLocationHistory(selectedPlaybackDriver) : [];
+
+  const playback = useDriverPlayback({
+    driverId: selectedPlaybackDriver,
+    locations: playbackLocations,
+    speed: playbackSpeed,
+    autoPlay: false,
+  });
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -49,6 +89,22 @@ export default function CommandCenter() {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
+
+  useEffect(() => {
+    if (playbackMode) {
+      Animated.timing(playbackToolbarAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(playbackToolbarAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [playbackMode, playbackToolbarAnim]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -187,12 +243,35 @@ export default function CommandCenter() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[
+              styles.modeToggle,
+              playbackMode && styles.modeToggleActive,
+            ]}
+            onPress={() => {
+              if (projectorMode) setProjectorMode(false);
+              setPlaybackMode(!playbackMode);
+              if (playbackMode) {
+                setSelectedPlaybackDriver(null);
+                playback.pause();
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <Film size={18} color={playbackMode ? '#60A5FA' : '#94A3B8'} />
+            <Text style={[styles.modeLabel, playbackMode && styles.modeLabelActive]}>
+              Playback
+            </Text>
+          </TouchableOpacity>
           <View style={styles.projectorToggle}>
             <Monitor size={18} color="#60A5FA" />
             <Text style={styles.projectorLabel}>Projector Mode</Text>
             <Switch
               value={projectorMode}
-              onValueChange={setProjectorMode}
+              onValueChange={(value) => {
+                if (value && playbackMode) setPlaybackMode(false);
+                setProjectorMode(value);
+              }}
               trackColor={{ false: '#334155', true: '#2563EB' }}
               thumbColor={projectorMode ? '#60A5FA' : '#94A3B8'}
               ios_backgroundColor="#334155"
@@ -205,7 +284,7 @@ export default function CommandCenter() {
         </View>
       </Animated.View>
 
-      {!projectorMode && (
+      {!projectorMode && !playbackMode && (
         <Animated.View style={[styles.filterBar, { opacity: fadeAnim }]}>
         <FilterButton
           label="All"
@@ -245,7 +324,7 @@ export default function CommandCenter() {
       )}
 
       <View style={styles.content}>
-        {!projectorMode && (
+        {!projectorMode && !playbackMode && (
           <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
           <View style={styles.sidebarHeader}>
             <Text style={styles.sidebarTitle}>Active Drivers</Text>
@@ -277,10 +356,10 @@ export default function CommandCenter() {
           </Animated.View>
         )}
 
-        <Animated.View style={[styles.mapContainer, projectorMode && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.mapContainer, (projectorMode || playbackMode) && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
           <View style={styles.darkMapPlaceholder}>
             <View style={styles.mapGrid}>
-              {filteredDrivers.map((driver) => (
+              {!playbackMode && filteredDrivers.map((driver) => (
                 <AnimatedMarker
                   key={driver.id}
                   driver={driver}
@@ -317,11 +396,46 @@ export default function CommandCenter() {
         />
       )}
 
-      {popupDriver && popupDriverData && !projectorMode && (
+      {popupDriver && popupDriverData && !projectorMode && !playbackMode && (
         <DriverPopup
           driver={popupDriverData}
           animation={popupAnimation}
           onClose={closePopup}
+        />
+      )}
+
+      {playbackMode && (
+        <PlaybackToolbar
+          drivers={driversWithHistory}
+          selectedDriver={selectedPlaybackDriver}
+          onSelectDriver={(driverId) => {
+            setSelectedPlaybackDriver(driverId);
+            playback.restart();
+          }}
+          isPlaying={playback.isPlaying}
+          progress={playback.progress}
+          speed={playbackSpeed}
+          onPlay={playback.play}
+          onPause={playback.pause}
+          onRestart={playback.restart}
+          onSpeedChange={(newSpeed) => {
+            setPlaybackSpeedState(newSpeed);
+            playback.setSpeed(newSpeed);
+          }}
+          onClose={() => {
+            setPlaybackMode(false);
+            setSelectedPlaybackDriver(null);
+            playback.pause();
+          }}
+          animation={playbackToolbarAnim}
+        />
+      )}
+
+      {playbackMode && selectedPlaybackDriverData && playback.currentLocation && (
+        <PlaybackGhostMarker
+          driver={selectedPlaybackDriverData}
+          location={playback.currentLocation}
+          progress={playback.progress}
         />
       )}
     </View>
@@ -1079,6 +1193,277 @@ interface ProjectorOverlayProps {
     };
   };
   animation: Animated.Value;
+}
+
+interface PlaybackToolbarProps {
+  drivers: Array<{
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+  }>;
+  selectedDriver: string | null;
+  onSelectDriver: (driverId: string) => void;
+  isPlaying: boolean;
+  progress: number;
+  speed: number;
+  onPlay: () => void;
+  onPause: () => void;
+  onRestart: () => void;
+  onSpeedChange: (speed: number) => void;
+  onClose: () => void;
+  animation: Animated.Value;
+}
+
+function PlaybackToolbar({
+  drivers,
+  selectedDriver,
+  onSelectDriver,
+  isPlaying,
+  progress,
+  speed,
+  onPlay,
+  onPause,
+  onRestart,
+  onSpeedChange,
+  onClose,
+  animation,
+}: PlaybackToolbarProps) {
+  const [showDriverSelect, setShowDriverSelect] = useState(false);
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [200, 0],
+  });
+
+  const opacity = animation;
+
+  const selectedDriverData = drivers.find((d) => d.id === selectedDriver);
+
+  const cycleSpeed = () => {
+    const speeds = [1, 2, 4];
+    const currentIndex = speeds.indexOf(speed);
+    const nextIndex = (currentIndex + 1) % speeds.length;
+    onSpeedChange(speeds[nextIndex]);
+  };
+
+  return (
+    <Animated.View
+      style={[
+        styles.playbackToolbar,
+        {
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <View style={styles.playbackHeader}>
+        <Text style={styles.playbackTitle}>Playback Timeline</Text>
+        <TouchableOpacity
+          style={styles.playbackCloseButton}
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <X size={18} color="#94A3B8" />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.playbackDriverSelect}
+        onPress={() => setShowDriverSelect(!showDriverSelect)}
+        activeOpacity={0.8}
+      >
+        <View
+          style={[
+            styles.playbackDriverOption,
+            styles.playbackDriverOptionLast,
+          ]}
+        >
+          <View>
+            <Text style={styles.playbackDriverName}>
+              {selectedDriverData ? selectedDriverData.name : 'Select Driver'}
+            </Text>
+            {selectedDriverData && (
+              <Text style={styles.playbackDriverId}>
+                {selectedDriverData.driverId}
+              </Text>
+            )}
+          </View>
+          <ChevronDown size={20} color="#94A3B8" />
+        </View>
+      </TouchableOpacity>
+
+      {showDriverSelect && (
+        <ScrollView
+          style={{ maxHeight: 200, marginBottom: 16 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {drivers.map((driver, index) => (
+            <TouchableOpacity
+              key={driver.id}
+              style={[
+                styles.playbackDriverOption,
+                index === drivers.length - 1 && styles.playbackDriverOptionLast,
+                selectedDriver === driver.id && styles.playbackDriverOptionSelected,
+              ]}
+              onPress={() => {
+                onSelectDriver(driver.id);
+                setShowDriverSelect(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View>
+                <Text style={styles.playbackDriverName}>{driver.name}</Text>
+                <Text style={styles.playbackDriverId}>{driver.driverId}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      {selectedDriver && (
+        <>
+          <View style={styles.playbackProgressContainer}>
+            <View style={styles.playbackProgressBar}>
+              <View
+                style={[
+                  styles.playbackProgressFill,
+                  { width: `${progress}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.playbackProgressText}>
+              {progress.toFixed(1)}% Complete
+            </Text>
+          </View>
+
+          <View style={styles.playbackControls}>
+            <TouchableOpacity
+              style={styles.playbackButton}
+              onPress={onRestart}
+              activeOpacity={0.7}
+            >
+              <RotateCcw size={20} color="#60A5FA" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.playbackButton, styles.playbackButtonPrimary]}
+              onPress={isPlaying ? onPause : onPlay}
+              activeOpacity={0.8}
+            >
+              {isPlaying ? (
+                <Pause size={24} color="#FFFFFF" />
+              ) : (
+                <Play size={24} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.playbackSpeedButton}
+              onPress={cycleSpeed}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.playbackSpeedText}>{speed}×</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </Animated.View>
+  );
+}
+
+interface PlaybackGhostMarkerProps {
+  driver: {
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  progress: number;
+}
+
+function PlaybackGhostMarker({ driver, location, progress }: PlaybackGhostMarkerProps) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1.5,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulseAnimation.start();
+    glowAnimation.start();
+
+    return () => {
+      pulseAnimation.stop();
+      glowAnimation.stop();
+    };
+  }, [pulseAnim, glowAnim]);
+
+  const markerColor = getStatusColor(driver.status);
+
+  return (
+    <View
+      style={[
+        styles.ghostMarker,
+        {
+          left: `${((location.longitude + 125) / 60) * 100}%`,
+          top: `${((50 - location.latitude) / 25) * 100}%`,
+        },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.ghostMarkerGlow,
+          {
+            backgroundColor: markerColor,
+            transform: [{ scale: glowAnim }],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.ghostMarkerCore,
+          {
+            backgroundColor: markerColor,
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      >
+        <View style={styles.ghostMarkerInner} />
+      </Animated.View>
+    </View>
+  );
 }
 
 function ProjectorOverlay({ driver, animation }: ProjectorOverlayProps) {
@@ -2007,5 +2392,215 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#F1F5F9',
     fontWeight: '700' as const,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
+  },
+  modeToggleActive: {
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    borderColor: '#2563EB',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+  },
+  modeLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  modeLabelActive: {
+    color: '#60A5FA',
+  },
+  playbackToolbar: {
+    position: 'absolute',
+    bottom: 40,
+    left: '50%',
+    width: isSmallScreen ? width * 0.95 : Math.min(800, width * 0.6),
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(30, 41, 59, 0.8)',
+    zIndex: 1002,
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(12px)',
+      transform: [{ translateX: '-50%' }],
+    }),
+    ...(!isWeb && {
+      marginLeft: isSmallScreen ? -(width * 0.475) : -Math.min(400, width * 0.3),
+    }),
+  },
+  playbackHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  playbackTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#F1F5F9',
+  },
+  playbackCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playbackDriverSelect: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
+    marginBottom: 16,
+  },
+  playbackDriverOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(51, 65, 85, 0.3)',
+  },
+  playbackDriverOptionLast: {
+    borderBottomWidth: 0,
+  },
+  playbackDriverOptionSelected: {
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+  },
+  playbackDriverName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#F1F5F9',
+  },
+  playbackDriverId: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  playbackProgressContainer: {
+    marginBottom: 16,
+  },
+  playbackProgressBar: {
+    height: 6,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  playbackProgressFill: {
+    height: '100%',
+    backgroundColor: '#2563EB',
+    borderRadius: 3,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  playbackProgressText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    fontWeight: '600' as const,
+  },
+  playbackControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  playbackButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(37, 99, 235, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.5)',
+  },
+  playbackButtonPrimary: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2563EB',
+    borderColor: '#3B82F6',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
+  playbackSpeedButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  playbackSpeedText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#60A5FA',
+  },
+  ghostMarker: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1001,
+  },
+  ghostMarkerGlow: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    opacity: 0.4,
+  },
+  ghostMarkerCore: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+  },
+  ghostMarkerInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+  },
+  ghostTrail: {
+    position: 'absolute',
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    opacity: 0.3,
   },
 });
