@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -26,15 +26,15 @@ export default function PostSingleLoadScreen() {
   const [pickupCity, setPickupCity] = useState('');
   const [pickupState, setPickupState] = useState('');
   const [pickupZip, setPickupZip] = useState('');
-  const [pickupDate, setPickupDate] = useState('');
+  const [pickupDateStr, setPickupDateStr] = useState<string>('');
+  const [pickupDateVal, setPickupDateVal] = useState<Date | null>(null);
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffCity, setDropoffCity] = useState('');
   const [dropoffState, setDropoffState] = useState('');
   const [dropoffZip, setDropoffZip] = useState('');
-  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliveryDateStr, setDeliveryDateStr] = useState<string>('');
+  const [deliveryDateVal, setDeliveryDateVal] = useState<Date | null>(null);
 
-  const [activePicker, setActivePicker] = useState<null | 'pickup' | 'delivery'>(null);
-  const [tempDate, setTempDate] = useState<Date>(new Date());
 
   const [loadType, setLoadType] = useState('');
   const [weight, setWeight] = useState('');
@@ -49,8 +49,20 @@ export default function PostSingleLoadScreen() {
     return `${m} ${d}, ${y}`;
   }, []);
 
+  const setDateFor = useCallback((target: 'pickup' | 'delivery', date: Date) => {
+    const formatted = formatDate(date);
+    if (target === 'pickup') {
+      setPickupDateVal(date);
+      setPickupDateStr(formatted);
+    } else {
+      setDeliveryDateVal(date);
+      setDeliveryDateStr(formatted);
+    }
+  }, [formatDate]);
+
   const openDatePicker = useCallback((target: 'pickup' | 'delivery') => {
-    const initial = new Date();
+    const initial = target === 'pickup' ? (pickupDateVal ?? new Date()) : (deliveryDateVal ?? new Date());
+
     if (Platform.OS === 'android' && DateTimePickerAndroid?.open) {
       DateTimePickerAndroid.open({
         value: initial,
@@ -58,54 +70,26 @@ export default function PostSingleLoadScreen() {
         minimumDate: new Date(),
         onChange: (_event, selectedDate) => {
           if (!selectedDate) return;
-          const formatted = formatDate(selectedDate);
-          if (target === 'pickup') {
-            setPickupDate(formatted);
-          } else {
-            setDeliveryDate(formatted);
-          }
+          setDateFor(target, selectedDate);
         },
       });
       return;
     }
-    setTempDate(initial);
-    setActivePicker(target);
-  }, [formatDate]);
+  }, [pickupDateVal, deliveryDateVal, setDateFor]);
 
-  const handleIOSOrWebChange = useCallback((event: any, selectedDate?: Date) => {
-    if (event?.type === 'dismissed') {
-      setActivePicker(null);
-      return;
-    }
-    const d = selectedDate ?? tempDate;
-    const formatted = formatDate(d);
-    if (activePicker === 'pickup') setPickupDate(formatted);
-    if (activePicker === 'delivery') setDeliveryDate(formatted);
-    setActivePicker(null);
-  }, [activePicker, tempDate, formatDate]);
 
-  const calculateExpiresAt = (deliveryDateStr?: string): Timestamp => {
-    let expirationDate: Date;
+  const calculateExpiresAt = (deliveryDateStrInput?: string, deliveryDateValInput?: Date | null): Timestamp => {
+    let base: Date | null = null;
 
-    if (deliveryDateStr && deliveryDateStr.trim() !== '') {
-      try {
-        const parsedDeliveryDate = new Date(deliveryDateStr);
-        if (!isNaN(parsedDeliveryDate.getTime())) {
-          expirationDate = new Date(parsedDeliveryDate);
-          expirationDate.setDate(expirationDate.getDate() + 7);
-        } else {
-          expirationDate = new Date();
-          expirationDate.setDate(expirationDate.getDate() + 7);
-        }
-      } catch {
-        expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 7);
-      }
-    } else {
-      expirationDate = new Date();
-      expirationDate.setDate(expirationDate.getDate() + 7);
+    if (deliveryDateValInput instanceof Date && !isNaN(deliveryDateValInput.getTime())) {
+      base = deliveryDateValInput;
+    } else if (deliveryDateStrInput && deliveryDateStrInput.trim() !== '') {
+      const parsed = new Date(deliveryDateStrInput);
+      if (!isNaN(parsed.getTime())) base = parsed;
     }
 
+    const expirationDate = base ? new Date(base) : new Date();
+    expirationDate.setDate(expirationDate.getDate() + 7);
     return Timestamp.fromDate(expirationDate);
   };
 
@@ -122,19 +106,19 @@ export default function PostSingleLoadScreen() {
       const user = auth.currentUser;
       const shipperId = user ? user.uid : 'TEST_SHIPPER';
 
-      const expiresAt = calculateExpiresAt(deliveryDate);
+      const expiresAt = calculateExpiresAt(deliveryDateStr, deliveryDateVal);
 
       const loadData = {
         pickupAddress,
         pickupCity: pickupCity || 'Unknown',
         pickupState: pickupState || 'Unknown',
         pickupZip: pickupZip || '',
-        pickupDate: pickupDate || new Date().toISOString(),
+        pickupDate: pickupDateStr || new Date().toISOString(),
         dropoffAddress,
         dropoffCity: dropoffCity || 'Unknown',
         dropoffState: dropoffState || 'Unknown',
         dropoffZip: dropoffZip || '',
-        deliveryDate: deliveryDate || '',
+        deliveryDate: deliveryDateStr || '',
         loadType,
         weight: Number(weight),
         price: Number(price),
@@ -150,14 +134,14 @@ export default function PostSingleLoadScreen() {
           city: pickupCity || 'Unknown',
           state: pickupState || 'Unknown',
           zip: pickupZip || '',
-          date: pickupDate || new Date().toISOString(),
+          date: pickupDateStr || new Date().toISOString(),
         },
         dropoff: {
           address: dropoffAddress,
           city: dropoffCity || 'Unknown',
           state: dropoffState || 'Unknown',
           zip: dropoffZip || '',
-          date: deliveryDate || '',
+          date: deliveryDateStr || '',
         },
         cargo: {
           type: loadType,
@@ -199,12 +183,14 @@ export default function PostSingleLoadScreen() {
               setPickupCity('');
               setPickupState('');
               setPickupZip('');
-              setPickupDate('');
+              setPickupDateStr('');
+              setPickupDateVal(null);
               setDropoffAddress('');
               setDropoffCity('');
               setDropoffState('');
               setDropoffZip('');
-              setDeliveryDate('');
+              setDeliveryDateStr('');
+              setDeliveryDateVal(null);
               setLoadType('');
               setWeight('');
               setPrice('');
@@ -299,17 +285,35 @@ export default function PostSingleLoadScreen() {
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Pickup Date</Text>
-              <TouchableOpacity
-                testID="pickup-date-button"
-                style={styles.dateInput}
-                onPress={() => openDatePicker('pickup')}
-                activeOpacity={0.7}
-              >
-                <Calendar size={18} color="#6b7280" />
-                <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>
-                  {pickupDate || 'Select Date'}
-                </Text>
-              </TouchableOpacity>
+              {Platform.OS === 'android' ? (
+                <TouchableOpacity
+                  testID="pickup-date-button"
+                  style={styles.dateInput}
+                  onPress={() => openDatePicker('pickup')}
+                  activeOpacity={0.7}
+                >
+                  <Calendar size={18} color="#6b7280" />
+                  <Text style={pickupDateStr ? styles.dateText : styles.datePlaceholder}>
+                    {pickupDateStr || 'Select Date'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.dateInput}>
+                  <Calendar size={18} color="#6b7280" />
+                  <DateTimePicker
+                    testID="pickup-date-compact"
+                    value={pickupDateVal ?? new Date()}
+                    mode="date"
+                    display="compact"
+                    minimumDate={new Date()}
+                    onChange={(_e, d) => {
+                      if (!d) return;
+                      setDateFor('pickup', d);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -369,17 +373,35 @@ export default function PostSingleLoadScreen() {
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Delivery Date</Text>
-              <TouchableOpacity
-                testID="delivery-date-button"
-                style={styles.dateInput}
-                onPress={() => openDatePicker('delivery')}
-                activeOpacity={0.7}
-              >
-                <Calendar size={18} color="#6b7280" />
-                <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>
-                  {deliveryDate || 'Select Date'}
-                </Text>
-              </TouchableOpacity>
+              {Platform.OS === 'android' ? (
+                <TouchableOpacity
+                  testID="delivery-date-button"
+                  style={styles.dateInput}
+                  onPress={() => openDatePicker('delivery')}
+                  activeOpacity={0.7}
+                >
+                  <Calendar size={18} color="#6b7280" />
+                  <Text style={deliveryDateStr ? styles.dateText : styles.datePlaceholder}>
+                    {deliveryDateStr || 'Select Date'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.dateInput}>
+                  <Calendar size={18} color="#6b7280" />
+                  <DateTimePicker
+                    testID="delivery-date-compact"
+                    value={deliveryDateVal ?? new Date()}
+                    mode="date"
+                    display="compact"
+                    minimumDate={new Date()}
+                    onChange={(_e, d) => {
+                      if (!d) return;
+                      setDateFor('delivery', d);
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -483,15 +505,6 @@ export default function PostSingleLoadScreen() {
         </View>
       </ScrollView>
 
-      {activePicker && (
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleIOSOrWebChange}
-          minimumDate={new Date()}
-        />
-      )}
     </View>
   );
 }
