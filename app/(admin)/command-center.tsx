@@ -461,6 +461,8 @@ interface DriverCardProps {
       latitude: number;
       longitude: number;
     };
+    eta?: number;
+    distanceRemaining?: number;
   };
   isSelected: boolean;
   onPress: () => void;
@@ -526,11 +528,15 @@ function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
             <Text style={styles.currentLoad}>Load: {driver.currentLoad}</Text>
           )}
           <Text style={styles.statusLabel}>{getStatusLabel(driver.status)}</Text>
-          {routeData && (
+          {(driver.eta !== undefined || driver.distanceRemaining !== undefined || routeData) && (
             <View style={styles.etaBadge}>
               <Route size={12} color="#94A3B8" />
               <Text style={styles.etaText}>
-                ETA: {routeData.durationFormatted} • {Math.round(routeData.distanceMiles)} mi
+                {driver.eta !== undefined && driver.distanceRemaining !== undefined ? (
+                  `ETA: ${driver.eta.toFixed(1)} min • ${driver.distanceRemaining.toFixed(1)} mi`
+                ) : routeData ? (
+                  `ETA: ${routeData.durationFormatted} • ${Math.round(routeData.distanceMiles)} mi`
+                ) : null}
               </Text>
             </View>
           )}
