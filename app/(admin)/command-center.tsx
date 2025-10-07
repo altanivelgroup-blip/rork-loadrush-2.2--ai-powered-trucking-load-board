@@ -9,13 +9,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
 import { RadioTower, MapPin } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
+
+const NativeMapView = Platform.OS !== 'web' ? require('./command-center-map').default : null;
 
 export default function CommandCenter() {
   const { drivers, isLoading, error } = useCommandCenterDrivers();
@@ -99,28 +101,29 @@ export default function CommandCenter() {
               <Text style={styles.webMapSubtext}>
                 {drivers.length} drivers active across the U.S.
               </Text>
+              <View style={styles.driverLocationsWeb}>
+                {drivers.slice(0, 5).map((driver) => (
+                  <View key={driver.id} style={styles.locationItem}>
+                    <View
+                      style={[
+                        styles.locationDot,
+                        { backgroundColor: getStatusColor(driver.status) },
+                      ]}
+                    />
+                    <Text style={styles.locationText}>
+                      {driver.name} - {driver.location.latitude.toFixed(2)}°N, {driver.location.longitude.toFixed(2)}°W
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           ) : (
-            <MapView
-              style={styles.map}
+            <NativeMapView
+              drivers={drivers}
               initialRegion={initialRegion}
-              provider={PROVIDER_GOOGLE}
-              showsUserLocation={false}
-              showsMyLocationButton={false}
-              showsCompass={true}
-              showsScale={true}
-            >
-              {drivers.map((driver) => (
-                <Marker
-                  key={driver.id}
-                  coordinate={driver.location}
-                  title={driver.name}
-                  description={`Status: ${driver.status}`}
-                  pinColor={getStatusColor(driver.status)}
-                  onPress={() => setSelectedDriver(driver.id)}
-                />
-              ))}
-            </MapView>
+              selectedDriver={selectedDriver}
+              onDriverPress={setSelectedDriver}
+            />
           )}
         </View>
       </View>
@@ -429,5 +432,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
+  },
+  driverLocationsWeb: {
+    marginTop: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 12,
+  },
+  locationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  locationText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500' as const,
   },
 });
