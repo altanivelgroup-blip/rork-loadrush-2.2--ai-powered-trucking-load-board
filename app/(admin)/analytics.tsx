@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import AnalyticsCard from '@/components/AnalyticsCard';
-import { Users, Package, DollarSign, Truck, Building2, Clock, TrendingUp, TrendingDown, Minus, Lightbulb, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { Users, Package, DollarSign, Truck, Building2, Clock, TrendingUp, TrendingDown, Minus, Lightbulb, RefreshCw, ArrowUp, ArrowDown, FileText } from 'lucide-react-native';
 import { usePlatformRevenue } from '@/hooks/usePlatformRevenue';
 import { useSubscriptionAnalytics } from '@/hooks/useSubscriptionAnalytics';
 import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
@@ -105,6 +105,187 @@ export default function AdminAnalytics() {
     ]).start();
   };
 
+  const handleExportPDF = async () => {
+    try {
+      console.log('[Analytics] Generating PDF report...');
+
+      if (Platform.OS === 'web') {
+        const jsPDF = (await import('jspdf')).default;
+        const doc = new jsPDF();
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 10;
+        let yPosition = margin;
+
+        doc.setFillColor(10, 15, 31);
+        doc.rect(0, 0, pageWidth, 35, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('LoadRush Analytics Report', margin, 20);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        const timestamp = new Date().toLocaleString('en-US', {
+          dateStyle: 'full',
+          timeStyle: 'short',
+        });
+        doc.text(`Generated: ${timestamp}`, margin, 28);
+
+        yPosition = 45;
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Financial Overview', margin, yPosition);
+        yPosition += 8;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Total Revenue: ${revenue.formattedRevenue}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`LoadRush Earnings (5%): ${revenue.formattedCommission}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Completed Loads: ${revenue.completedLoadsCount}`, margin + 5, yPosition);
+        yPosition += 12;
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Subscriptions', margin, yPosition);
+        yPosition += 8;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Driver Subscriptions: ${subscriptions.driverCount} Active`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Driver MRR: ${subscriptions.formattedDriverMRR}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Shipper Subscriptions: ${subscriptions.shipperCount} Active`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Shipper MRR: ${subscriptions.formattedShipperMRR}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Total MRR: ${subscriptions.formattedTotalMRR}`, margin + 5, yPosition);
+        yPosition += 12;
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Activity Summary', margin, yPosition);
+        yPosition += 8;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        const formatHour = (hour: number): string => {
+          if (hour === 0) return '12AM';
+          if (hour === 12) return '12PM';
+          if (hour < 12) return `${hour}AM`;
+          return `${hour - 12}PM`;
+        };
+        doc.text(`Peak Driver Activity: ${formatHour(usage.peakDriverHour)} CST`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Peak Shipper Activity: ${formatHour(usage.peakShipperHour)} CST`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Total Driver Accepts: ${usage.totalDriverAccepts}`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Total Shipper Posts: ${usage.totalShipperPosts}`, margin + 5, yPosition);
+        yPosition += 12;
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Trip Performance', margin, yPosition);
+        yPosition += 8;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Average Distance: ${tripPerformance.avgDistance.toFixed(1)} miles`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Average Duration: ${tripPerformance.avgDuration.toFixed(0)} minutes`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`On-Time Rate: ${tripPerformance.onTimeRate.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 12;
+
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Weekly Trends', margin, yPosition);
+        yPosition += 8;
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        const trendIcon = (direction: string) => {
+          if (direction === 'up') return '↑';
+          if (direction === 'down') return '↓';
+          return '→';
+        };
+        doc.text(`Revenue: ${trendIcon(trends.revenue.direction)} ${trends.revenue.percentChange.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Active Loads: ${trendIcon(trends.activeLoads.direction)} ${trends.activeLoads.percentChange.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Drivers: ${trendIcon(trends.driverCount.direction)} ${trends.driverCount.percentChange.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Shippers: ${trendIcon(trends.shipperCount.direction)} ${trends.shipperCount.percentChange.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 6;
+        doc.text(`Completed Loads: ${trendIcon(trends.completedLoads.direction)} ${trends.completedLoads.percentChange.toFixed(1)}%`, margin + 5, yPosition);
+        yPosition += 12;
+
+        if (insights.insights.length > 0) {
+          doc.setTextColor(37, 99, 235);
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.text('AI Insights', margin, yPosition);
+          yPosition += 8;
+
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          insights.insights.forEach((insight, index) => {
+            if (yPosition > pageHeight - 30) {
+              doc.addPage();
+              yPosition = margin;
+            }
+            const lines = doc.splitTextToSize(`${insight.icon} ${insight.text}`, pageWidth - margin * 2 - 10);
+            doc.text(lines, margin + 5, yPosition);
+            yPosition += lines.length * 5 + 4;
+          });
+        }
+
+        doc.setFillColor(148, 163, 184);
+        doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Generated by LoadRush Analytics — © LoadRush Technologies, All Rights Reserved', pageWidth / 2, pageHeight - 8, { align: 'center' });
+
+        const fileName = `LoadRush_Analytics_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+
+        console.log('[Analytics] PDF generated successfully:', fileName);
+      } else {
+        Alert.alert(
+          'PDF Export',
+          'PDF export is currently available on web only. Please use the web version to download analytics reports.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('[Analytics] Error generating PDF:', error);
+      if (Platform.OS === 'web') {
+        alert('Failed to generate PDF report. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to generate PDF report. Please try again.');
+      }
+    }
+  };
+
   const trendMetrics = [
     { label: 'Revenue', metric: trends.revenue },
     { label: 'Loads', metric: trends.activeLoads },
@@ -140,8 +321,20 @@ export default function AdminAnalytics() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.title}>Platform Analytics</Text>
-        <Text style={styles.subtitle}>System-wide performance metrics</Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.title}>Platform Analytics</Text>
+            <Text style={styles.subtitle}>System-wide performance metrics</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportPDF}
+            activeOpacity={0.7}
+          >
+            <FileText size={18} color="#FFFFFF" />
+            <Text style={styles.exportButtonText}>Download Report</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -596,6 +789,30 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  exportButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   title: {
     fontSize: 28,
