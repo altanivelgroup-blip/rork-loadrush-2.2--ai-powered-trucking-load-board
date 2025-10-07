@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,15 @@ export default function CommandCenter() {
   const { drivers, isLoading, error } = useCommandCenterDrivers();
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const [panelAnimation] = useState(new Animated.Value(0));
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const openPanel = (driverId: string) => {
     setSelectedDriver(driverId);
@@ -60,24 +69,26 @@ export default function CommandCenter() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Stack.Screen options={{ title: 'Command Center' }} />
-        <ActivityIndicator size="large" color="#1E3A8A" />
-        <Text style={styles.loadingText}>Loading Command Center...</Text>
+        <Stack.Screen options={{ title: 'Command Center', headerShown: false }} />
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Initializing Command Center...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Command Center' }} />
+      <Stack.Screen options={{ title: 'Command Center', headerShown: false }} />
       
-      <View style={styles.header}>
+      <View style={styles.gradientBackground} />
+      
+      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         <View style={styles.headerLeft}>
-          <RadioTower size={24} color="#1E3A8A" />
+          <RadioTower size={28} color="#FFFFFF" />
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>LoadRush Command Center</Text>
+            <Text style={styles.headerTitle}>LOADRUSH COMMAND CENTER</Text>
             <Text style={styles.headerSubtitle}>
-              Monitor drivers, loads, and operational flow in real-time
+              Live Fleet Tracking Dashboard
             </Text>
           </View>
         </View>
@@ -85,10 +96,10 @@ export default function CommandCenter() {
           <View style={styles.statusDot} />
           <Text style={styles.statusText}>System Stable</Text>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.content}>
-        <View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall]}>
+        <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
           <View style={styles.sidebarHeader}>
             <Text style={styles.sidebarTitle}>Active Drivers</Text>
             <View style={styles.driverCount}>
@@ -116,43 +127,31 @@ export default function CommandCenter() {
               />
             ))}
           </ScrollView>
-        </View>
+        </Animated.View>
 
-        <View style={styles.mapContainer}>
-          {isWeb ? (
-            <View style={styles.webMapPlaceholder}>
-              <MapPin size={48} color="#9CA3AF" />
-              <Text style={styles.webMapText}>
-                Map view is optimized for mobile devices
-              </Text>
-              <Text style={styles.webMapSubtext}>
-                {drivers.length} drivers active across the U.S.
-              </Text>
-              <View style={styles.driverLocationsWeb}>
-                {drivers.slice(0, 5).map((driver) => (
-                  <View key={driver.id} style={styles.locationItem}>
-                    <View
-                      style={[
-                        styles.locationDot,
-                        { backgroundColor: getStatusColor(driver.status) },
-                      ]}
-                    />
-                    <Text style={styles.locationText}>
-                      {driver.name} - {driver.location.latitude.toFixed(2)}°N, {driver.location.longitude.toFixed(2)}°W
-                    </Text>
-                  </View>
-                ))}
-              </View>
+        <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
+          <View style={styles.darkMapPlaceholder}>
+            <View style={styles.mapGrid}>
+              {drivers.map((driver) => (
+                <AnimatedMarker
+                  key={driver.id}
+                  driver={driver}
+                  onPress={() => openPanel(driver.id)}
+                  isSelected={selectedDriver === driver.id}
+                />
+              ))}
             </View>
-          ) : (
-            <View style={styles.webMapPlaceholder}>
-              <MapPin size={48} color="#9CA3AF" />
-              <Text style={styles.webMapText}>
-                Native map view available on mobile
+            <View style={styles.mapOverlay}>
+              <MapPin size={64} color="rgba(37, 99, 235, 0.3)" />
+              <Text style={styles.mapOverlayText}>
+                {drivers.length} Active Drivers
+              </Text>
+              <Text style={styles.mapOverlaySubtext}>
+                Live tracking across continental U.S.
               </Text>
             </View>
-          )}
-        </View>
+          </View>
+        </Animated.View>
       </View>
 
       {selectedDriver && selectedDriverData && (
@@ -197,36 +196,69 @@ function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
     enabled: !!(driver.pickupLocation && driver.dropoffLocation),
   });
 
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.97,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
   return (
     <TouchableOpacity
-      style={[styles.driverCard, isSelected && styles.driverCardSelected]}
       onPress={onPress}
-      activeOpacity={0.7}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
     >
-      <View style={styles.driverCardHeader}>
-        <View style={styles.driverInfo}>
-          <Text style={styles.driverNumber}>{driver.driverId}</Text>
-          <Text style={styles.driverName}>{driver.name}</Text>
-        </View>
+      <Animated.View
+        style={[
+          styles.driverCard,
+          isSelected && styles.driverCardSelected,
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
         <View
           style={[
-            styles.statusIndicator,
+            styles.statusBar,
             { backgroundColor: getStatusColor(driver.status) },
           ]}
         />
-      </View>
-      {driver.currentLoad && (
-        <Text style={styles.currentLoad}>Load: {driver.currentLoad}</Text>
-      )}
-      <Text style={styles.statusLabel}>{getStatusLabel(driver.status)}</Text>
-      {routeData && (
-        <View style={styles.etaBadge}>
-          <Route size={12} color="#1E3A8A" />
-          <Text style={styles.etaText}>
-            ETA: {routeData.durationFormatted} • {Math.round(routeData.distanceMiles)} mi
-          </Text>
+        <View style={styles.driverCardContent}>
+          <View style={styles.driverCardHeader}>
+            <View style={styles.driverInfo}>
+              <Text style={styles.driverNumber}>{driver.driverId}</Text>
+              <Text style={styles.driverName}>{driver.name}</Text>
+            </View>
+            <View
+              style={[
+                styles.statusIndicator,
+                { backgroundColor: getStatusColor(driver.status) },
+              ]}
+            />
+          </View>
+          {driver.currentLoad && (
+            <Text style={styles.currentLoad}>Load: {driver.currentLoad}</Text>
+          )}
+          <Text style={styles.statusLabel}>{getStatusLabel(driver.status)}</Text>
+          {routeData && (
+            <View style={styles.etaBadge}>
+              <Route size={12} color="#94A3B8" />
+              <Text style={styles.etaText}>
+                ETA: {routeData.durationFormatted} • {Math.round(routeData.distanceMiles)} mi
+              </Text>
+            </View>
+          )}
         </View>
-      )}
+      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -239,14 +271,148 @@ interface LegendItemProps {
 function LegendItem({ status, label }: LegendItemProps) {
   return (
     <View style={styles.legendItem}>
-      <View
-        style={[
-          styles.legendDot,
-          { backgroundColor: getStatusColor(status) },
-        ]}
-      />
+      <PulsingDot color={getStatusColor(status)} size={10} />
       <Text style={styles.legendLabel}>{label}</Text>
     </View>
+  );
+}
+
+interface PulsingDotProps {
+  color: string;
+  size: number;
+}
+
+function PulsingDot({ color, size }: PulsingDotProps) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, []);
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+      <Animated.View
+        style={[
+          styles.legendDot,
+          {
+            backgroundColor: color,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.legendDotGlow,
+          {
+            backgroundColor: color,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+interface AnimatedMarkerProps {
+  driver: {
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  onPress: () => void;
+  isSelected: boolean;
+}
+
+function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseSpeed = driver.status === 'breakdown' ? 1500 : 1000;
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.5,
+          duration: pulseSpeed,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: pulseSpeed,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [driver.status]);
+
+  const markerColor = getStatusColor(driver.status);
+  const markerSize = isSelected ? 24 : 18;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.mapMarker,
+        {
+          left: `${((driver.location.longitude + 125) / 60) * 100}%`,
+          top: `${((50 - driver.location.latitude) / 25) * 100}%`,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Animated.View
+        style={[
+          styles.markerGlow,
+          {
+            backgroundColor: markerColor,
+            width: markerSize * 2,
+            height: markerSize * 2,
+            borderRadius: markerSize,
+            transform: [{ scale: pulseAnim }],
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.markerCore,
+          {
+            backgroundColor: markerColor,
+            width: markerSize,
+            height: markerSize,
+            borderRadius: markerSize / 2,
+          },
+        ]}
+      >
+        {isSelected && <View style={styles.markerSelected} />}
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -501,33 +667,38 @@ function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0A0F1F',
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0A0F1F',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0A0F1F',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#94A3B8',
+    fontWeight: '500' as const,
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(30, 41, 59, 0.5)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -539,34 +710,42 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700' as const,
-    color: '#1E3A8A',
-    marginBottom: 2,
+    color: '#FFFFFF',
+    marginBottom: 4,
+    letterSpacing: 1.5,
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500' as const,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#22C55E',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600' as const,
-    color: '#059669',
+    color: '#22C55E',
   },
   content: {
     flex: 1,
@@ -575,9 +754,12 @@ const styles = StyleSheet.create({
   sidebar: {
     width: isSmallScreen ? '100%' : '30%',
     maxWidth: 400,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderRightWidth: 1,
-    borderRightColor: '#E5E7EB',
+    borderRightColor: 'rgba(30, 41, 59, 0.5)',
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(12px)',
+    }),
   },
   sidebarSmall: {
     width: '35%',
@@ -587,33 +769,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(30, 41, 59, 0.5)',
   },
   sidebarTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700' as const,
-    color: '#111827',
+    color: '#F1F5F9',
   },
   driverCount: {
-    backgroundColor: '#1E3A8A',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: 'rgba(37, 99, 235, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.5)',
   },
   driverCountText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700' as const,
-    color: '#FFFFFF',
+    color: '#60A5FA',
   },
   legendContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 12,
-    gap: 12,
+    padding: 16,
+    gap: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(30, 41, 59, 0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   legendItem: {
     flexDirection: 'row',
@@ -626,30 +811,50 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   legendLabel: {
-    fontSize: 11,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#94A3B8',
     fontWeight: '500' as const,
+  },
+  legendDotGlow: {
+    position: 'absolute',
+    opacity: 0.4,
   },
   driverList: {
     flex: 1,
   },
   driverCard: {
-    backgroundColor: '#FFFFFF',
-    padding: 14,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     marginHorizontal: 12,
-    marginVertical: 6,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+    marginVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(30, 41, 59, 0.6)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(8px)',
+    }),
   },
   driverCardSelected: {
-    borderColor: '#1E3A8A',
-    backgroundColor: '#F0F4FF',
+    borderColor: 'rgba(37, 99, 235, 0.8)',
+    backgroundColor: 'rgba(30, 58, 138, 0.3)',
+    shadowColor: '#2563EB',
+    shadowOpacity: 0.5,
+  },
+  statusBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+  },
+  driverCardContent: {
+    padding: 14,
+    paddingLeft: 18,
   },
   driverCardHeader: {
     flexDirection: 'row',
@@ -661,100 +866,116 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   driverNumber: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600' as const,
-    color: '#6B7280',
-    marginBottom: 2,
+    color: '#94A3B8',
+    marginBottom: 4,
   },
   driverName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700' as const,
-    color: '#111827',
+    color: '#F1F5F9',
   },
   statusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     marginTop: 4,
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
   },
   currentLoad: {
-    fontSize: 12,
-    color: '#1E3A8A',
+    fontSize: 13,
+    color: '#60A5FA',
     fontWeight: '600' as const,
     marginBottom: 4,
   },
   etaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingTop: 8,
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: 'rgba(30, 41, 59, 0.5)',
   },
   etaText: {
-    fontSize: 11,
-    color: '#1E3A8A',
+    fontSize: 12,
+    color: '#94A3B8',
     fontWeight: '600' as const,
   },
   statusLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#CBD5E1',
   },
   mapContainer: {
     flex: 1,
+    position: 'relative',
   },
-  map: {
+  darkMapPlaceholder: {
     flex: 1,
+    backgroundColor: '#0F172A',
+    position: 'relative',
   },
-  webMapPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
+  mapGrid: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0F172A',
+  },
+  mapOverlay: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -100 }, { translateY: -60 }],
+    width: 200,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    padding: 32,
+    justifyContent: 'center',
+    opacity: 0.4,
   },
-  webMapText: {
+  mapOverlayText: {
     marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#6B7280',
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#60A5FA',
     textAlign: 'center',
   },
-  webMapSubtext: {
+  mapOverlaySubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#94A3B8',
     textAlign: 'center',
   },
-  driverLocationsWeb: {
-    marginTop: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  locationItem: {
-    flexDirection: 'row',
+  mapMarker: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+  },
+  markerGlow: {
+    position: 'absolute',
+    opacity: 0.3,
+  },
+  markerCore: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.8)',
+    shadowColor: '#FFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+  },
+  markerSelected: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginBottom: 8,
-    gap: 12,
-  },
-  locationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  locationText: {
-    fontSize: 13,
-    color: '#374151',
-    fontWeight: '500' as const,
   },
   panelOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     zIndex: 999,
   },
   detailPanel: {
@@ -762,23 +983,25 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
     shadowColor: '#000',
     shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 10,
     zIndex: 1000,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(30, 41, 59, 0.8)',
   },
   panelHeader: {
-    backgroundColor: '#1E3A8A',
+    backgroundColor: 'rgba(30, 58, 138, 0.6)',
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingVertical: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E40AF',
+    borderBottomColor: 'rgba(37, 99, 235, 0.3)',
   },
   panelHeaderLeft: {
     flex: 1,
@@ -813,22 +1036,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    padding: 18,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
   },
   driverAvatarPlaceholder: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#1E3A8A',
+    backgroundColor: 'rgba(37, 99, 235, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(37, 99, 235, 0.5)',
   },
   driverInitials: {
     fontSize: 24,
@@ -841,7 +1068,7 @@ const styles = StyleSheet.create({
   driverNamePanel: {
     fontSize: 20,
     fontWeight: '700' as const,
-    color: '#111827',
+    color: '#F1F5F9',
     marginBottom: 8,
   },
   statusBadgePanel: {
@@ -874,17 +1101,19 @@ const styles = StyleSheet.create({
   infoHeaderText: {
     fontSize: 15,
     fontWeight: '700' as const,
-    color: '#1E3A8A',
+    color: '#60A5FA',
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 14,
+    padding: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
   },
   infoRow: {
     flexDirection: 'row',
@@ -894,12 +1123,12 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#94A3B8',
     fontWeight: '500' as const,
   },
   infoValue: {
     fontSize: 14,
-    color: '#111827',
+    color: '#F1F5F9',
     fontWeight: '600' as const,
     textAlign: 'right',
     flex: 1,
@@ -907,7 +1136,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
     marginVertical: 4,
   },
   progressContainer: {
@@ -920,7 +1149,7 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -928,11 +1157,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#22C55E',
     borderRadius: 4,
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   progressText: {
     fontSize: 13,
     fontWeight: '700' as const,
-    color: '#111827',
+    color: '#F1F5F9',
     minWidth: 40,
     textAlign: 'right',
   },
@@ -941,16 +1174,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     marginTop: 8,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
   },
   viewRouteButtonText: {
     fontSize: 15,
     fontWeight: '600' as const,
-    color: '#9CA3AF',
+    color: '#64748B',
   },
 });
