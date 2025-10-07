@@ -7,19 +7,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import useDriverNavigation from '@/hooks/useDriverNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Colors from '@/constants/colors';
-
-let MapView: any;
-let Marker: any;
-let Polyline: any;
-let PROVIDER_GOOGLE: any;
-
-if (Platform.OS !== 'web') {
-  const maps = require('react-native-maps');
-  MapView = maps.default;
-  Marker = maps.Marker;
-  Polyline = maps.Polyline;
-  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
-}
+import { MapView, Marker, Polyline, PROVIDER_GOOGLE } from '@/components/MapComponents';
 
 const { width } = Dimensions.get('window');
 
@@ -147,57 +135,63 @@ export default function NavigationScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <MapView
-        ref={mapRef}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        style={styles.map}
-        initialRegion={{
-          latitude: currentLocation.lat,
-          longitude: currentLocation.lng,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        onMapReady={() => setMapReady(true)}
-      >
-        {routeCoords.length > 0 && (
-          <Polyline
-            coordinates={routeCoords.map(coord => ({
-              latitude: coord.lat,
-              longitude: coord.lng,
-            }))}
-            strokeColor={Colors.light.primary}
-            strokeWidth={4}
-            lineCap="round"
-            lineJoin="round"
-          />
-        )}
-
-        <Marker
-          coordinate={{
+      {MapView && (
+        <MapView
+          ref={mapRef}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+          style={styles.map}
+          initialRegion={{
             latitude: currentLocation.lat,
             longitude: currentLocation.lng,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
           }}
-          anchor={{ x: 0.5, y: 0.5 }}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          onMapReady={() => setMapReady(true)}
         >
-          <View style={styles.currentLocationMarker}>
-            <View style={styles.currentLocationDot} />
-          </View>
-        </Marker>
+          {routeCoords.length > 0 && Polyline && (
+            <Polyline
+              coordinates={routeCoords.map(coord => ({
+                latitude: coord.lat,
+                longitude: coord.lng,
+              }))}
+              strokeColor={Colors.light.primary}
+              strokeWidth={4}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
 
-        <Marker
-          coordinate={{
-            latitude: destination.lat,
-            longitude: destination.lng,
-          }}
-          anchor={{ x: 0.5, y: 1 }}
-        >
-          <View style={styles.destinationMarker}>
-            <MapPin size={32} color="#EF4444" fill="#EF4444" />
-          </View>
-        </Marker>
-      </MapView>
+          {Marker && (
+            <Marker
+              coordinate={{
+                latitude: currentLocation.lat,
+                longitude: currentLocation.lng,
+              }}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <View style={styles.currentLocationMarker}>
+                <View style={styles.currentLocationDot} />
+              </View>
+            </Marker>
+          )}
+
+          {Marker && (
+            <Marker
+              coordinate={{
+                latitude: destination.lat,
+                longitude: destination.lng,
+              }}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <View style={styles.destinationMarker}>
+                <MapPin size={32} color="#EF4444" fill="#EF4444" />
+              </View>
+            </Marker>
+          )}
+        </MapView>
+      )}
 
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerContent}>
@@ -252,6 +246,16 @@ export default function NavigationScreen() {
               </TouchableOpacity>
             )}
           </View>
+        </View>
+      )}
+
+      {!MapView && (
+        <View style={styles.webFallback}>
+          <MapPin size={64} color={Colors.light.primary} />
+          <Text style={styles.webFallbackTitle}>Navigation Not Available</Text>
+          <Text style={styles.webFallbackText}>
+            Maps are not available on this platform.
+          </Text>
         </View>
       )}
 
