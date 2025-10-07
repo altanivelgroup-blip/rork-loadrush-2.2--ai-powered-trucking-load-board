@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import AnalyticsCard from '@/components/AnalyticsCard';
-import { Users, Package, DollarSign, Truck, Building2, Clock, TrendingUp, TrendingDown, Minus, Lightbulb } from 'lucide-react-native';
+import { Users, Package, DollarSign, Truck, Building2, Clock, TrendingUp, TrendingDown, Minus, Lightbulb, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react-native';
 import { usePlatformRevenue } from '@/hooks/usePlatformRevenue';
 import { useSubscriptionAnalytics } from '@/hooks/useSubscriptionAnalytics';
 import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
@@ -15,6 +15,8 @@ export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
   const [chartMode, setChartMode] = useState<'drivers' | 'shippers'>('drivers');
   const [fadeAnim] = useState(new Animated.Value(1));
+  const [trendFadeAnim] = useState(new Animated.Value(0));
+  const [insightFadeAnim] = useState(new Animated.Value(0));
 
   const revenue = usePlatformRevenue();
   const subscriptions = useSubscriptionAnalytics();
@@ -43,6 +45,50 @@ export default function AdminAnalytics() {
   const maxValue = Math.max(...chartData, 1);
 
   const totalUsers = subscriptions.driverCount + subscriptions.shipperCount;
+
+  useEffect(() => {
+    if (!trends.isLoading) {
+      Animated.timing(trendFadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [trends.isLoading]);
+
+  useEffect(() => {
+    if (!insights.isLoading && insights.insights.length > 0) {
+      Animated.timing(insightFadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [insights.isLoading, insights.insights.length]);
+
+  const handleRefreshInsights = () => {
+    console.log('[Analytics] Manual insight refresh triggered');
+    Animated.sequence([
+      Animated.timing(insightFadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(insightFadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const trendMetrics = [
+    { label: 'Revenue', metric: trends.revenue },
+    { label: 'Loads', metric: trends.activeLoads },
+    { label: 'Drivers', metric: trends.driverCount },
+    { label: 'Shippers', metric: trends.shipperCount },
+  ];
 
   const renderTrendIndicator = (metric: typeof trends.revenue) => {
     if (trends.isLoading) return null;
@@ -289,6 +335,91 @@ export default function AdminAnalytics() {
             </View>
           </Animated.View>
         </View>
+
+        <Text style={styles.sectionLabel}>Growth & Insights</Text>
+        
+        <Animated.View style={[styles.trendCardsContainer, { opacity: trendFadeAnim }]}>
+          {!trends.isLoading && trendMetrics.map((item, index) => {
+            const { metric } = item;
+            const getTrendColor = () => {
+              if (metric.direction === 'up') return '#16A34A';
+              if (metric.direction === 'down') return '#DC2626';
+              return '#94A3B8';
+            };
+
+            const getTrendIcon = () => {
+              if (metric.direction === 'up') return <ArrowUp size={14} color={getTrendColor()} />;
+              if (metric.direction === 'down') return <ArrowDown size={14} color={getTrendColor()} />;
+              return <Minus size={14} color={getTrendColor()} />;
+            };
+
+            return (
+              <View key={item.label} style={styles.trendMiniCard}>
+                <View style={[styles.trendIconContainer, { backgroundColor: `${getTrendColor()}20` }]}>
+                  {getTrendIcon()}
+                </View>
+                <View style={styles.trendMiniContent}>
+                  <Text style={[styles.trendMiniPercent, { color: getTrendColor() }]}>
+                    {metric.direction === 'up' ? '+' : metric.direction === 'down' ? '-' : ''}{metric.percentChange.toFixed(1)}%
+                  </Text>
+                  <Text style={styles.trendMiniLabel}>{item.label}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </Animated.View>
+
+        <Animated.View style={[styles.insightsPanelContainer, { opacity: insightFadeAnim }]}>
+          <View style={styles.insightsPanelHeader}>
+            <View style={styles.insightsPanelTitleRow}>
+              <Lightbulb size={22} color="#F59E0B" />
+              <Text style={styles.insightsPanelTitle}>Weekly Intelligence Summary</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={handleRefreshInsights}
+              activeOpacity={0.7}
+            >
+              <RefreshCw size={16} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.insightsPanelSubheader}>Auto-generated insights based on real-time analytics</Text>
+          
+          {insights.isLoading ? (
+            <View style={styles.insightLoadingContainer}>
+              <Text style={styles.insightLoadingText}>Analyzing platform data...</Text>
+            </View>
+          ) : insights.insights.length > 0 ? (
+            <View style={styles.insightsList}>
+              {insights.insights.map((insight, index) => (
+                <Animated.View
+                  key={insight.id}
+                  style={[
+                    styles.insightBullet,
+                    {
+                      opacity: insightFadeAnim,
+                      transform: [
+                        {
+                          translateY: insightFadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [10, 0],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <Text style={styles.insightBulletIcon}>{insight.icon}</Text>
+                  <Text style={styles.insightBulletText}>{insight.text}</Text>
+                </Animated.View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.insightLoadingContainer}>
+              <Text style={styles.insightLoadingText}>No insights available yet</Text>
+            </View>
+          )}
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -507,5 +638,115 @@ const styles = StyleSheet.create({
   trendText: {
     fontSize: 11,
     fontWeight: '700' as const,
+  },
+  trendCardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  trendMiniCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    minWidth: '48%',
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  trendIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendMiniContent: {
+    flex: 1,
+  },
+  trendMiniPercent: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 2,
+  },
+  trendMiniLabel: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    fontWeight: '600' as const,
+  },
+  insightsPanelContainer: {
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  insightsPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  insightsPanelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  insightsPanelTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  insightsPanelSubheader: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginBottom: 16,
+  },
+  refreshButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  insightsList: {
+    gap: 12,
+  },
+  insightBullet: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563EB',
+  },
+  insightBulletIcon: {
+    fontSize: 20,
+    marginTop: 2,
+  },
+  insightBulletText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#E2E8F0',
+  },
+  insightLoadingContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  insightLoadingText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontStyle: 'italic' as const,
   },
 });
