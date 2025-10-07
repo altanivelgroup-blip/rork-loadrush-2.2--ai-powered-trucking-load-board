@@ -150,6 +150,18 @@ export default function DriverLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="map-screen"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="navigation-screen"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
