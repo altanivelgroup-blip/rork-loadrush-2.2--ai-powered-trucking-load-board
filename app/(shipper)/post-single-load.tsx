@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -115,24 +116,6 @@ export default function PostSingleLoadWizard() {
     setStepIndex((i) => Math.max(i - 1, 0));
   }, []);
 
-  const canContinue = useMemo(() => {
-    const key = steps[stepIndex].key;
-    switch (key) {
-      case 'details':
-        return title.trim().length > 0 && description.trim().length > 0;
-      case 'locations':
-        return pickupLocation.trim().length > 0 && deliveryLocation.trim().length > 0;
-      case 'schedule':
-        return !!pickupDate && !!deliveryDate;
-      case 'rate':
-        return rateAmount.trim().length > 0;
-      case 'review':
-        return contact.trim().length > 0;
-      default:
-        return true;
-    }
-  }, [stepIndex, title, description, pickupLocation, deliveryLocation, pickupDate, deliveryDate, rateAmount, contact]);
-
   const calculateExpiresAt = (baseDate: Date | null): Timestamp => {
     const base = baseDate ?? new Date();
     const exp = new Date(base);
@@ -140,8 +123,34 @@ export default function PostSingleLoadWizard() {
     return Timestamp.fromDate(exp);
   };
 
+  // ✅ Validation now runs only on button press, not while typing
+  const handleNext = useCallback(() => {
+    const key = steps[stepIndex].key;
+    let valid = true;
+
+    switch (key) {
+      case 'details':
+        valid = title.trim().length > 0 && description.trim().length > 0;
+        break;
+      case 'locations':
+        valid = pickupLocation.trim().length > 0 && deliveryLocation.trim().length > 0;
+        break;
+      case 'schedule':
+        valid = !!pickupDate && !!deliveryDate;
+        break;
+      case 'rate':
+        valid = rateAmount.trim().length > 0;
+        break;
+      case 'review':
+        valid = contact.trim().length > 0;
+        break;
+    }
+
+    if (valid) next();
+    else Alert.alert('Missing Info', 'Please fill in all required fields before continuing.');
+  }, [stepIndex, title, description, pickupLocation, deliveryLocation, pickupDate, deliveryDate, rateAmount, contact, next]);
+
   const handleSubmit = useCallback(async () => {
-    if (!canContinue) return;
     setLoading(true);
     try {
       const auth = getAuth();
@@ -179,9 +188,9 @@ export default function PostSingleLoadWizard() {
     } finally {
       setLoading(false);
     }
-  }, [canContinue, title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, router, formatDate]);
+  }, [title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, router, formatDate]);
 
-  const renderStepIndicator = useMemo(() => (
+  const renderStepIndicator = (
     <View style={styles.stepper}>
       {steps.map((s, i) => (
         <View key={s.key} style={styles.stepDotWrap}>
@@ -190,7 +199,7 @@ export default function PostSingleLoadWizard() {
         </View>
       ))}
     </View>
-  ), [stepIndex]);
+  );
 
   const Section = ({ title: t, children }: { title: string; children: React.ReactNode }) => (
     <View style={styles.card}>
@@ -202,11 +211,11 @@ export default function PostSingleLoadWizard() {
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: true, title: 'Post Load' }} />
-
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.headerTitle}>Post Load - Step {stepIndex + 1}</Text>
         <View>{renderStepIndicator}</View>
 
+        {/* ---- Step 1: Details ---- */}
         {steps[stepIndex].key === 'details' && (
           <>
             <Section title="Bulk Upload (CSV)">
@@ -224,10 +233,27 @@ export default function PostSingleLoadWizard() {
 
             <Section title="Load Details">
               <Text style={styles.label}>Load Title *</Text>
-              <TextInput testID="title" style={styles.input} value={title} onChangeText={setTitle} placeholder="e.g., Furniture delivery - Dallas to Houston" placeholderTextColor="#9CA3AF" />
+              <TextInput
+                testID="title"
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g., Furniture delivery - Dallas to Houston"
+                placeholderTextColor="#9CA3AF"
+              />
 
               <Text style={[styles.label, { marginTop: 12 }]}>Description *</Text>
-              <TextInput testID="description" style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe the cargo, special handling requirements, etc." placeholderTextColor="#9CA3AF" multiline numberOfLines={4} textAlignVertical="top" />
+              <TextInput
+                testID="description"
+                style={[styles.input, styles.textArea]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Describe the cargo, special handling requirements, etc."
+                placeholderTextColor="#9CA3AF"
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
 
               <Text style={[styles.label, { marginTop: 12 }]}>Vehicle Type Required</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
@@ -248,6 +274,7 @@ export default function PostSingleLoadWizard() {
           </>
         )}
 
+        {/* ---- Step 2: Locations ---- */}
         {steps[stepIndex].key === 'locations' && (
           <Section title="Pickup & Delivery">
             <Text style={styles.label}>Pickup Location *</Text>
@@ -264,17 +291,13 @@ export default function PostSingleLoadWizard() {
           </Section>
         )}
 
+        {/* ---- Step 3: Schedule ---- */}
         {steps[stepIndex].key === 'schedule' && (
           <Section title="Schedule">
             <Text style={styles.label}>Pickup Date</Text>
-            <TouchableOpacity
-              testID="pickup-date"
-              style={styles.dateInput}
-              onPress={() => openNativeDatePicker('pickup')}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity testID="pickup-date" style={styles.dateInput} onPress={() => openNativeDatePicker('pickup')} activeOpacity={0.7}>
               <Calendar size={18} color="#6b7280" />
-              <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>{formatDate(pickupDate) || 'Oct 7, 2025'}</Text>
+              <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>{formatDate(pickupDate) || 'Select date'}</Text>
             </TouchableOpacity>
             {inlinePickerTarget === 'pickup' && (
               <View style={{ marginTop: 8 }}>
@@ -290,14 +313,9 @@ export default function PostSingleLoadWizard() {
             )}
 
             <Text style={[styles.label, { marginTop: 12 }]}>Delivery Date</Text>
-            <TouchableOpacity
-              testID="delivery-date"
-              style={styles.dateInput}
-              onPress={() => openNativeDatePicker('delivery')}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity testID="delivery-date" style={styles.dateInput} onPress={() => openNativeDatePicker('delivery')} activeOpacity={0.7}>
               <Calendar size={18} color="#6b7280" />
-              <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>{formatDate(deliveryDate) || 'Oct 8, 2025'}</Text>
+              <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>{formatDate(deliveryDate) || 'Select date'}</Text>
             </TouchableOpacity>
             {inlinePickerTarget === 'delivery' && (
               <View style={{ marginTop: 8 }}>
@@ -325,10 +343,11 @@ export default function PostSingleLoadWizard() {
           </Section>
         )}
 
+        {/* ---- Step 4: Rate ---- */}
         {steps[stepIndex].key === 'rate' && (
           <Section title="Rate & Payment">
             <Text style={styles.label}>Rate Amount *</Text>
-            <View style={styles.inputRow}>                
+            <View style={styles.inputRow}>
               <DollarSign size={18} color="#6b7280" />
               <TextInput
                 testID="rate"
@@ -356,6 +375,7 @@ export default function PostSingleLoadWizard() {
           </Section>
         )}
 
+        {/* ---- Step 5: Review ---- */}
         {steps[stepIndex].key === 'review' && (
           <Section title="Contact & Review">
             <Text style={styles.label}>Contact Information</Text>
@@ -381,19 +401,20 @@ export default function PostSingleLoadWizard() {
           </Section>
         )}
 
-        <View style={styles.footer}> 
+        {/* ---- Footer ---- */}
+        <View style={styles.footer}>
           <TouchableOpacity testID="prev" style={[styles.footerBtn, styles.prevBtn]} onPress={prev} disabled={stepIndex === 0}>
             <ChevronLeft size={18} color={stepIndex === 0 ? '#9CA3AF' : '#1f2a69'} />
             <Text style={[styles.footerBtnText, stepIndex === 0 && { color: '#9CA3AF' }]}>Previous</Text>
           </TouchableOpacity>
 
           {stepIndex < steps.length - 1 ? (
-            <TouchableOpacity testID="next" style={[styles.footerBtn, styles.nextBtn, !canContinue && styles.nextBtnDisabled]} onPress={next} disabled={!canContinue}>
+            <TouchableOpacity testID="next" style={[styles.footerBtn, styles.nextBtn]} onPress={handleNext}>
               <Text style={styles.nextBtnText}>Next</Text>
               <ChevronRight size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity testID="submit" style={[styles.footerBtn, styles.nextBtn, (!canContinue || loading) && styles.nextBtnDisabled]} onPress={handleSubmit} disabled={!canContinue || loading}>
+            <TouchableOpacity testID="submit" style={[styles.footerBtn, styles.nextBtn, loading && styles.nextBtnDisabled]} onPress={handleSubmit} disabled={loading}>
               {loading ? <ActivityIndicator color="#fff" /> : <>
                 <Send size={18} color="#fff" />
                 <Text style={styles.nextBtnText}>Post Load</Text>
@@ -402,8 +423,6 @@ export default function PostSingleLoadWizard() {
           )}
         </View>
       </ScrollView>
-
-
     </View>
   );
 }
@@ -412,57 +431,46 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8f9fa' },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
-  headerTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1a1a1a', marginBottom: 8, textAlign: 'center' },
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 8, textAlign: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 },
   stepDotWrap: { flexDirection: 'row', alignItems: 'center' },
   stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E7EB' },
   stepDotActive: { backgroundColor: Colors.light.primary },
   stepLine: { width: 28, height: 3, backgroundColor: '#E5E7EB', marginHorizontal: 6, borderRadius: 2 },
   stepLineActive: { backgroundColor: Colors.light.primary },
-
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  cardTitle: { fontSize: 20, fontWeight: '700' as const, color: '#1a1a1a', textAlign: 'center', marginBottom: 12 },
-
-  label: { fontSize: 14, fontWeight: '600' as const, color: '#374151', marginBottom: 8 },
+  cardTitle: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', marginBottom: 12 },
+  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
   input: { backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#1a1a1a', borderWidth: 1, borderColor: '#E5E7EB' },
-  textArea: { minHeight: 100, textAlignVertical: 'top' as const },
-
+  textArea: { minHeight: 100, textAlignVertical: 'top' },
   inlineActions: { flexDirection: 'row', gap: 10, alignSelf: 'center' },
   primaryBtn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.light.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' as const },
+  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   outlineBtn: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', borderWidth: 2, borderColor: Colors.light.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
-  outlineBtnText: { color: Colors.light.primary, fontSize: 15, fontWeight: '700' as const },
-
+  outlineBtnText: { color: Colors.light.primary, fontSize: 15, fontWeight: '700' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: '#1f2a69', backgroundColor: '#F3F4F6', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 10 },
   pillActive: { backgroundColor: '#1f2a69', borderColor: '#1f2a69' },
-  pillText: { fontSize: 14, fontWeight: '700' as const, color: '#1f2a69' },
+  pillText: { fontSize: 14, fontWeight: '700', color: '#1f2a69' },
   pillTextActive: { color: '#fff' },
-
   dateInput: { backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateText: { fontSize: 15, color: '#1a1a1a' },
   datePlaceholder: { fontSize: 15, color: '#9CA3AF' },
-
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggleBtn: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   toggleBtnActive: { backgroundColor: '#EFF6FF', borderColor: Colors.light.primary },
-  toggleBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#6B7280' },
+  toggleBtnText: { fontSize: 15, fontWeight: '700', color: '#6B7280' },
   toggleBtnTextActive: { color: '#1f2a69' },
-
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FEF3C7', marginTop: 12 },
   noticeText: { fontSize: 13, color: '#92400E' },
-
   photosBox: { backgroundColor: '#F3F4F6', borderRadius: 12, padding: 12, alignItems: 'center', justifyContent: 'center' },
   summaryBox: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  summaryTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1a1a1a', marginBottom: 8 },
+  summaryTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginBottom: 8 },
   summaryRow: { fontSize: 14, color: '#374151' },
-
   footer: { flexDirection: 'row', gap: 12, marginTop: 8 },
   footerBtn: { flex: 1, borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   prevBtn: { backgroundColor: '#E5E7EB' },
-  footerBtnText: { fontSize: 16, fontWeight: '600' as const, color: '#1f2a69' },
+  footerBtnText: { fontSize: 16, fontWeight: '600', color: '#1f2a69' },
   nextBtn: { backgroundColor: '#1f2a69' },
-  nextBtnText: { fontSize: 16, fontWeight: '600' as const, color: '#fff' },
+  nextBtnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
   nextBtnDisabled: { opacity: 0.5 },
-
-
 });
