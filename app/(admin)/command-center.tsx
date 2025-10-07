@@ -27,6 +27,9 @@ export default function CommandCenter() {
   const { drivers, isLoading, error } = useCommandCenterDrivers();
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const [panelAnimation] = useState(new Animated.Value(0));
+  const [popupDriver, setPopupDriver] = useState<string | null>(null);
+  const [popupAnimation] = useState(new Animated.Value(0));
+  const [activeFilter, setActiveFilter] = useState<DriverStatus | 'all'>('all');
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -47,6 +50,26 @@ export default function CommandCenter() {
     }).start();
   };
 
+  const openPopup = (driverId: string) => {
+    setPopupDriver(driverId);
+    Animated.spring(popupAnimation, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 10,
+    }).start();
+  };
+
+  const closePopup = () => {
+    Animated.timing(popupAnimation, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setPopupDriver(null);
+    });
+  };
+
   const closePanel = () => {
     Animated.timing(panelAnimation, {
       toValue: 0,
@@ -58,6 +81,16 @@ export default function CommandCenter() {
   };
 
   const selectedDriverData = drivers.find((d) => d.id === selectedDriver);
+  const popupDriverData = drivers.find((d) => d.id === popupDriver);
+
+  const filteredDrivers = activeFilter === 'all' 
+    ? drivers 
+    : drivers.filter((d) => d.status === activeFilter);
+
+  const getStatusCount = (status: DriverStatus | 'all') => {
+    if (status === 'all') return drivers.length;
+    return drivers.filter((d) => d.status === status).length;
+  };
 
   const initialRegion = {
     latitude: 39.8283,
@@ -98,6 +131,43 @@ export default function CommandCenter() {
         </View>
       </Animated.View>
 
+      <Animated.View style={[styles.filterBar, { opacity: fadeAnim }]}>
+        <FilterButton
+          label="All"
+          count={getStatusCount('all')}
+          isActive={activeFilter === 'all'}
+          onPress={() => setActiveFilter('all')}
+        />
+        <FilterButton
+          label="Pickup"
+          count={getStatusCount('pickup')}
+          isActive={activeFilter === 'pickup'}
+          onPress={() => setActiveFilter('pickup')}
+          color="#22C55E"
+        />
+        <FilterButton
+          label="In Transit"
+          count={getStatusCount('in-transit')}
+          isActive={activeFilter === 'in-transit'}
+          onPress={() => setActiveFilter('in-transit')}
+          color="#F59E0B"
+        />
+        <FilterButton
+          label="Accomplished"
+          count={getStatusCount('accomplished')}
+          isActive={activeFilter === 'accomplished'}
+          onPress={() => setActiveFilter('accomplished')}
+          color="#8B5CF6"
+        />
+        <FilterButton
+          label="Breakdown"
+          count={getStatusCount('breakdown')}
+          isActive={activeFilter === 'breakdown'}
+          onPress={() => setActiveFilter('breakdown')}
+          color="#EF4444"
+        />
+      </Animated.View>
+
       <View style={styles.content}>
         <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
           <View style={styles.sidebarHeader}>
@@ -118,7 +188,7 @@ export default function CommandCenter() {
             style={styles.driverList}
             showsVerticalScrollIndicator={false}
           >
-            {drivers.map((driver) => (
+            {filteredDrivers.map((driver) => (
               <DriverCard
                 key={driver.id}
                 driver={driver}
@@ -132,19 +202,19 @@ export default function CommandCenter() {
         <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
           <View style={styles.darkMapPlaceholder}>
             <View style={styles.mapGrid}>
-              {drivers.map((driver) => (
+              {filteredDrivers.map((driver) => (
                 <AnimatedMarker
                   key={driver.id}
                   driver={driver}
-                  onPress={() => openPanel(driver.id)}
-                  isSelected={selectedDriver === driver.id}
+                  onPress={() => openPopup(driver.id)}
+                  isSelected={popupDriver === driver.id}
                 />
               ))}
             </View>
             <View style={styles.mapOverlay}>
               <MapPin size={64} color="rgba(37, 99, 235, 0.3)" />
               <Text style={styles.mapOverlayText}>
-                {drivers.length} Active Drivers
+                {filteredDrivers.length} Active Drivers
               </Text>
               <Text style={styles.mapOverlaySubtext}>
                 Live tracking across continental U.S.
@@ -159,6 +229,14 @@ export default function CommandCenter() {
           driver={selectedDriverData}
           animation={panelAnimation}
           onClose={closePanel}
+        />
+      )}
+
+      {popupDriver && popupDriverData && (
+        <DriverPopup
+          driver={popupDriverData}
+          animation={popupAnimation}
+          onClose={closePopup}
         />
       )}
     </View>
@@ -333,6 +411,71 @@ function PulsingDot({ color, size }: PulsingDotProps) {
   );
 }
 
+interface FilterButtonProps {
+  label: string;
+  count: number;
+  isActive: boolean;
+  onPress: () => void;
+  color?: string;
+}
+
+function FilterButton({ label, count, isActive, onPress, color }: FilterButtonProps) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+    >
+      <Animated.View
+        style={[
+          styles.filterButton,
+          isActive && styles.filterButtonActive,
+          isActive && color && { borderColor: color, shadowColor: color },
+          { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        <Text style={[styles.filterButtonLabel, isActive && styles.filterButtonLabelActive]}>
+          {label}
+        </Text>
+        <View
+          style={[
+            styles.filterCount,
+            isActive && styles.filterCountActive,
+            isActive && color && { backgroundColor: color + '30', borderColor: color },
+          ]}
+        >
+          <Text
+            style={[
+              styles.filterCountText,
+              isActive && styles.filterCountTextActive,
+              isActive && color && { color },
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
 interface AnimatedMarkerProps {
   driver: {
     id: string;
@@ -387,6 +530,19 @@ function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
       onPress={onPress}
       activeOpacity={0.8}
     >
+      {isSelected && (
+        <Animated.View
+          style={[
+            styles.markerRing,
+            {
+              width: markerSize * 3,
+              height: markerSize * 3,
+              borderRadius: markerSize * 1.5,
+              borderColor: markerColor,
+            },
+          ]}
+        />
+      )}
       <Animated.View
         style={[
           styles.markerGlow,
@@ -461,6 +617,160 @@ interface DriverDetailPanelProps {
   };
   animation: Animated.Value;
   onClose: () => void;
+}
+
+interface DriverPopupProps {
+  driver: {
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
+    currentLoad?: string;
+    pickupLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+    dropoffLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  animation: Animated.Value;
+  onClose: () => void;
+}
+
+function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
+  const { routeData } = useDriverRoute({
+    origin: driver.location,
+    destination: driver.dropoffLocation || null,
+    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+  });
+
+  const scale = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1],
+  });
+
+  const opacity = animation;
+
+  const mockCity = 'Dallas, TX';
+  const mockState = 'Texas';
+
+  return (
+    <>
+      <Animated.View
+        style={[
+          styles.popupOverlay,
+          {
+            opacity: opacity.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.7],
+            }),
+          },
+        ]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.popupCard,
+          {
+            opacity,
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.popupCloseButton}
+          onPress={onClose}
+          activeOpacity={0.7}
+        >
+          <X size={18} color="#94A3B8" />
+        </TouchableOpacity>
+
+        <View style={styles.popupHeader}>
+          <View style={styles.popupDriverInfo}>
+            <Text style={styles.popupDriverName}>{driver.name}</Text>
+            <Text style={styles.popupDriverId}>{driver.driverId}</Text>
+          </View>
+          <View
+            style={[
+              styles.popupStatusBadge,
+              { backgroundColor: getStatusColor(driver.status) + '20' },
+            ]}
+          >
+            <View
+              style={[
+                styles.popupStatusDot,
+                { backgroundColor: getStatusColor(driver.status) },
+              ]}
+            />
+            <Text
+              style={[
+                styles.popupStatusText,
+                { color: getStatusColor(driver.status) },
+              ]}
+            >
+              {getStatusLabel(driver.status)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.popupDivider} />
+
+        <View style={styles.popupSection}>
+          <View style={styles.popupRow}>
+            <MapPin size={16} color="#60A5FA" />
+            <Text style={styles.popupLabel}>Current Location</Text>
+          </View>
+          <Text style={styles.popupValue}>{mockCity}</Text>
+          <Text style={styles.popupSubvalue}>{mockState}</Text>
+        </View>
+
+        {driver.currentLoad && (
+          <>
+            <View style={styles.popupDivider} />
+            <View style={styles.popupSection}>
+              <View style={styles.popupRow}>
+                <Package size={16} color="#60A5FA" />
+                <Text style={styles.popupLabel}>Current Load</Text>
+              </View>
+              <Text style={styles.popupValue}>{driver.currentLoad}</Text>
+            </View>
+          </>
+        )}
+
+        {routeData && (
+          <>
+            <View style={styles.popupDivider} />
+            <View style={styles.popupSection}>
+              <View style={styles.popupRow}>
+                <Clock size={16} color="#60A5FA" />
+                <Text style={styles.popupLabel}>ETA & Distance</Text>
+              </View>
+              <Text style={styles.popupValue}>
+                {routeData.durationFormatted} • {Math.round(routeData.distanceMiles)} mi
+              </Text>
+            </View>
+          </>
+        )}
+
+        <TouchableOpacity
+          style={styles.popupButton}
+          activeOpacity={0.7}
+          disabled
+        >
+          <Text style={styles.popupButtonText}>View Load Details</Text>
+          <Text style={styles.popupButtonSubtext}>(Coming Soon)</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </>
+  );
 }
 
 function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProps) {
@@ -1187,5 +1497,201 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600' as const,
     color: '#64748B',
+  },
+  filterBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(30, 41, 59, 0.5)',
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(10px)',
+    }),
+    flexWrap: 'wrap',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(51, 65, 85, 0.5)',
+  },
+  filterButtonActive: {
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    borderColor: '#2563EB',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  filterButtonLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  filterButtonLabelActive: {
+    color: '#FFFFFF',
+  },
+  filterCount: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  filterCountActive: {
+    backgroundColor: 'rgba(37, 99, 235, 0.3)',
+    borderColor: 'rgba(37, 99, 235, 0.5)',
+  },
+  filterCountText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#64748B',
+  },
+  filterCountTextActive: {
+    color: '#60A5FA',
+  },
+  markerRing: {
+    position: 'absolute',
+    borderWidth: 2,
+    opacity: 0.6,
+  },
+  popupOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    zIndex: 998,
+  },
+  popupCard: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: isSmallScreen ? width * 0.9 : Math.min(420, width * 0.4),
+    maxWidth: 500,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
+    zIndex: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(30, 41, 59, 0.8)',
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(10px)',
+      transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
+    }),
+    ...(!isWeb && {
+      marginLeft: isSmallScreen ? -(width * 0.45) : -Math.min(210, width * 0.2),
+      marginTop: -200,
+    }),
+  },
+  popupCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  popupHeader: {
+    marginBottom: 16,
+  },
+  popupDriverInfo: {
+    marginBottom: 12,
+  },
+  popupDriverName: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#F1F5F9',
+    marginBottom: 4,
+  },
+  popupDriverId: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '600' as const,
+  },
+  popupStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  popupStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  popupStatusText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  popupDivider: {
+    height: 1,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    marginVertical: 16,
+  },
+  popupSection: {
+    marginBottom: 4,
+  },
+  popupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  popupLabel: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '600' as const,
+  },
+  popupValue: {
+    fontSize: 16,
+    color: '#F1F5F9',
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  popupSubvalue: {
+    fontSize: 14,
+    color: '#CBD5E1',
+    fontWeight: '500' as const,
+  },
+  popupButton: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(51, 65, 85, 0.5)',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  popupButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  popupButtonSubtext: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 2,
   },
 });
