@@ -41,41 +41,39 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
 
     lastFetchRef.current = now;
 
-    console.log('[useDriverRoute] Fetching route from Mapbox Directions API');
     setIsLoading(true);
     setError(null);
 
     try {
-      const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+      const orsApiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
       
-      if (!mapboxToken) {
-        throw new Error('Mapbox token not configured');
+      if (!orsApiKey) {
+        throw new Error('ORS API key not configured');
       }
 
-      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?geometries=geojson&access_token=${mapboxToken}`;
-
-      console.log('[useDriverRoute] Request URL:', url.replace(mapboxToken, 'TOKEN'));
+      const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${orsApiKey}&start=${origin.longitude},${origin.latitude}&end=${destination.longitude},${destination.latitude}`;
 
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`Mapbox API error: ${response.status}`);
+        throw new Error(`ORS API error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      if (!data.routes || data.routes.length === 0) {
+      if (!data.features || data.features.length === 0) {
         throw new Error('No route found');
       }
 
-      const route = data.routes[0];
+      const route = data.features[0];
       const geometry = route.geometry;
-      const distanceMeters = route.distance;
-      const durationSeconds = route.duration;
+      const summary = route.properties.summary;
+      const distanceMeters = summary.distance;
+      const durationSeconds = summary.duration;
 
       const routeCoords: RouteCoordinate[] = geometry.coordinates.map((coord: [number, number]) => ({
-        longitude: coord[0],
         latitude: coord[1],
+        longitude: coord[0],
       }));
 
       const distanceKm = distanceMeters / 1000;
