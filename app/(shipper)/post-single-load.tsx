@@ -8,10 +8,14 @@ import {
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Calendar, MapPin, Package, DollarSign, FileText, Save, ChevronLeft, ChevronRight, X, Truck } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { db } from '@/config/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoadFormData {
   pickupCity: string;
@@ -28,6 +32,8 @@ interface LoadFormData {
 
 export default function PostSingleLoadScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<LoadFormData>({
     pickupCity: '',
     pickupState: '',
@@ -129,20 +135,81 @@ export default function PostSingleLoadScreen() {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const handleSaveDraft = () => {
-    console.log('Saving draft:', formData);
-    Alert.alert('Success', 'Load draft saved successfully!');
-  };
-
-  const handlePostLoad = () => {
+  const handlePostLoad = async (status: 'posted' | 'draft' = 'posted') => {
     if (!formData.pickupCity || !formData.dropoffCity || !formData.rate) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert('Error', 'Please fill in all required fields (Pickup City, Dropoff City, and Rate)');
       return;
     }
-    console.log('Posting load:', formData);
-    Alert.alert('Success', 'Load posted successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+
+    setSaving(true);
+    try {
+      const shipperId = user?.id || 'TEST_SHIPPER';
+      console.log('📦 Posting load with shipperId:', shipperId);
+
+      const loadData = {
+        shipperId,
+        shipperName: user?.email || 'Test Shipper',
+        status,
+        pickup: {
+          location: `${formData.pickupCity}, ${formData.pickupState}`,
+          city: formData.pickupCity,
+          state: formData.pickupState,
+          date: formData.pickupDate || new Date().toISOString(),
+          time: '08:00',
+        },
+        dropoff: {
+          location: `${formData.dropoffCity}, ${formData.dropoffState}`,
+          city: formData.dropoffCity,
+          state: formData.dropoffState,
+          date: formData.dropoffDate || new Date().toISOString(),
+          time: '17:00',
+        },
+        cargo: {
+          type: formData.equipmentType || 'General Freight',
+          weight: Number(formData.weight) || 0,
+          description: formData.notes || 'No description provided',
+        },
+        rate: Number(formData.rate),
+        distance: 0,
+        ratePerMile: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, 'loads'), loadData);
+      console.log('✅ Load posted successfully with ID:', docRef.id);
+
+      const successMessage = status === 'posted' ? 'Load posted successfully!' : 'Draft saved successfully!';
+      Alert.alert('Success', successMessage, [
+        { 
+          text: 'OK', 
+          onPress: () => {
+            setFormData({
+              pickupCity: '',
+              pickupState: '',
+              pickupDate: '',
+              dropoffCity: '',
+              dropoffState: '',
+              dropoffDate: '',
+              equipmentType: '',
+              weight: '',
+              rate: '',
+              notes: '',
+            });
+            router.back();
+          }
+        }
+      ]);
+    } catch (error) {
+      console.error('❌ Error posting load:', error);
+      Alert.alert('Error', 'Failed to post load. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDraft = () => {
+    handlePostLoad('draft');
   };
 
   return (
@@ -337,20 +404,32 @@ export default function PostSingleLoadScreen() {
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={[styles.secondaryButton, saving && styles.buttonDisabled]}
               onPress={handleSaveDraft}
               activeOpacity={0.8}
+              disabled={saving}
             >
-              <Save size={20} color={Colors.light.primary} />
-              <Text style={styles.secondaryButtonText}>Save Draft</Text>
+              {saving ? (
+                <ActivityIndicator size="small" color={Colors.light.primary} />
+              ) : (
+                <>
+                  <Save size={20} color={Colors.light.primary} />
+                  <Text style={styles.secondaryButtonText}>Save Draft</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handlePostLoad}
+              style={[styles.primaryButton, saving && styles.buttonDisabled]}
+              onPress={() => handlePostLoad('posted')}
               activeOpacity={0.8}
+              disabled={saving}
             >
-              <Text style={styles.primaryButtonText}>Post Load</Text>
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Post Load</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -710,5 +789,8 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
 });

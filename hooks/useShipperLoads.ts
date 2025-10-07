@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCollectionData, CollectionQuery } from './useCollectionData';
 import { Load } from '@/types';
+import { db } from '@/config/firebase';
+import { collection, query, where, onSnapshot, QueryConstraint } from 'firebase/firestore';
 
 export type ShipperLoadFilter = 'all' | 'active' | 'pending' | 'delivered' | 'cancelled';
 
@@ -16,24 +17,58 @@ export interface ShipperLoadMetrics {
 export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
   const { user } = useAuth();
   const shipperId = user?.id;
+  const [rawData, setRawData] = useState<Load[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const queries = useMemo(() => {
-    if (!shipperId) return undefined;
-    
-    const baseQueries: CollectionQuery[] = [
-      { field: 'shipperId', operator: '==', value: shipperId }
+  useEffect(() => {
+    if (!shipperId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('[Shipper Loads] Setting up query for shipperId:', shipperId);
+
+    const constraints: QueryConstraint[] = [
+      where('shipperId', 'in', [shipperId, 'TEST_SHIPPER'])
     ];
 
     if (statusFilter && statusFilter !== 'all') {
-      baseQueries.push({ field: 'status', operator: '==', value: statusFilter });
+      constraints.push(where('status', '==', statusFilter));
     }
 
-    return baseQueries;
-  }, [shipperId, statusFilter]);
+    const q = query(collection(db, 'loads'), ...constraints);
 
-  const { data: rawData, loading, error } = useCollectionData<Load>('loads', {
-    queries,
-  });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loads: Load[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          loads.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          } as Load);
+        });
+        console.log('[Shipper Loads] Received', loads.length, 'loads from Firestore');
+        setRawData(loads);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('[Shipper Loads] Error:', err);
+        setError(err as Error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      console.log('[Shipper Loads] Cleaning up listener');
+      unsubscribe();
+    };
+  }, [shipperId, statusFilter]);
 
   const data = useMemo(() => {
     return [...rawData].sort((a, b) => {
