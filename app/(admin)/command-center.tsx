@@ -17,7 +17,7 @@ const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
 
-const NativeMapView = Platform.OS !== 'web' ? require('./command-center-map').default : null;
+// Platform-specific map import handled via .native.tsx extension
 
 export default function CommandCenter() {
   const { drivers, isLoading, error } = useCommandCenterDrivers();
@@ -118,12 +118,12 @@ export default function CommandCenter() {
               </View>
             </View>
           ) : (
-            <NativeMapView
-              drivers={drivers}
-              initialRegion={initialRegion}
-              selectedDriver={selectedDriver}
-              onDriverPress={setSelectedDriver}
-            />
+            <View style={styles.webMapPlaceholder}>
+              <MapPin size={48} color="#9CA3AF" />
+              <Text style={styles.webMapText}>
+                Native map view available on mobile
+              </Text>
+            </View>
           )}
         </View>
       </View>
