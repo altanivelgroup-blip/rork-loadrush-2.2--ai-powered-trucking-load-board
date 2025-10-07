@@ -49,18 +49,40 @@ export default function PostSingleLoadScreen() {
   };
 
   const handlePickupDateChange = (event: any, selectedDate?: Date) => {
-    setShowPickupDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowPickupDatePicker(false);
+    }
+    
+    if (event.type === 'dismissed') {
+      setShowPickupDatePicker(false);
+      return;
+    }
+    
     if (selectedDate) {
       setPickupDateObj(selectedDate);
       setPickupDate(formatDate(selectedDate));
+      if (Platform.OS === 'ios') {
+        setShowPickupDatePicker(false);
+      }
     }
   };
 
   const handleDeliveryDateChange = (event: any, selectedDate?: Date) => {
-    setShowDeliveryDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowDeliveryDatePicker(false);
+    }
+    
+    if (event.type === 'dismissed') {
+      setShowDeliveryDatePicker(false);
+      return;
+    }
+    
     if (selectedDate) {
       setDeliveryDateObj(selectedDate);
       setDeliveryDate(formatDate(selectedDate));
+      if (Platform.OS === 'ios') {
+        setShowDeliveryDatePicker(false);
+      }
     }
   };
 
@@ -465,8 +487,9 @@ export default function PostSingleLoadScreen() {
         <DateTimePicker
           value={pickupDateObj}
           mode="date"
-          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handlePickupDateChange}
+          minimumDate={new Date()}
         />
       )}
 
@@ -474,8 +497,9 @@ export default function PostSingleLoadScreen() {
         <DateTimePicker
           value={deliveryDateObj}
           mode="date"
-          display={Platform.OS === 'ios' ? 'compact' : 'default'}
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDeliveryDateChange}
+          minimumDate={new Date()}
         />
       )}
     </View>
