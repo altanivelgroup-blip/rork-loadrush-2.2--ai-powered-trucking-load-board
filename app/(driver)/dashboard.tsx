@@ -7,9 +7,10 @@ import { dummyLoads, dummyDriverAnalytics } from '@/mocks/dummyData';
 import Colors from '@/constants/colors';
 import AnalyticsCard from '@/components/AnalyticsCard';
 import LoadCard from '@/components/LoadCard';
-import { DollarSign, TrendingUp, Truck, Fuel, LogOut, Settings, LineChart, Shield, Award, AlertCircle, Clock } from 'lucide-react-native';
+import { DollarSign, TrendingUp, Truck, Fuel, LogOut, Settings, LineChart, Shield, Award, AlertCircle, Clock, MapPin, Radio } from 'lucide-react-native';
 import { DriverProfile } from '@/types';
 import { useDriverProfile, useDriverStats, useDriverLoads, useDriverAnalytics, useAvailableLoads } from '@/hooks/useDriverData';
+import { useDriverGPS } from '@/hooks/useDriverGPS';
 
 export default function DriverDashboard() {
   const insets = useSafeAreaInsets();
@@ -21,6 +22,8 @@ export default function DriverDashboard() {
   const { activeLoads: firestoreActiveLoads, loading: loadsLoading } = useDriverLoads();
   const { analytics: firestoreAnalytics, loading: analyticsLoading } = useDriverAnalytics();
   const { matchedLoads: firestoreMatchedLoads, loading: availableLoading } = useAvailableLoads();
+  
+  const { location, isTracking } = useDriverGPS(user?.id);
   
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
@@ -146,6 +149,43 @@ export default function DriverDashboard() {
               <Text style={styles.lastActiveText}>Last active: {formatLastActive(firestoreProfile.lastActive)}</Text>
             </View>
           )}
+        </View>
+
+        <View style={styles.gpsCard}>
+          <View style={styles.gpsHeader}>
+            <View style={styles.gpsHeaderLeft}>
+              <MapPin size={20} color={isTracking ? '#22C55E' : '#EF4444'} />
+              <Text style={styles.gpsTitle}>GPS Tracking</Text>
+            </View>
+            <View style={[styles.gpsStatusBadge, { backgroundColor: isTracking ? '#ECFDF5' : '#FEE2E2' }]}>
+              <View style={[styles.gpsStatusDot, { backgroundColor: isTracking ? '#22C55E' : '#EF4444' }]} />
+              <Text style={[styles.gpsStatusText, { color: isTracking ? '#059669' : '#DC2626' }]}>
+                {isTracking ? 'Tracking Active' : 'Tracking Paused'}
+              </Text>
+            </View>
+          </View>
+          {location && (
+            <View style={styles.gpsLocationInfo}>
+              <View style={styles.gpsLocationRow}>
+                <Text style={styles.gpsLocationLabel}>Latitude:</Text>
+                <Text style={styles.gpsLocationValue}>{location.latitude.toFixed(4)}°N</Text>
+              </View>
+              <View style={styles.gpsLocationRow}>
+                <Text style={styles.gpsLocationLabel}>Longitude:</Text>
+                <Text style={styles.gpsLocationValue}>{location.longitude.toFixed(4)}°W</Text>
+              </View>
+              <View style={styles.gpsLocationRow}>
+                <Text style={styles.gpsLocationLabel}>Last Update:</Text>
+                <Text style={styles.gpsLocationValue}>{location.updatedAt.toLocaleTimeString()}</Text>
+              </View>
+            </View>
+          )}
+          <View style={styles.gpsFooter}>
+            <Radio size={14} color="#6B7280" />
+            <Text style={styles.gpsFooterText}>
+              Your location is synced to Command Center every 10 seconds
+            </Text>
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -515,5 +555,87 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#FFFFFF',
+  },
+  gpsCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: Colors.light.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  gpsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  gpsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gpsTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  gpsStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  gpsStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  gpsStatusText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  gpsLocationInfo: {
+    backgroundColor: Colors.light.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    gap: 10,
+  },
+  gpsLocationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gpsLocationLabel: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  gpsLocationValue: {
+    fontSize: 14,
+    color: Colors.light.text,
+    fontWeight: '600' as const,
+    fontFamily: 'monospace' as const,
+  },
+  gpsFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  gpsFooterText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    flex: 1,
   },
 });
