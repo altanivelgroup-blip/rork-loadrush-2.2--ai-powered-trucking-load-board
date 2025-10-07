@@ -11,13 +11,16 @@ import { useAdminLoads } from '@/hooks/useAdminLoads';
 import { useTrendAnalytics } from '@/hooks/useTrendAnalytics';
 import { useInsightSummary } from '@/hooks/useInsightSummary';
 import { useTripPerformance } from '@/hooks/useTripPerformance';
+import { useTripTrends } from '@/hooks/useTripTrends';
 
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
   const [chartMode, setChartMode] = useState<'drivers' | 'shippers'>('drivers');
+  const [trendChartMode, setTrendChartMode] = useState<'distance' | 'duration'>('distance');
   const [fadeAnim] = useState(new Animated.Value(1));
   const [trendFadeAnim] = useState(new Animated.Value(0));
   const [insightFadeAnim] = useState(new Animated.Value(0));
+  const [trendChartFadeAnim] = useState(new Animated.Value(1));
 
   const revenue = usePlatformRevenue();
   const subscriptions = useSubscriptionAnalytics();
@@ -26,6 +29,7 @@ export default function AdminAnalytics() {
   const trends = useTrendAnalytics();
   const insights = useInsightSummary();
   const tripPerformance = useTripPerformance();
+  const tripTrends = useTripTrends();
 
   const handleChartToggle = (mode: 'drivers' | 'shippers') => {
     Animated.sequence([
@@ -41,6 +45,22 @@ export default function AdminAnalytics() {
       }),
     ]).start();
     setChartMode(mode);
+  };
+
+  const handleTrendChartToggle = (mode: 'distance' | 'duration') => {
+    Animated.sequence([
+      Animated.timing(trendChartFadeAnim, {
+        toValue: 0.3,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(trendChartFadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setTrendChartMode(mode);
   };
 
   const chartData = chartMode === 'drivers' ? usage.driverActivity : usage.shipperActivity;
@@ -256,6 +276,110 @@ export default function AdminAnalytics() {
             <Text style={styles.tripPerformanceLabel}>On-Time Rate</Text>
             <Text style={styles.tripPerformanceSubtext}>updated live</Text>
           </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Performance Trends</Text>
+        <View style={styles.glassmorphSection}>
+          <View style={styles.chartHeader}>
+            <View style={styles.chartTitleRow}>
+              <TrendingUp size={20} color={Colors.light.primary} />
+              <Text style={styles.chartTitle}>Trip Performance Over Time</Text>
+            </View>
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  trendChartMode === 'distance' && styles.toggleButtonActive,
+                ]}
+                onPress={() => handleTrendChartToggle('distance')}
+              >
+                <Text
+                  style={[
+                    styles.toggleText,
+                    trendChartMode === 'distance' && styles.toggleTextActive,
+                  ]}
+                >
+                  Distance
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  trendChartMode === 'duration' && styles.toggleButtonActive,
+                ]}
+                onPress={() => handleTrendChartToggle('duration')}
+              >
+                <Text
+                  style={[
+                    styles.toggleText,
+                    trendChartMode === 'duration' && styles.toggleTextActive,
+                  ]}
+                >
+                  Duration
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Animated.View style={[styles.trendChartContainer, { opacity: trendChartFadeAnim }]}>
+            {tripTrends.isLoading ? (
+              <View style={styles.trendChartLoading}>
+                <Text style={styles.trendChartLoadingText}>Loading trend data...</Text>
+              </View>
+            ) : tripTrends.data.length === 0 ? (
+              <View style={styles.trendChartLoading}>
+                <Text style={styles.trendChartLoadingText}>No trend data available yet</Text>
+              </View>
+            ) : (
+              <View style={styles.trendChart}>
+                {tripTrends.data.map((dataPoint, index) => {
+                  const value = trendChartMode === 'distance' ? dataPoint.avgDistance : dataPoint.avgDuration;
+                  const maxVal = Math.max(
+                    ...tripTrends.data.map((d) =>
+                      trendChartMode === 'distance' ? d.avgDistance : d.avgDuration
+                    ),
+                    1
+                  );
+                  const heightPercent = (value / maxVal) * 100;
+
+                  return (
+                    <View key={dataPoint.week} style={styles.trendBarContainer}>
+                      <View style={styles.trendBarWrapper}>
+                        <View
+                          style={[
+                            styles.trendBar,
+                            {
+                              height: `${heightPercent}%`,
+                              backgroundColor: '#2563EB',
+                            },
+                          ]}
+                        >
+                          <View style={styles.trendTooltip}>
+                            <Text style={styles.trendTooltipText}>
+                              {value.toFixed(1)}
+                              {trendChartMode === 'distance' ? ' mi' : ' min'}
+                            </Text>
+                          </View>
+                        </View>
+                        {index > 0 && (
+                          <View
+                            style={[
+                              styles.trendLine,
+                              {
+                                left: -12,
+                                bottom: `${heightPercent}%`,
+                              },
+                            ]}
+                          />
+                        )}
+                      </View>
+                      <Text style={styles.trendBarLabel}>{dataPoint.week}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </Animated.View>
         </View>
 
         <Text style={styles.sectionLabel}>Financial Insights</Text>
@@ -828,5 +952,83 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94A3B8',
     fontStyle: 'italic' as const,
+  },
+  trendChartContainer: {
+    marginTop: 16,
+  },
+  trendChartLoading: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendChartLoadingText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontStyle: 'italic' as const,
+  },
+  trendChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 220,
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  trendBarContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  trendBarWrapper: {
+    width: '100%',
+    height: 190,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  trendBar: {
+    width: '85%',
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    minHeight: 4,
+    position: 'relative',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  trendLine: {
+    position: 'absolute',
+    width: 24,
+    height: 2,
+    backgroundColor: '#60A5FA',
+    opacity: 0.5,
+  },
+  trendTooltip: {
+    position: 'absolute',
+    top: -28,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(37, 99, 235, 0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    minWidth: 50,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  trendTooltipText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textAlign: 'center',
+  },
+  trendBarLabel: {
+    fontSize: 10,
+    color: Colors.light.textSecondary,
+    marginTop: 6,
+    fontWeight: '600' as const,
   },
 });
