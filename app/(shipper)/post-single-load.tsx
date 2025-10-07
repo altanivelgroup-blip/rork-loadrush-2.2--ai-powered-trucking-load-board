@@ -49,28 +49,18 @@ export default function PostSingleLoadScreen() {
   };
 
   const handlePickupDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowPickupDatePicker(false);
-    }
+    setShowPickupDatePicker(false);
     if (selectedDate) {
       setPickupDateObj(selectedDate);
       setPickupDate(formatDate(selectedDate));
-      if (Platform.OS === 'ios') {
-        setShowPickupDatePicker(false);
-      }
     }
   };
 
   const handleDeliveryDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDeliveryDatePicker(false);
-    }
+    setShowDeliveryDatePicker(false);
     if (selectedDate) {
       setDeliveryDateObj(selectedDate);
       setDeliveryDate(formatDate(selectedDate));
-      if (Platform.OS === 'ios') {
-        setShowDeliveryDatePicker(false);
-      }
     }
   };
 
@@ -471,68 +461,20 @@ export default function PostSingleLoadScreen() {
         </View>
       </ScrollView>
 
-      {showPickupDatePicker && Platform.OS === 'ios' && (
-        <View style={styles.iosPickerContainer}>
-          <View style={styles.iosPickerHeader}>
-            <TouchableOpacity onPress={() => setShowPickupDatePicker(false)}>
-              <Text style={styles.iosPickerCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.iosPickerTitle}>Select Pickup Date</Text>
-            <TouchableOpacity onPress={() => {
-              setPickupDate(formatDate(pickupDateObj));
-              setShowPickupDatePicker(false);
-            }}>
-              <Text style={styles.iosPickerDone}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            value={pickupDateObj}
-            mode="date"
-            display="spinner"
-            onChange={(event, date) => {
-              if (date) setPickupDateObj(date);
-            }}
-          />
-        </View>
-      )}
-      {showPickupDatePicker && Platform.OS === 'android' && (
+      {showPickupDatePicker && (
         <DateTimePicker
           value={pickupDateObj}
           mode="date"
-          display="default"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
           onChange={handlePickupDateChange}
         />
       )}
 
-      {showDeliveryDatePicker && Platform.OS === 'ios' && (
-        <View style={styles.iosPickerContainer}>
-          <View style={styles.iosPickerHeader}>
-            <TouchableOpacity onPress={() => setShowDeliveryDatePicker(false)}>
-              <Text style={styles.iosPickerCancel}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.iosPickerTitle}>Select Delivery Date</Text>
-            <TouchableOpacity onPress={() => {
-              setDeliveryDate(formatDate(deliveryDateObj));
-              setShowDeliveryDatePicker(false);
-            }}>
-              <Text style={styles.iosPickerDone}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            value={deliveryDateObj}
-            mode="date"
-            display="spinner"
-            onChange={(event, date) => {
-              if (date) setDeliveryDateObj(date);
-            }}
-          />
-        </View>
-      )}
-      {showDeliveryDatePicker && Platform.OS === 'android' && (
+      {showDeliveryDatePicker && (
         <DateTimePicker
           value={deliveryDateObj}
           mode="date"
-          display="default"
+          display={Platform.OS === 'ios' ? 'compact' : 'default'}
           onChange={handleDeliveryDateChange}
         />
       )}
@@ -674,85 +616,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#9ca3af',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  datePickerModal: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
-  datePickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  datePickerTitle: {
-    fontSize: 18,
-    fontWeight: '600' as const,
-    color: '#1a1a1a',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  confirmButton: {
-    backgroundColor: Colors.light.primary,
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#fff',
-  },
-  webDatePickerContainer: {
-    padding: 20,
-  },
-  iosPickerContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  iosPickerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  iosPickerTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#1a1a1a',
-  },
-  iosPickerCancel: {
-    fontSize: 16,
-    color: '#6b7280',
-  },
-  iosPickerDone: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.light.primary,
-  },
+
 });
