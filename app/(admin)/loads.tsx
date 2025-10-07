@@ -60,7 +60,7 @@ export default function AdminLoadsPage() {
         return aTime - bTime;
       });
     } else if (sortBy === 'highest') {
-      return sorted.sort((a, b) => b.rate - a.rate);
+      return sorted.sort((a, b) => (b.rate || 0) - (a.rate || 0));
     }
     return sorted;
   }, [loads, sortBy]);
@@ -314,7 +314,7 @@ export default function AdminLoadsPage() {
                 </View>
                 <View style={styles.rateBadge}>
                   <DollarSign size={16} color="#10B981" />
-                  <Text style={styles.rateText}>${load.rate.toLocaleString()}</Text>
+                  <Text style={styles.rateText}>${(load.rate || 0).toLocaleString()}</Text>
                 </View>
               </View>
 
@@ -366,7 +366,7 @@ export default function AdminLoadsPage() {
                 <View style={styles.detailItem}>
                   <Package size={14} color="#6B7280" />
                   <Text style={styles.detailLabel}>Distance:</Text>
-                  <Text style={styles.detailValue}>{load.distance} mi</Text>
+                  <Text style={styles.detailValue}>{load.distance || 0} mi</Text>
                 </View>
               </View>
 
