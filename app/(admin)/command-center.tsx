@@ -13,8 +13,9 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
+import { useDriverRoute } from '@/hooks/useDriverRoute';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -171,13 +172,31 @@ interface DriverCardProps {
     driverId: string;
     name: string;
     status: DriverStatus;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
     currentLoad?: string;
+    pickupLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+    dropoffLocation?: {
+      latitude: number;
+      longitude: number;
+    };
   };
   isSelected: boolean;
   onPress: () => void;
 }
 
 function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
+  const { routeData } = useDriverRoute({
+    origin: driver.location,
+    destination: driver.dropoffLocation || null,
+    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+  });
+
   return (
     <TouchableOpacity
       style={[styles.driverCard, isSelected && styles.driverCardSelected]}
@@ -200,6 +219,14 @@ function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
         <Text style={styles.currentLoad}>Load: {driver.currentLoad}</Text>
       )}
       <Text style={styles.statusLabel}>{getStatusLabel(driver.status)}</Text>
+      {routeData && (
+        <View style={styles.etaBadge}>
+          <Route size={12} color="#1E3A8A" />
+          <Text style={styles.etaText}>
+            ETA: {routeData.durationFormatted} • {Math.round(routeData.distanceMiles)} mi
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -655,6 +682,20 @@ const styles = StyleSheet.create({
     color: '#1E3A8A',
     fontWeight: '600' as const,
     marginBottom: 4,
+  },
+  etaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  etaText: {
+    fontSize: 11,
+    color: '#1E3A8A',
+    fontWeight: '600' as const,
   },
   statusLabel: {
     fontSize: 12,

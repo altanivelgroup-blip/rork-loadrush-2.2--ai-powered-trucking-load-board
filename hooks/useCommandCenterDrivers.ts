@@ -15,6 +15,14 @@ export interface CommandCenterDriver {
   };
   currentLoad?: string;
   lastUpdate: Date;
+  pickupLocation?: {
+    latitude: number;
+    longitude: number;
+  };
+  dropoffLocation?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export function useCommandCenterDrivers() {
@@ -48,6 +56,8 @@ export function useCommandCenterDrivers() {
             location: data.location || getDefaultLocation(driversList.length),
             currentLoad: data.currentLoad,
             lastUpdate: data.lastUpdate?.toDate() || new Date(),
+            pickupLocation: data.pickupLocation,
+            dropoffLocation: data.dropoffLocation,
           };
 
           driversList.push(driver);
@@ -106,6 +116,8 @@ function getMockDrivers(): CommandCenterDriver[] {
       location: { latitude: 32.7767, longitude: -96.7970 },
       currentLoad: 'LOAD-12345',
       lastUpdate: new Date(),
+      pickupLocation: { latitude: 32.7767, longitude: -96.7970 },
+      dropoffLocation: { latitude: 29.7604, longitude: -95.3698 },
     },
     {
       id: 'mock-2',
@@ -115,6 +127,8 @@ function getMockDrivers(): CommandCenterDriver[] {
       location: { latitude: 29.7604, longitude: -95.3698 },
       currentLoad: 'LOAD-12346',
       lastUpdate: new Date(),
+      pickupLocation: { latitude: 29.7604, longitude: -95.3698 },
+      dropoffLocation: { latitude: 34.0522, longitude: -118.2437 },
     },
     {
       id: 'mock-3',
@@ -132,6 +146,8 @@ function getMockDrivers(): CommandCenterDriver[] {
       location: { latitude: 33.4484, longitude: -112.0740 },
       currentLoad: 'LOAD-12347',
       lastUpdate: new Date(),
+      pickupLocation: { latitude: 33.4484, longitude: -112.0740 },
+      dropoffLocation: { latitude: 41.8781, longitude: -87.6298 },
     },
     {
       id: 'mock-5',
@@ -141,6 +157,8 @@ function getMockDrivers(): CommandCenterDriver[] {
       location: { latitude: 41.8781, longitude: -87.6298 },
       currentLoad: 'LOAD-12348',
       lastUpdate: new Date(),
+      pickupLocation: { latitude: 41.8781, longitude: -87.6298 },
+      dropoffLocation: { latitude: 33.7490, longitude: -84.3880 },
     },
     {
       id: 'mock-6',
@@ -150,6 +168,8 @@ function getMockDrivers(): CommandCenterDriver[] {
       location: { latitude: 33.7490, longitude: -84.3880 },
       currentLoad: 'LOAD-12349',
       lastUpdate: new Date(),
+      pickupLocation: { latitude: 33.7490, longitude: -84.3880 },
+      dropoffLocation: { latitude: 25.7617, longitude: -80.1918 },
     },
   ];
 }

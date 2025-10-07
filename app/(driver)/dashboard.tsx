@@ -25,6 +25,8 @@ export default function DriverDashboard() {
   
   const { location, isTracking } = useDriverGPS(user?.id);
   
+
+  
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
