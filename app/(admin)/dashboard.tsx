@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Dimensions,
+  TextInput,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useAdminAnalytics, RecentLoad } from '@/hooks/useAdminAnalytics';
-import { useAdminAlerts, Alert } from '@/hooks/useAdminAlerts';
+import { useAdminAlerts, Alert as AlertType } from '@/hooks/useAdminAlerts';
+import { trpc } from '@/lib/trpc';
 import {
   TrendingUp,
   Clock,
@@ -28,6 +32,35 @@ const isSmallScreen = width < 768;
 export default function AdminDashboard() {
   const analytics = useAdminAnalytics();
   const alerts = useAdminAlerts();
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  
+  const sendSmsMutation = trpc.sendSms.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        Alert.alert('Success', 'SMS sent successfully!');
+        setPhoneNumber('');
+        setMessage('');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to send SMS');
+      }
+    },
+    onError: (error) => {
+      Alert.alert('Error', error.message || 'Failed to send SMS');
+    },
+  });
+  
+  const handleSendSms = () => {
+    if (!phoneNumber.trim()) {
+      Alert.alert('Error', 'Please enter a phone number');
+      return;
+    }
+    if (!message.trim()) {
+      Alert.alert('Error', 'Please enter a message');
+      return;
+    }
+    sendSmsMutation.mutate({ to: phoneNumber, message });
+  };
 
   if (analytics.isLoading) {
     return (
@@ -225,6 +258,52 @@ export default function AdminDashboard() {
             </View>
           )}
         </View>
+
+        <View style={styles.twilioSection}>
+          <Text style={styles.sectionTitle}>Twilio Test Message</Text>
+          <View style={styles.twilioCard}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="+1234567890"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                keyboardType="phone-pad"
+                editable={!sendSmsMutation.isPending}
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Message</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter your message here..."
+                value={message}
+                onChangeText={setMessage}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                editable={!sendSmsMutation.isPending}
+              />
+            </View>
+            
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                sendSmsMutation.isPending && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSendSms}
+              disabled={sendSmsMutation.isPending}
+            >
+              {sendSmsMutation.isPending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.sendButtonText}>Send SMS</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -274,7 +353,7 @@ function BarChartItem({ label, value, max, color }: BarChartItemProps) {
 }
 
 interface AlertItemProps {
-  alert: Alert;
+  alert: AlertType;
 }
 
 function AlertItem({ alert }: AlertItemProps) {
@@ -676,5 +755,57 @@ const styles = StyleSheet.create({
   alertTimestamp: {
     fontSize: 12,
     color: '#9CA3AF',
+  },
+  twilioSection: {
+    marginBottom: 24,
+  },
+  twilioCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+  },
+  textArea: {
+    minHeight: 100,
+    paddingTop: 10,
+  },
+  sendButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#93C5FD',
+  },
+  sendButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
   },
 });
