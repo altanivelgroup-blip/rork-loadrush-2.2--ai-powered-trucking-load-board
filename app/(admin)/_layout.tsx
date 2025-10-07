@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LayoutDashboard, FileText, BarChart3, User, Package, RadioTower } from 'lucide-react-native';
+import { LayoutDashboard, FileText, BarChart3, User, Package, RadioTower, FolderOpen } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 export default function AdminLayout() {
@@ -51,6 +51,13 @@ export default function AdminLayout() {
         }}
       />
       <Tabs.Screen
+        name="trip-archive"
+        options={{
+          title: 'Trips',
+          tabBarIcon: ({ color }) => <FolderOpen size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Profile',
@@ -65,12 +72,6 @@ export default function AdminLayout() {
       />
       <Tabs.Screen
         name="delay"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="trip-archive"
         options={{
           href: null,
         }}
