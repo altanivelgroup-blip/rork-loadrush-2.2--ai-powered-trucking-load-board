@@ -10,6 +10,7 @@ import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
 import { useAdminLoads } from '@/hooks/useAdminLoads';
 import { useTrendAnalytics } from '@/hooks/useTrendAnalytics';
 import { useInsightSummary } from '@/hooks/useInsightSummary';
+import { useTripPerformance } from '@/hooks/useTripPerformance';
 
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
@@ -24,6 +25,7 @@ export default function AdminAnalytics() {
   const { metrics } = useAdminLoads();
   const trends = useTrendAnalytics();
   const insights = useInsightSummary();
+  const tripPerformance = useTripPerformance();
 
   const handleChartToggle = (mode: 'drivers' | 'shippers') => {
     Animated.sequence([
@@ -219,6 +221,40 @@ export default function AdminAnalytics() {
               />
               {renderTrendIndicator(trends.shipperCount)}
             </View>
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>Trip Performance</Text>
+        <View style={styles.tripPerformanceContainer}>
+          <View style={styles.tripPerformanceCard}>
+            <View style={styles.tripPerformanceGradient}>
+              <Text style={styles.tripPerformanceValue}>
+                {tripPerformance.isLoading ? '...' : tripPerformance.avgDistance.toFixed(1)}
+              </Text>
+              <Text style={styles.tripPerformanceUnit}>mi</Text>
+            </View>
+            <Text style={styles.tripPerformanceLabel}>Avg Distance</Text>
+            <Text style={styles.tripPerformanceSubtext}>updated live</Text>
+          </View>
+          <View style={styles.tripPerformanceCard}>
+            <View style={styles.tripPerformanceGradient}>
+              <Text style={styles.tripPerformanceValue}>
+                {tripPerformance.isLoading ? '...' : tripPerformance.avgDuration.toFixed(0)}
+              </Text>
+              <Text style={styles.tripPerformanceUnit}>min</Text>
+            </View>
+            <Text style={styles.tripPerformanceLabel}>Avg Duration</Text>
+            <Text style={styles.tripPerformanceSubtext}>updated live</Text>
+          </View>
+          <View style={styles.tripPerformanceCard}>
+            <View style={styles.tripPerformanceGradient}>
+              <Text style={styles.tripPerformanceValue}>
+                {tripPerformance.isLoading ? '...' : tripPerformance.onTimeRate.toFixed(1)}
+              </Text>
+              <Text style={styles.tripPerformanceUnit}>%</Text>
+            </View>
+            <Text style={styles.tripPerformanceLabel}>On-Time Rate</Text>
+            <Text style={styles.tripPerformanceSubtext}>updated live</Text>
           </View>
         </View>
 
@@ -746,6 +782,50 @@ const styles = StyleSheet.create({
   },
   insightLoadingText: {
     fontSize: 13,
+    color: '#94A3B8',
+    fontStyle: 'italic' as const,
+  },
+  tripPerformanceContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  tripPerformanceCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  tripPerformanceGradient: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
+  tripPerformanceValue: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    color: '#2563EB',
+  },
+  tripPerformanceUnit: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#4F46E5',
+    marginLeft: 4,
+  },
+  tripPerformanceLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+    marginBottom: 4,
+  },
+  tripPerformanceSubtext: {
+    fontSize: 11,
     color: '#94A3B8',
     fontStyle: 'italic' as const,
   },
