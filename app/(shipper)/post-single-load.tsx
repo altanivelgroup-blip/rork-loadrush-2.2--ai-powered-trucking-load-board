@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Stack, useRouter } from 'expo-router';
 import { MapPin, Package, FileText, Save, Send, Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
@@ -27,64 +27,62 @@ export default function PostSingleLoadScreen() {
   const [pickupState, setPickupState] = useState('');
   const [pickupZip, setPickupZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
-  const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
-  const [pickupDateObj, setPickupDateObj] = useState<Date>(new Date());
-
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffCity, setDropoffCity] = useState('');
   const [dropoffState, setDropoffState] = useState('');
   const [dropoffZip, setDropoffZip] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
-  const [showDeliveryDatePicker, setShowDeliveryDatePicker] = useState(false);
-  const [deliveryDateObj, setDeliveryDateObj] = useState<Date>(new Date());
+
+  const [activePicker, setActivePicker] = useState<null | 'pickup' | 'delivery'>(null);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
 
   const [loadType, setLoadType] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
 
-  const formatDate = (date: Date): string => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
-    return date.toLocaleDateString('en-US', options);
-  };
+  const formatDate = useCallback((date: Date): string => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const m = months[date.getMonth()];
+    const d = String(date.getDate()).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${m} ${d}, ${y}`;
+  }, []);
 
-  const handlePickupDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowPickupDatePicker(false);
-    }
-    
-    if (event.type === 'dismissed') {
-      setShowPickupDatePicker(false);
+  const openDatePicker = useCallback((target: 'pickup' | 'delivery') => {
+    const initial = new Date();
+    if (Platform.OS === 'android' && DateTimePickerAndroid?.open) {
+      DateTimePickerAndroid.open({
+        value: initial,
+        mode: 'date',
+        minimumDate: new Date(),
+        onChange: (_event, selectedDate) => {
+          if (!selectedDate) return;
+          const formatted = formatDate(selectedDate);
+          if (target === 'pickup') {
+            setPickupDate(formatted);
+          } else {
+            setDeliveryDate(formatted);
+          }
+        },
+      });
       return;
     }
-    
-    if (selectedDate) {
-      setPickupDateObj(selectedDate);
-      setPickupDate(formatDate(selectedDate));
-      if (Platform.OS === 'ios') {
-        setShowPickupDatePicker(false);
-      }
-    }
-  };
+    setTempDate(initial);
+    setActivePicker(target);
+  }, [formatDate]);
 
-  const handleDeliveryDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDeliveryDatePicker(false);
-    }
-    
-    if (event.type === 'dismissed') {
-      setShowDeliveryDatePicker(false);
+  const handleIOSOrWebChange = useCallback((event: any, selectedDate?: Date) => {
+    if (event?.type === 'dismissed') {
+      setActivePicker(null);
       return;
     }
-    
-    if (selectedDate) {
-      setDeliveryDateObj(selectedDate);
-      setDeliveryDate(formatDate(selectedDate));
-      if (Platform.OS === 'ios') {
-        setShowDeliveryDatePicker(false);
-      }
-    }
-  };
+    const d = selectedDate ?? tempDate;
+    const formatted = formatDate(d);
+    if (activePicker === 'pickup') setPickupDate(formatted);
+    if (activePicker === 'delivery') setDeliveryDate(formatted);
+    setActivePicker(null);
+  }, [activePicker, tempDate, formatDate]);
 
   const calculateExpiresAt = (deliveryDateStr?: string): Timestamp => {
     let expirationDate: Date;
@@ -302,8 +300,9 @@ export default function PostSingleLoadScreen() {
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Pickup Date</Text>
               <TouchableOpacity
+                testID="pickup-date-button"
                 style={styles.dateInput}
-                onPress={() => setShowPickupDatePicker(true)}
+                onPress={() => openDatePicker('pickup')}
                 activeOpacity={0.7}
               >
                 <Calendar size={18} color="#6b7280" />
@@ -371,8 +370,9 @@ export default function PostSingleLoadScreen() {
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Delivery Date</Text>
               <TouchableOpacity
+                testID="delivery-date-button"
                 style={styles.dateInput}
-                onPress={() => setShowDeliveryDatePicker(true)}
+                onPress={() => openDatePicker('delivery')}
                 activeOpacity={0.7}
               >
                 <Calendar size={18} color="#6b7280" />
@@ -483,22 +483,12 @@ export default function PostSingleLoadScreen() {
         </View>
       </ScrollView>
 
-      {showPickupDatePicker && (
+      {activePicker && (
         <DateTimePicker
-          value={pickupDateObj}
+          value={tempDate}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handlePickupDateChange}
-          minimumDate={new Date()}
-        />
-      )}
-
-      {showDeliveryDatePicker && (
-        <DateTimePicker
-          value={deliveryDateObj}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDeliveryDateChange}
+          onChange={handleIOSOrWebChange}
           minimumDate={new Date()}
         />
       )}
