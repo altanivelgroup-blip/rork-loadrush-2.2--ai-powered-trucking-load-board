@@ -16,6 +16,9 @@ export interface RecentLoad {
   destinationCity: string;
   status: string;
   rate: number;
+  ratePerMile?: number;
+  distance?: number;
+  mpg?: number;
   shipperId: string;
   assignedDriverId?: string;
   createdAt: Timestamp;
@@ -27,6 +30,13 @@ export interface AdminAnalytics {
   shipperCount: number;
   recentLoads: RecentLoad[];
   loadsByDay: { date: string; count: number }[];
+  totalRevenue: number;
+  avgRate: number;
+  avgMPG: number;
+  activeLoads: number;
+  deliveredLoads: number;
+  inTransitLoads: number;
+  delayedLoads: number;
   isLoading: boolean;
   error: string | null;
 }
@@ -38,6 +48,13 @@ export function useAdminAnalytics() {
     shipperCount: 0,
     recentLoads: [],
     loadsByDay: [],
+    totalRevenue: 0,
+    avgRate: 0,
+    avgMPG: 0,
+    activeLoads: 0,
+    deliveredLoads: 0,
+    inTransitLoads: 0,
+    delayedLoads: 0,
     isLoading: true,
     error: null,
   });
@@ -67,23 +84,82 @@ export function useAdminAnalytics() {
           total: loads.length,
         };
 
+        let totalRevenue = 0;
+        let totalRatePerMile = 0;
+        let totalMPG = 0;
+        let rateCount = 0;
+        let mpgCount = 0;
+        let activeCount = 0;
+        let deliveredCount = 0;
+        let inTransitCount = 0;
+        let delayedCount = 0;
+
         loads.forEach((load) => {
           const status = load.status?.toLowerCase();
-          if (status === 'active') statusCounts.active++;
-          else if (status === 'pending') statusCounts.pending++;
-          else if (status === 'delivered') statusCounts.delivered++;
-          else if (status === 'cancelled') statusCounts.cancelled++;
+          if (status === 'active') {
+            statusCounts.active++;
+            activeCount++;
+          } else if (status === 'pending') {
+            statusCounts.pending++;
+            delayedCount++;
+          } else if (status === 'delivered') {
+            statusCounts.delivered++;
+            deliveredCount++;
+          } else if (status === 'cancelled') {
+            statusCounts.cancelled++;
+          } else if (status === 'in_transit') {
+            inTransitCount++;
+          }
+
+          if (load.ratePerMile && load.distance) {
+            const revenue = load.ratePerMile * load.distance;
+            totalRevenue += revenue;
+          } else if (load.rate) {
+            totalRevenue += load.rate;
+          }
+
+          if (load.ratePerMile) {
+            totalRatePerMile += load.ratePerMile;
+            rateCount++;
+          }
+
+          if (load.mpg) {
+            totalMPG += load.mpg;
+            mpgCount++;
+          } else {
+            totalMPG += 7;
+            mpgCount++;
+          }
         });
 
-        const loadsByDay = calculateLoadsByDay(loads);
+        const avgRate = rateCount > 0 ? totalRatePerMile / rateCount : 0;
+        const avgMPG = mpgCount > 0 ? totalMPG / mpgCount : 7;
 
+        const loadsByDay = calculateLoadsByDay(loads);
         const recentLoads = loads.slice(0, 10);
+
+        console.log('[Admin Analytics] Computed metrics:', {
+          totalRevenue,
+          avgRate,
+          avgMPG,
+          activeLoads: activeCount,
+          deliveredLoads: deliveredCount,
+          inTransitLoads: inTransitCount,
+          delayedLoads: delayedCount,
+        });
 
         setAnalytics((prev) => ({
           ...prev,
           loadCounts: statusCounts,
           recentLoads,
           loadsByDay,
+          totalRevenue,
+          avgRate,
+          avgMPG,
+          activeLoads: activeCount,
+          deliveredLoads: deliveredCount,
+          inTransitLoads: inTransitCount,
+          delayedLoads: delayedCount,
           isLoading: false,
         }));
       },

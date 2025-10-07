@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Users, Package, CheckCircle, AlertTriangle, Truck, TrendingUp, LayoutDashboard, Menu, X } from 'lucide-react-native';
+import { useAdminAnalytics } from '@/hooks/useAdminAnalytics';
 
 type NavItem = {
   id: string;
@@ -16,6 +17,7 @@ export default function AdminDashboard() {
   const { width } = useWindowDimensions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [amPmFilter, setAmPmFilter] = useState<'am' | 'pm'>('pm');
+  const analytics = useAdminAnalytics();
 
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
@@ -145,65 +147,121 @@ export default function AdminDashboard() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
-          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-            <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Total Active Loads</Text>
-              <Text style={styles.metricValue}>2,479</Text>
-            </View>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
-              <Package size={40} color="#2563EB" />
-            </View>
-            <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+        {analytics.isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2563EB" />
+            <Text style={styles.loadingText}>Loading analytics...</Text>
           </View>
+        ) : analytics.error ? (
+          <View style={styles.errorContainer}>
+            <AlertTriangle size={48} color="#EF4444" />
+            <Text style={styles.errorText}>Error loading analytics</Text>
+            <Text style={styles.errorSubtext}>{analytics.error}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Total Active Loads</Text>
+                  <Text style={styles.metricValue}>{analytics.activeLoads.toLocaleString()}</Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                  <Package size={40} color="#2563EB" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+              </View>
 
-          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-            <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Delivered On-Time</Text>
-              <Text style={styles.metricValue}>953</Text>
-              <Text style={styles.metricSubtitle}>38.44%</Text>
-            </View>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <CheckCircle size={40} color="#10B981" />
-            </View>
-            <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
-          </View>
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Delivered Loads</Text>
+                  <Text style={styles.metricValue}>{analytics.deliveredLoads.toLocaleString()}</Text>
+                  <Text style={styles.metricSubtitle}>
+                    {analytics.loadCounts.total > 0
+                      ? ((analytics.deliveredLoads / analytics.loadCounts.total) * 100).toFixed(2)
+                      : '0.00'}%
+                  </Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
+                  <CheckCircle size={40} color="#10B981" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+              </View>
 
-          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
-            <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Delayed or Pending</Text>
-              <Text style={styles.metricValue}>1,526</Text>
-              <Text style={styles.metricSubtitle}>61.56%</Text>
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Delayed or Pending</Text>
+                  <Text style={styles.metricValue}>{analytics.delayedLoads.toLocaleString()}</Text>
+                  <Text style={styles.metricSubtitle}>
+                    {analytics.loadCounts.total > 0
+                      ? ((analytics.delayedLoads / analytics.loadCounts.total) * 100).toFixed(2)
+                      : '0.00'}%
+                  </Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+                  <AlertTriangle size={40} color="#F59E0B" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+              </View>
             </View>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
-              <AlertTriangle size={40} color="#F59E0B" />
-            </View>
-            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
-          </View>
-        </View>
 
-        <View style={[styles.metricCard, { marginBottom: 24 }]}>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricTitle}>In-Transit Shipments</Text>
-            <Text style={styles.metricValue}>847</Text>
-          </View>
-          <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
-            <Truck size={40} color="#8B5CF6" />
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
-        </View>
-
-        <View style={styles.aiInsightWidget}>
-          <View style={styles.aiInsightHeader}>
-            <View style={styles.aiInsightIconContainer}>
-              <TrendingUp size={26} color="#2563EB" />
+            <View style={[styles.metricCard, { marginBottom: 24 }]}>
+              <View style={styles.metricContent}>
+                <Text style={styles.metricTitle}>In-Transit Shipments</Text>
+                <Text style={styles.metricValue}>{analytics.inTransitLoads.toLocaleString()}</Text>
+              </View>
+              <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
+                <Truck size={40} color="#8B5CF6" />
+              </View>
+              <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
             </View>
-            <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
-          </View>
-          <Text style={styles.aiInsightContent}>
-            Fetching live insights... (AI analysis will summarize load performance, delays, and route optimization data from Firestore)
-          </Text>
-        </View>
+
+            <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Total Revenue</Text>
+                  <Text style={styles.metricValue}>${analytics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
+                  <TrendingUp size={40} color="#10B981" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+              </View>
+
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Avg Rate/Mile</Text>
+                  <Text style={styles.metricValue}>${analytics.avgRate.toFixed(2)}</Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+                  <Package size={40} color="#2563EB" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+              </View>
+
+              <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+                <View style={styles.metricContent}>
+                  <Text style={styles.metricTitle}>Avg MPG</Text>
+                  <Text style={styles.metricValue}>{analytics.avgMPG.toFixed(1)}</Text>
+                </View>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+                  <Truck size={40} color="#F59E0B" />
+                </View>
+                <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+              </View>
+            </View>
+
+            <View style={styles.aiInsightWidget}>
+              <View style={styles.aiInsightHeader}>
+                <View style={styles.aiInsightIconContainer}>
+                  <TrendingUp size={26} color="#2563EB" />
+                </View>
+                <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
+              </View>
+              <Text style={styles.aiInsightContent}>
+                Live data connected. {analytics.loadCounts.total} total loads tracked. Average rate of ${analytics.avgRate.toFixed(2)}/mile with {analytics.avgMPG.toFixed(1)} MPG efficiency. {analytics.activeLoads} loads currently active.
+              </Text>
+            </View>
 
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
@@ -358,6 +416,8 @@ export default function AdminDashboard() {
             </View>
           </View>
         </View>
+          </>
+        )}
       </ScrollView>
 
         {isMobile && sidebarOpen && (
@@ -853,5 +913,38 @@ const styles = StyleSheet.create({
     fontWeight: '400' as const,
     color: '#475569',
     lineHeight: 22,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: '#6B7280',
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: '#EF4444',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    fontWeight: '400' as const,
+    color: '#6B7280',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
