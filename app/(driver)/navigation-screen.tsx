@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform }
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Navigation, MapPin } from 'lucide-react-native';
+import { X, Navigation, MapPin, Play, Square } from 'lucide-react-native';
 import useDriverNavigation from '@/hooks/useDriverNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Colors from '@/constants/colors';
@@ -31,6 +31,8 @@ export default function NavigationScreen() {
     isNavigating,
     error,
     setDestination,
+    startNavigation,
+    stopNavigation,
   } = useDriverNavigation(user?.id || 'unknown');
 
   const [mapReady, setMapReady] = useState(false);
@@ -169,12 +171,33 @@ export default function NavigationScreen() {
               <Text style={styles.infoValue}>{Math.round(duration)} min</Text>
             </View>
           </View>
+          
           {isNavigating && (
             <View style={styles.navigationStatus}>
               <View style={styles.navigationDot} />
               <Text style={styles.navigationText}>Navigation Active</Text>
             </View>
           )}
+
+          <View style={styles.controlButtons}>
+            {!isNavigating ? (
+              <TouchableOpacity
+                style={[styles.controlButton, styles.startButton]}
+                onPress={() => startNavigation(destination)}
+              >
+                <Play size={20} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.controlButtonText}>Start Navigation</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.controlButton, styles.stopButton]}
+                onPress={stopNavigation}
+              >
+                <Square size={20} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.controlButtonText}>Stop Navigation</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -350,6 +373,31 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 14,
     fontWeight: '600' as const,
+    color: '#FFFFFF',
+  },
+  controlButtons: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  startButton: {
+    backgroundColor: '#16A34A',
+  },
+  stopButton: {
+    backgroundColor: '#DC2626',
+  },
+  controlButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
     color: '#FFFFFF',
   },
 });

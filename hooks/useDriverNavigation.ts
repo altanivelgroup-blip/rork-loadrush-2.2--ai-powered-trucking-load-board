@@ -23,6 +23,8 @@ export interface UseDriverNavigationReturn {
   duration: number;
   getRoute: (origin: NavigationLocation, destination: NavigationLocation) => Promise<void>;
   setDestination: (destination: NavigationLocation | null) => void;
+  startNavigation: (destination: NavigationLocation) => void;
+  stopNavigation: () => void;
 }
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
@@ -202,6 +204,26 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     };
   }, [destination, currentLocation, getRoute]);
 
+  const startNavigation = useCallback((dest: NavigationLocation) => {
+    console.log('[useDriverNavigation] Starting navigation to:', dest);
+    setDestination(dest);
+    setIsNavigating(true);
+  }, []);
+
+  const stopNavigation = useCallback(() => {
+    console.log('[useDriverNavigation] Stopping navigation');
+    setIsNavigating(false);
+    setDestination(null);
+    setRouteCoords([]);
+    setDistance(0);
+    setDuration(0);
+    
+    if (routeRefreshIntervalRef.current) {
+      clearInterval(routeRefreshIntervalRef.current);
+      routeRefreshIntervalRef.current = null;
+    }
+  }, []);
+
   return {
     currentLocation,
     isNavigating,
@@ -211,5 +233,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     duration,
     getRoute,
     setDestination,
+    startNavigation,
+    stopNavigation,
   };
 }
