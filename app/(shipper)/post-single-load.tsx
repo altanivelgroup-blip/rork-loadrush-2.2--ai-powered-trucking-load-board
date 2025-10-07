@@ -6,642 +6,476 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Platform,
+  Modal,
 } from 'react-native';
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Stack, useRouter } from 'expo-router';
-import { MapPin, Package, FileText, Save, Send, Calendar } from 'lucide-react-native';
+import {
+  Calendar,
+  MapPin,
+  Package,
+  DollarSign,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  FileText,
+  Image as ImageIcon,
+  Send,
+} from 'lucide-react-native';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import Colors from '@/constants/colors';
 import { db } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
-export default function PostSingleLoadScreen() {
+interface Step {
+  key: 'details' | 'locations' | 'schedule' | 'rate' | 'review';
+  title: string;
+}
+
+const steps: Step[] = [
+  { key: 'details', title: 'Load Details' },
+  { key: 'locations', title: 'Pickup & Delivery' },
+  { key: 'schedule', title: 'Schedule' },
+  { key: 'rate', title: 'Rate & Payment' },
+  { key: 'review', title: 'Contact & Review' },
+];
+
+export default function PostSingleLoadWizard() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [stepIndex, setStepIndex] = useState<number>(0);
 
-  const [pickupAddress, setPickupAddress] = useState('');
-  const [pickupCity, setPickupCity] = useState('');
-  const [pickupState, setPickupState] = useState('');
-  const [pickupZip, setPickupZip] = useState('');
-  const [pickupDateStr, setPickupDateStr] = useState<string>('');
-  const [pickupDateVal, setPickupDateVal] = useState<Date | null>(null);
-  const [dropoffAddress, setDropoffAddress] = useState('');
-  const [dropoffCity, setDropoffCity] = useState('');
-  const [dropoffState, setDropoffState] = useState('');
-  const [dropoffZip, setDropoffZip] = useState('');
-  const [deliveryDateStr, setDeliveryDateStr] = useState<string>('');
-  const [deliveryDateVal, setDeliveryDateVal] = useState<Date | null>(null);
+  // Step 1: Details
+  const [title, setTitle] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [vehicleType, setVehicleType] = useState<string>('');
 
+  // Step 2: Locations
+  const [pickupLocation, setPickupLocation] = useState<string>('');
+  const [deliveryLocation, setDeliveryLocation] = useState<string>('');
+  const [weight, setWeight] = useState<string>('');
+  const [dimensions, setDimensions] = useState<string>('');
 
-  const [loadType, setLoadType] = useState('');
-  const [weight, setWeight] = useState('');
-  const [price, setPrice] = useState('');
-  const [notes, setNotes] = useState('');
+  // Step 3: Schedule
+  const [pickupDate, setPickupDate] = useState<Date | null>(null);
+  const [deliveryDate, setDeliveryDate] = useState<Date | null>(null);
+  const [deliveryTime, setDeliveryTime] = useState<string>('');
+  const [timezone, setTimezone] = useState<string>('America/Phoenix');
 
-  const formatDate = useCallback((date: Date): string => {
+  // Step 4: Rate
+  const [rateType, setRateType] = useState<'flat' | 'perMile'>('flat');
+  const [rateAmount, setRateAmount] = useState<string>('');
+  const [specialReq, setSpecialReq] = useState<string>('');
+
+  // Step 5: Review
+  const [contact, setContact] = useState<string>('');
+
+  const [dateModal, setDateModal] = useState<{ visible: boolean; target: 'pickup' | 'delivery' | null; temp: Date }>(
+    { visible: false, target: null, temp: new Date() },
+  );
+
+  const formatDate = useCallback((date: Date | null): string => {
+    if (!date) return '';
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const m = months[date.getMonth()];
-    const d = String(date.getDate()).padStart(2, '0');
-    const y = date.getFullYear();
-    return `${m} ${d}, ${y}`;
+    return `${months[date.getMonth()]} ${String(date.getDate()).padStart(2, '0')}, ${date.getFullYear()}`;
   }, []);
 
-  const setDateFor = useCallback((target: 'pickup' | 'delivery', date: Date) => {
-    const formatted = formatDate(date);
-    if (target === 'pickup') {
-      setPickupDateVal(date);
-      setPickupDateStr(formatted);
-    } else {
-      setDeliveryDateVal(date);
-      setDeliveryDateStr(formatted);
-    }
-  }, [formatDate]);
-
-  const openDatePicker = useCallback((target: 'pickup' | 'delivery') => {
-    const initial = target === 'pickup' ? (pickupDateVal ?? new Date()) : (deliveryDateVal ?? new Date());
+  const openNativeDatePicker = useCallback((target: 'pickup' | 'delivery') => {
+    const current = target === 'pickup' ? (pickupDate ?? new Date()) : (deliveryDate ?? new Date());
 
     if (Platform.OS === 'android' && DateTimePickerAndroid?.open) {
       DateTimePickerAndroid.open({
-        value: initial,
+        value: current,
         mode: 'date',
         minimumDate: new Date(),
         onChange: (_event, selectedDate) => {
           if (!selectedDate) return;
-          setDateFor(target, selectedDate);
+          if (target === 'pickup') setPickupDate(selectedDate);
+          else setDeliveryDate(selectedDate);
         },
       });
       return;
     }
-  }, [pickupDateVal, deliveryDateVal, setDateFor]);
 
+    setDateModal({ visible: true, target, temp: current });
+  }, [pickupDate, deliveryDate]);
 
-  const calculateExpiresAt = (deliveryDateStrInput?: string, deliveryDateValInput?: Date | null): Timestamp => {
-    let base: Date | null = null;
+  const closeDateModalConfirm = useCallback(() => {
+    if (!dateModal.visible || !dateModal.target) return;
+    if (dateModal.target === 'pickup') setPickupDate(dateModal.temp);
+    if (dateModal.target === 'delivery') setDeliveryDate(dateModal.temp);
+    setDateModal({ visible: false, target: null, temp: new Date() });
+  }, [dateModal]);
 
-    if (deliveryDateValInput instanceof Date && !isNaN(deliveryDateValInput.getTime())) {
-      base = deliveryDateValInput;
-    } else if (deliveryDateStrInput && deliveryDateStrInput.trim() !== '') {
-      const parsed = new Date(deliveryDateStrInput);
-      if (!isNaN(parsed.getTime())) base = parsed;
+  const next = useCallback(() => {
+    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+  }, []);
+
+  const prev = useCallback(() => {
+    setStepIndex((i) => Math.max(i - 1, 0));
+  }, []);
+
+  const canContinue = useMemo(() => {
+    const key = steps[stepIndex].key;
+    switch (key) {
+      case 'details':
+        return title.trim().length > 0 && description.trim().length > 0;
+      case 'locations':
+        return pickupLocation.trim().length > 0 && deliveryLocation.trim().length > 0;
+      case 'schedule':
+        return !!pickupDate && !!deliveryDate;
+      case 'rate':
+        return rateAmount.trim().length > 0;
+      case 'review':
+        return contact.trim().length > 0;
+      default:
+        return true;
     }
+  }, [stepIndex, title, description, pickupLocation, deliveryLocation, pickupDate, deliveryDate, rateAmount, contact]);
 
-    const expirationDate = base ? new Date(base) : new Date();
-    expirationDate.setDate(expirationDate.getDate() + 7);
-    return Timestamp.fromDate(expirationDate);
+  const calculateExpiresAt = (baseDate: Date | null): Timestamp => {
+    const base = baseDate ?? new Date();
+    const exp = new Date(base);
+    exp.setDate(exp.getDate() + 7);
+    return Timestamp.fromDate(exp);
   };
 
-  const handlePostLoad = async (status: 'Available' | 'Draft' = 'Available') => {
-    if (!pickupAddress || !dropoffAddress || !loadType || !weight || !price) {
-      Alert.alert('Missing Fields', 'Please fill in all required fields');
-      return;
-    }
-
+  const handleSubmit = useCallback(async () => {
+    if (!canContinue) return;
     setLoading(true);
-
     try {
       const auth = getAuth();
-      const user = auth.currentUser;
-      const shipperId = user ? user.uid : 'TEST_SHIPPER';
+      const uid = auth.currentUser?.uid ?? 'TEST_SHIPPER';
 
-      const expiresAt = calculateExpiresAt(deliveryDateStr, deliveryDateVal);
-
-      const loadData = {
-        pickupAddress,
-        pickupCity: pickupCity || 'Unknown',
-        pickupState: pickupState || 'Unknown',
-        pickupZip: pickupZip || '',
-        pickupDate: pickupDateStr || new Date().toISOString(),
-        dropoffAddress,
-        dropoffCity: dropoffCity || 'Unknown',
-        dropoffState: dropoffState || 'Unknown',
-        dropoffZip: dropoffZip || '',
-        deliveryDate: deliveryDateStr || '',
-        loadType,
-        weight: Number(weight),
-        price: Number(price),
-        rate: Number(price),
-        notes: notes || '',
-        status,
-        shipperId,
+      const payload = {
+        title,
+        description,
+        vehicleType,
+        pickupLocation,
+        deliveryLocation,
+        weight: weight ? Number(weight) : undefined,
+        dimensions,
+        pickupDate: pickupDate ? pickupDate.toISOString() : '',
+        deliveryDate: deliveryDate ? deliveryDate.toISOString() : '',
+        deliveryLocalDate: formatDate(deliveryDate),
+        deliveryTime,
+        timezone,
+        rateType,
+        price: Number(rateAmount || '0'),
+        notes: specialReq,
+        status: 'Available',
+        shipperId: uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        expiresAt,
-        pickup: {
-          address: pickupAddress,
-          city: pickupCity || 'Unknown',
-          state: pickupState || 'Unknown',
-          zip: pickupZip || '',
-          date: pickupDateStr || new Date().toISOString(),
-        },
-        dropoff: {
-          address: dropoffAddress,
-          city: dropoffCity || 'Unknown',
-          state: dropoffState || 'Unknown',
-          zip: dropoffZip || '',
-          date: deliveryDateStr || '',
-        },
-        cargo: {
-          type: loadType,
-          weight: Number(weight),
-        },
-      };
+        expiresAt: calculateExpiresAt(deliveryDate),
+      } as const;
 
-      console.log('[Post Load] Creating load with data:', {
-        ...loadData,
-        expiresAt: expiresAt.toDate().toISOString(),
-      });
-
-      const docRef = await addDoc(collection(db, 'loads'), loadData);
-
-      console.log('\n✅ Load posted successfully!');
-      console.log('📄 Document ID:', docRef.id);
-      console.log('📊 Key Values:');
-      console.log('   🏷️  Status:', loadData.status);
-      console.log('   🚚 Load Type:', loadData.loadType);
-      console.log('   👤 Shipper ID:', loadData.shipperId);
-      console.log('   💰 Price: $' + loadData.price);
-      console.log('   📍 Pickup:', loadData.pickupAddress);
-      console.log('   📍 Dropoff:', loadData.dropoffAddress);
-      console.log('   📅 Expires At:', expiresAt.toDate().toISOString());
-      console.log('   🗓️  Expiration Date:', expiresAt.toDate().toLocaleDateString());
-      console.log('\n🔍 Driver Query Filter: status == "Available" AND expiresAt >= now');
-      console.log('✅ This load WILL appear on driver board\n');
-
-      Alert.alert(
-        'Success',
-        status === 'Available'
-          ? `Load posted successfully!\n\nExpires: ${expiresAt.toDate().toLocaleDateString()}`
-          : 'Draft saved successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setPickupAddress('');
-              setPickupCity('');
-              setPickupState('');
-              setPickupZip('');
-              setPickupDateStr('');
-              setPickupDateVal(null);
-              setDropoffAddress('');
-              setDropoffCity('');
-              setDropoffState('');
-              setDropoffZip('');
-              setDeliveryDateStr('');
-              setDeliveryDateVal(null);
-              setLoadType('');
-              setWeight('');
-              setPrice('');
-              setNotes('');
-              router.back();
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('❌ Error posting load:', error);
-      Alert.alert('Error', 'Failed to post load. Please try again.');
+      console.log('[Post Load Wizard] Submitting load', payload);
+      const ref = await addDoc(collection(db, 'loads'), payload as any);
+      console.log('Created load id =', ref.id);
+      router.back();
+    } catch (e) {
+      console.error('Submit failed', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [canContinue, title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, router, formatDate]);
+
+  const renderStepIndicator = useMemo(() => (
+    <View style={styles.stepper}>
+      {steps.map((s, i) => (
+        <View key={s.key} style={styles.stepDotWrap}>
+          <View style={[styles.stepDot, i <= stepIndex ? styles.stepDotActive : undefined]} />
+          {i < steps.length - 1 && <View style={[styles.stepLine, i < stepIndex ? styles.stepLineActive : undefined]} />}
+        </View>
+      ))}
+    </View>
+  ), [stepIndex]);
+
+  const Section = ({ title: t, children }: { title: string; children: React.ReactNode }) => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{t}</Text>
+      {children}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Post Single Load',
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
-          headerTitleStyle: {
-            fontSize: 18,
-            fontWeight: '600' as const,
-            color: '#1a1a1a',
-          },
-        }}
-      />
+      <Stack.Screen options={{ headerShown: true, title: 'Post Load' }} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MapPin size={20} color={Colors.light.primary} />
-            <Text style={styles.sectionTitle}>Pickup Information</Text>
-          </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.headerTitle}>Post Load - Step {stepIndex + 1}</Text>
+        {renderStepIndicator}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Pickup Address *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter pickup address"
-              placeholderTextColor="#9ca3af"
-              value={pickupAddress}
-              onChangeText={setPickupAddress}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>City</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="City"
-                placeholderTextColor="#9ca3af"
-                value={pickupCity}
-                onChangeText={setPickupCity}
-              />
-            </View>
-            <View style={[styles.inputGroup, { width: 80 }]}>
-              <Text style={styles.label}>State</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ST"
-                placeholderTextColor="#9ca3af"
-                value={pickupState}
-                onChangeText={setPickupState}
-                maxLength={2}
-              />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>ZIP Code</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ZIP"
-                placeholderTextColor="#9ca3af"
-                value={pickupZip}
-                onChangeText={setPickupZip}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Pickup Date</Text>
-              {Platform.OS === 'android' ? (
-                <TouchableOpacity
-                  testID="pickup-date-button"
-                  style={styles.dateInput}
-                  onPress={() => openDatePicker('pickup')}
-                  activeOpacity={0.7}
-                >
-                  <Calendar size={18} color="#6b7280" />
-                  <Text style={pickupDateStr ? styles.dateText : styles.datePlaceholder}>
-                    {pickupDateStr || 'Select Date'}
-                  </Text>
+        {steps[stepIndex].key === 'details' && (
+          <>
+            <Section title="Bulk Upload (CSV)">
+              <View style={styles.inlineActions}>
+                <TouchableOpacity testID="uploadCsv" style={styles.primaryBtn} activeOpacity={0.8}>
+                  <Upload size={18} color="#fff" />
+                  <Text style={styles.primaryBtnText}>Upload CSV</Text>
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.dateInput}>
-                  <Calendar size={18} color="#6b7280" />
-                  <DateTimePicker
-                    testID="pickup-date-compact"
-                    value={pickupDateVal ?? new Date()}
-                    mode="date"
-                    display="compact"
-                    minimumDate={new Date()}
-                    onChange={(_e, d) => {
-                      if (!d) return;
-                      setDateFor('pickup', d);
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MapPin size={20} color={Colors.light.success} />
-            <Text style={styles.sectionTitle}>Dropoff Information</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Dropoff Address *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter dropoff address"
-              placeholderTextColor="#9ca3af"
-              value={dropoffAddress}
-              onChangeText={setDropoffAddress}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>City</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="City"
-                placeholderTextColor="#9ca3af"
-                value={dropoffCity}
-                onChangeText={setDropoffCity}
-              />
-            </View>
-            <View style={[styles.inputGroup, { width: 80 }]}>
-              <Text style={styles.label}>State</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ST"
-                placeholderTextColor="#9ca3af"
-                value={dropoffState}
-                onChangeText={setDropoffState}
-                maxLength={2}
-              />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>ZIP Code</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ZIP"
-                placeholderTextColor="#9ca3af"
-                value={dropoffZip}
-                onChangeText={setDropoffZip}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Delivery Date</Text>
-              {Platform.OS === 'android' ? (
-                <TouchableOpacity
-                  testID="delivery-date-button"
-                  style={styles.dateInput}
-                  onPress={() => openDatePicker('delivery')}
-                  activeOpacity={0.7}
-                >
-                  <Calendar size={18} color="#6b7280" />
-                  <Text style={deliveryDateStr ? styles.dateText : styles.datePlaceholder}>
-                    {deliveryDateStr || 'Select Date'}
-                  </Text>
+                <TouchableOpacity testID="downloadTemplate" style={styles.outlineBtn} activeOpacity={0.8}>
+                  <FileText size={18} color={Colors.light.primary} />
+                  <Text style={styles.outlineBtnText}>Template</Text>
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.dateInput}>
-                  <Calendar size={18} color="#6b7280" />
-                  <DateTimePicker
-                    testID="delivery-date-compact"
-                    value={deliveryDateVal ?? new Date()}
-                    mode="date"
-                    display="compact"
-                    minimumDate={new Date()}
-                    onChange={(_e, d) => {
-                      if (!d) return;
-                      setDateFor('delivery', d);
-                    }}
-                    style={{ flex: 1 }}
-                  />
-                </View>
-              )}
+              </View>
+            </Section>
+
+            <Section title="Load Details">
+              <Text style={styles.label}>Load Title *</Text>
+              <TextInput testID="title" style={styles.input} value={title} onChangeText={setTitle} placeholder="e.g., Furniture delivery - Dallas to Houston" placeholderTextColor="#9CA3AF" />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Description *</Text>
+              <TextInput testID="description" style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} placeholder="Describe the cargo, special handling requirements, etc." placeholderTextColor="#9CA3AF" multiline numberOfLines={4} textAlignVertical="top" />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Vehicle Type Required</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {['Cargo Van','Box Truck','Car Hauler','Flatbed','Reefer'].map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    testID={`veh-${t}`}
+                    style={[styles.pill, vehicleType === t && styles.pillActive]}
+                    onPress={() => setVehicleType(t)}
+                    activeOpacity={0.7}
+                  >
+                    <Package size={16} color={vehicleType === t ? '#fff' : '#1f2a69'} />
+                    <Text style={[styles.pillText, vehicleType === t && styles.pillTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </Section>
+          </>
+        )}
+
+        {steps[stepIndex].key === 'locations' && (
+          <Section title="Pickup & Delivery">
+            <Text style={styles.label}>Pickup Location *</Text>
+            <TextInput testID="pickup" style={styles.input} value={pickupLocation} onChangeText={setPickupLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" />
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Delivery Location *</Text>
+            <TextInput testID="delivery" style={styles.input} value={deliveryLocation} onChangeText={setDeliveryLocation} placeholder="City, State ZIP" placeholderTextColor="#9CA3AF" />
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Weight</Text>
+            <TextInput testID="weight" style={styles.input} value={weight} onChangeText={setWeight} placeholder="7000" placeholderTextColor="#9CA3AF" keyboardType="numeric" />
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Dimensions (L x W x H)</Text>
+            <TextInput testID="dimensions" style={styles.input} value={dimensions} onChangeText={setDimensions} placeholder="6 x 36ft" placeholderTextColor="#9CA3AF" />
+          </Section>
+        )}
+
+        {steps[stepIndex].key === 'schedule' && (
+          <Section title="Schedule">
+            <Text style={styles.label}>Pickup Date</Text>
+            <TouchableOpacity
+              testID="pickup-date"
+              style={styles.dateInput}
+              onPress={() => openNativeDatePicker('pickup')}
+              activeOpacity={0.7}
+            >
+              <Calendar size={18} color="#6b7280" />
+              <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>{formatDate(pickupDate) || 'Oct 7, 2025'}</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Delivery Date</Text>
+            <TouchableOpacity
+              testID="delivery-date"
+              style={styles.dateInput}
+              onPress={() => openNativeDatePicker('delivery')}
+              activeOpacity={0.7}
+            >
+              <Calendar size={18} color="#6b7280" />
+              <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>{formatDate(deliveryDate) || 'Oct 8, 2025'}</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Delivery Time (HH:MM)</Text>
+            <TextInput testID="delivery-time" style={styles.input} value={deliveryTime} onChangeText={setDeliveryTime} placeholder="17:00" placeholderTextColor="#9CA3AF" />
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Delivery Timezone</Text>
+            <TextInput testID="timezone" style={styles.input} value={timezone} onChangeText={setTimezone} placeholder="America/Phoenix" placeholderTextColor="#9CA3AF" />
+
+            <View style={styles.notice}>
+              <FileText size={16} color="#6b7280" />
+              <Text style={styles.noticeText}>Load will expire 7 days after delivery date</Text>
             </View>
-          </View>
-        </View>
+          </Section>
+        )}
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Package size={20} color={Colors.light.accent} />
-            <Text style={styles.sectionTitle}>Load Details</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Load Type *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Dry Van, Flatbed, Reefer"
-              placeholderTextColor="#9ca3af"
-              value={loadType}
-              onChangeText={setLoadType}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Weight (lbs) *</Text>
+        {steps[stepIndex].key === 'rate' && (
+          <Section title="Rate & Payment">
+            <Text style={styles.label}>Rate Amount *</Text>
+            <View style={styles.inputRow}>                
+              <DollarSign size={18} color="#6b7280" />
               <TextInput
-                style={styles.input}
-                placeholder="Weight"
-                placeholderTextColor="#9ca3af"
-                value={weight}
-                onChangeText={setWeight}
+                testID="rate"
+                style={[styles.input, { flex: 1 }]}
+                value={rateAmount}
+                onChangeText={setRateAmount}
+                placeholder="1350"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
               />
             </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Price ($) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Price"
-                placeholderTextColor="#9ca3af"
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="numeric"
-              />
+
+            <Text style={[styles.label, { marginTop: 12 }]}>Rate Type</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity testID="rate-flat" style={[styles.toggleBtn, rateType === 'flat' && styles.toggleBtnActive]} onPress={() => setRateType('flat')}>
+                <Text style={[styles.toggleBtnText, rateType === 'flat' && styles.toggleBtnTextActive]}>Flat Rate</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="rate-mile" style={[styles.toggleBtn, rateType === 'perMile' && styles.toggleBtnActive]} onPress={() => setRateType('perMile')}>
+                <Text style={[styles.toggleBtnText, rateType === 'perMile' && styles.toggleBtnTextActive]}>Per Mile</Text>
+              </TouchableOpacity>
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Additional notes or requirements"
-              placeholderTextColor="#9ca3af"
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
+            <Text style={[styles.label, { marginTop: 12 }]}>Special Requirements</Text>
+            <TextInput testID="special-req" style={[styles.input, styles.textArea]} value={specialReq} onChangeText={setSpecialReq} placeholder="Any special requirements" placeholderTextColor="#9CA3AF" multiline numberOfLines={3} textAlignVertical="top" />
+          </Section>
+        )}
 
-        <View style={styles.expirationInfo}>
-          <FileText size={16} color="#6b7280" />
-          <Text style={styles.expirationText}>
-            Load will expire 7 days after delivery date (or 7 days from now if no delivery date)
-          </Text>
-        </View>
+        {steps[stepIndex].key === 'review' && (
+          <Section title="Contact & Review">
+            <Text style={styles.label}>Contact Information</Text>
+            <TextInput testID="contact" style={styles.input} value={contact} onChangeText={setContact} placeholder="Phone number or email for carriers" placeholderTextColor="#9CA3AF" />
 
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.button, styles.draftButton]}
-            onPress={() => handlePostLoad('Draft')}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#6b7280" />
-            ) : (
-              <>
-                <Save size={20} color="#6b7280" />
-                <Text style={styles.draftButtonText}>Save Draft</Text>
-              </>
-            )}
+            <Text style={[styles.label, { marginTop: 16 }]}>Photos</Text>
+            <View style={styles.photosBox}>
+              <TouchableOpacity testID="add-photos" style={styles.primaryBtn} activeOpacity={0.8}>
+                <ImageIcon size={18} color="#fff" />
+                <Text style={styles.primaryBtnText}>Add Photos</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryTitle}>Load Summary</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={styles.summaryRow}>Title: {title || '-'}</Text>
+                <Text style={styles.summaryRow}>Route: {pickupLocation || '—'} → {deliveryLocation || '—'}</Text>
+                <Text style={styles.summaryRow}>Vehicle: {vehicleType ? vehicleType.toUpperCase().replace(' ', '-') : '—'}</Text>
+                <Text style={styles.summaryRow}>Rate: ${rateAmount || '0'} ({rateType === 'flat' ? 'flat' : 'per mile'})</Text>
+              </View>
+            </View>
+          </Section>
+        )}
+
+        <View style={styles.footer}> 
+          <TouchableOpacity testID="prev" style={[styles.footerBtn, styles.prevBtn]} onPress={prev} disabled={stepIndex === 0}>
+            <ChevronLeft size={18} color={stepIndex === 0 ? '#9CA3AF' : '#1f2a69'} />
+            <Text style={[styles.footerBtnText, stepIndex === 0 && { color: '#9CA3AF' }]}>Previous</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, styles.postButton]}
-            onPress={() => handlePostLoad('Available')}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Send size={20} color="#fff" />
-                <Text style={styles.postButtonText}>Post Load</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {stepIndex < steps.length - 1 ? (
+            <TouchableOpacity testID="next" style={[styles.footerBtn, styles.nextBtn, !canContinue && styles.nextBtnDisabled]} onPress={next} disabled={!canContinue}>
+              <Text style={styles.nextBtnText}>Next</Text>
+              <ChevronRight size={18} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity testID="submit" style={[styles.footerBtn, styles.nextBtn, (!canContinue || loading) && styles.nextBtnDisabled]} onPress={handleSubmit} disabled={!canContinue || loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <>
+                <Send size={18} color="#fff" />
+                <Text style={styles.nextBtnText}>Post Load</Text>
+              </>}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
+      <Modal visible={dateModal.visible} transparent animationType="fade" onRequestClose={() => setDateModal({ visible: false, target: null, temp: new Date() })}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{dateModal.target === 'pickup' ? 'Pickup Date' : 'Delivery Date'}</Text>
+            <View style={{ alignSelf: 'stretch' }}>
+              <DateTimePicker
+                testID="ios-web-date-picker"
+                value={dateModal.temp}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                minimumDate={new Date()}
+                onChange={(_e, d) => {
+                  if (!d) return;
+                  setDateModal((prev) => ({ ...prev, temp: d }));
+                }}
+              />
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnSecondary]} onPress={() => setDateModal((prev) => ({ ...prev, temp: new Date() }))}>
+                <Text style={styles.modalBtnSecondaryText}>Today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnPrimary]} onPress={closeDateModalConfirm}>
+                <Text style={styles.modalBtnPrimaryText}>Use this date</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#1a1a1a',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#374151',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  expirationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fffbeb',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#fef3c7',
-  },
-  expirationText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#92400e',
-    lineHeight: 18,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  draftButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  draftButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#6b7280',
-  },
-  postButton: {
-    backgroundColor: Colors.light.primary,
-  },
-  postButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#fff',
-  },
-  dateInput: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateText: {
-    fontSize: 15,
-    color: '#1a1a1a',
-  },
-  datePlaceholder: {
-    fontSize: 15,
-    color: '#9ca3af',
-  },
+  container: { flex: 1, backgroundColor: '#f8f9fa' },
+  scroll: { flex: 1 },
+  content: { padding: 20, paddingBottom: 40 },
+  headerTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1a1a1a', marginBottom: 8, textAlign: 'center' },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 },
+  stepDotWrap: { flexDirection: 'row', alignItems: 'center' },
+  stepDot: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E5E7EB' },
+  stepDotActive: { backgroundColor: Colors.light.primary },
+  stepLine: { width: 28, height: 3, backgroundColor: '#E5E7EB', marginHorizontal: 6, borderRadius: 2 },
+  stepLineActive: { backgroundColor: Colors.light.primary },
 
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  cardTitle: { fontSize: 20, fontWeight: '700' as const, color: '#1a1a1a', textAlign: 'center', marginBottom: 12 },
+
+  label: { fontSize: 14, fontWeight: '600' as const, color: '#374151', marginBottom: 8 },
+  input: { backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#1a1a1a', borderWidth: 1, borderColor: '#E5E7EB' },
+  textArea: { minHeight: 100, textAlignVertical: 'top' as const },
+
+  inlineActions: { flexDirection: 'row', gap: 10, alignSelf: 'center' },
+  primaryBtn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.light.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' as const },
+  outlineBtn: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', borderWidth: 2, borderColor: Colors.light.primary, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  outlineBtnText: { color: Colors.light.primary, fontSize: 15, fontWeight: '700' as const },
+
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: '#1f2a69', backgroundColor: '#F3F4F6', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 10 },
+  pillActive: { backgroundColor: '#1f2a69', borderColor: '#1f2a69' },
+  pillText: { fontSize: 14, fontWeight: '700' as const, color: '#1f2a69' },
+  pillTextActive: { color: '#fff' },
+
+  dateInput: { backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  dateText: { fontSize: 15, color: '#1a1a1a' },
+  datePlaceholder: { fontSize: 15, color: '#9CA3AF' },
+
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  toggleBtn: { flex: 1, backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  toggleBtnActive: { backgroundColor: '#EFF6FF', borderColor: Colors.light.primary },
+  toggleBtnText: { fontSize: 15, fontWeight: '700' as const, color: '#6B7280' },
+  toggleBtnTextActive: { color: '#1f2a69' },
+
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#FEF3C7', marginTop: 12 },
+  noticeText: { fontSize: 13, color: '#92400E' },
+
+  photosBox: { backgroundColor: '#F3F4F6', borderRadius: 12, padding: 12, alignItems: 'center', justifyContent: 'center' },
+  summaryBox: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginTop: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  summaryTitle: { fontSize: 16, fontWeight: '700' as const, color: '#1a1a1a', marginBottom: 8 },
+  summaryRow: { fontSize: 14, color: '#374151' },
+
+  footer: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  footerBtn: { flex: 1, borderRadius: 12, paddingVertical: 16, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  prevBtn: { backgroundColor: '#E5E7EB' },
+  footerBtnText: { fontSize: 16, fontWeight: '600' as const, color: '#1f2a69' },
+  nextBtn: { backgroundColor: '#1f2a69' },
+  nextBtnText: { fontSize: 16, fontWeight: '600' as const, color: '#fff' },
+  nextBtnDisabled: { opacity: 0.5 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#fff', borderRadius: 16, padding: 16, width: '100%', maxWidth: 520 },
+  modalTitle: { fontSize: 18, fontWeight: '700' as const, color: '#1a1a1a', textAlign: 'center', marginBottom: 8 },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  modalBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 10 },
+  modalBtnSecondary: { backgroundColor: '#E5E7EB' },
+  modalBtnPrimary: { backgroundColor: '#1f2a69' },
+  modalBtnSecondaryText: { fontSize: 15, fontWeight: '700' as const, color: '#374151' },
+  modalBtnPrimaryText: { fontSize: 15, fontWeight: '700' as const, color: '#fff' },
 });
