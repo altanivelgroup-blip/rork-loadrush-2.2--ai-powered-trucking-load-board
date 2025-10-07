@@ -49,18 +49,28 @@ export default function PostSingleLoadScreen() {
   };
 
   const handlePickupDateChange = (event: any, selectedDate?: Date) => {
-    setShowPickupDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowPickupDatePicker(false);
+    }
     if (selectedDate) {
       setPickupDateObj(selectedDate);
       setPickupDate(formatDate(selectedDate));
+      if (Platform.OS === 'ios') {
+        setShowPickupDatePicker(false);
+      }
     }
   };
 
   const handleDeliveryDateChange = (event: any, selectedDate?: Date) => {
-    setShowDeliveryDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowDeliveryDatePicker(false);
+    }
     if (selectedDate) {
       setDeliveryDateObj(selectedDate);
       setDeliveryDate(formatDate(selectedDate));
+      if (Platform.OS === 'ios') {
+        setShowDeliveryDatePicker(false);
+      }
     }
   };
 
@@ -461,20 +471,68 @@ export default function PostSingleLoadScreen() {
         </View>
       </ScrollView>
 
-      {showPickupDatePicker && (
+      {showPickupDatePicker && Platform.OS === 'ios' && (
+        <View style={styles.iosPickerContainer}>
+          <View style={styles.iosPickerHeader}>
+            <TouchableOpacity onPress={() => setShowPickupDatePicker(false)}>
+              <Text style={styles.iosPickerCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.iosPickerTitle}>Select Pickup Date</Text>
+            <TouchableOpacity onPress={() => {
+              setPickupDate(formatDate(pickupDateObj));
+              setShowPickupDatePicker(false);
+            }}>
+              <Text style={styles.iosPickerDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <DateTimePicker
+            value={pickupDateObj}
+            mode="date"
+            display="spinner"
+            onChange={(event, date) => {
+              if (date) setPickupDateObj(date);
+            }}
+          />
+        </View>
+      )}
+      {showPickupDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={pickupDateObj}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={handlePickupDateChange}
         />
       )}
 
-      {showDeliveryDatePicker && (
+      {showDeliveryDatePicker && Platform.OS === 'ios' && (
+        <View style={styles.iosPickerContainer}>
+          <View style={styles.iosPickerHeader}>
+            <TouchableOpacity onPress={() => setShowDeliveryDatePicker(false)}>
+              <Text style={styles.iosPickerCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.iosPickerTitle}>Select Delivery Date</Text>
+            <TouchableOpacity onPress={() => {
+              setDeliveryDate(formatDate(deliveryDateObj));
+              setShowDeliveryDatePicker(false);
+            }}>
+              <Text style={styles.iosPickerDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+          <DateTimePicker
+            value={deliveryDateObj}
+            mode="date"
+            display="spinner"
+            onChange={(event, date) => {
+              if (date) setDeliveryDateObj(date);
+            }}
+          />
+        </View>
+      )}
+      {showDeliveryDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={deliveryDateObj}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          display="default"
           onChange={handleDeliveryDateChange}
         />
       )}
@@ -659,5 +717,42 @@ const styles = StyleSheet.create({
   },
   webDatePickerContainer: {
     padding: 20,
+  },
+  iosPickerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  iosPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  iosPickerTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#1a1a1a',
+  },
+  iosPickerCancel: {
+    fontSize: 16,
+    color: '#6b7280',
+  },
+  iosPickerDone: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.light.primary,
   },
 });
