@@ -7,10 +7,13 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  TouchableOpacity,
+  Animated,
+  Pressable,
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 
 const { width, height } = Dimensions.get('window');
@@ -22,6 +25,29 @@ const isSmallScreen = width < 768;
 export default function CommandCenter() {
   const { drivers, isLoading, error } = useCommandCenterDrivers();
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
+  const [panelAnimation] = useState(new Animated.Value(0));
+
+  const openPanel = (driverId: string) => {
+    setSelectedDriver(driverId);
+    Animated.spring(panelAnimation, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  };
+
+  const closePanel = () => {
+    Animated.timing(panelAnimation, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setSelectedDriver(null);
+    });
+  };
+
+  const selectedDriverData = drivers.find((d) => d.id === selectedDriver);
 
   const initialRegion = {
     latitude: 39.8283,
@@ -85,7 +111,7 @@ export default function CommandCenter() {
                 key={driver.id}
                 driver={driver}
                 isSelected={selectedDriver === driver.id}
-                onPress={() => setSelectedDriver(driver.id)}
+                onPress={() => openPanel(driver.id)}
               />
             ))}
           </ScrollView>
@@ -127,6 +153,14 @@ export default function CommandCenter() {
           )}
         </View>
       </View>
+
+      {selectedDriver && selectedDriverData && (
+        <DriverDetailPanel
+          driver={selectedDriverData}
+          animation={panelAnimation}
+          onClose={closePanel}
+        />
+      )}
     </View>
   );
 }
@@ -145,9 +179,10 @@ interface DriverCardProps {
 
 function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
   return (
-    <View
+    <TouchableOpacity
       style={[styles.driverCard, isSelected && styles.driverCardSelected]}
-      onTouchEnd={onPress}
+      onPress={onPress}
+      activeOpacity={0.7}
     >
       <View style={styles.driverCardHeader}>
         <View style={styles.driverInfo}>
@@ -165,7 +200,7 @@ function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
         <Text style={styles.currentLoad}>Load: {driver.currentLoad}</Text>
       )}
       <Text style={styles.statusLabel}>{getStatusLabel(driver.status)}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -216,6 +251,224 @@ function getStatusLabel(status: DriverStatus): string {
     default:
       return 'Unknown';
   }
+}
+
+interface DriverDetailPanelProps {
+  driver: {
+    id: string;
+    driverId: string;
+    name: string;
+    status: DriverStatus;
+    location: {
+      latitude: number;
+      longitude: number;
+    };
+    currentLoad?: string;
+    lastUpdate: Date;
+  };
+  animation: Animated.Value;
+  onClose: () => void;
+}
+
+function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProps) {
+  const panelWidth = isSmallScreen ? width : Math.min(width * 0.35, 450);
+
+  const translateX = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [panelWidth, 0],
+  });
+
+  const opacity = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.5],
+  });
+
+  const mockRouteData = {
+    origin: 'Dallas, TX',
+    destination: 'Houston, TX',
+    distance: '245 miles',
+    eta: '3.5 hours',
+    progress: 65,
+  };
+
+  return (
+    <>
+      <Animated.View
+        style={[
+          styles.panelOverlay,
+          {
+            opacity,
+            display: animation.interpolate({
+              inputRange: [0, 0.01],
+              outputRange: ['none' as const, 'flex' as const],
+            }) as any,
+          },
+        ]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.detailPanel,
+          {
+            width: panelWidth,
+            transform: [{ translateX }],
+          },
+        ]}
+      >
+        <View style={styles.panelHeader}>
+          <View style={styles.panelHeaderLeft}>
+            <Text style={styles.panelTitle}>Driver Details</Text>
+            <Text style={styles.panelSubtitle}>{driver.driverId}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.closeButton}
+            activeOpacity={0.7}
+          >
+            <X size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.panelContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.driverSection}>
+            <View style={styles.driverHeaderPanel}>
+              <View style={styles.driverAvatarPlaceholder}>
+                <Text style={styles.driverInitials}>
+                  {driver.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.driverMetaPanel}>
+                <Text style={styles.driverNamePanel}>{driver.name}</Text>
+                <View
+                  style={[
+                    styles.statusBadgePanel,
+                    { backgroundColor: getStatusColor(driver.status) + '20' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusDotPanel,
+                      { backgroundColor: getStatusColor(driver.status) },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusTextPanel,
+                      { color: getStatusColor(driver.status) },
+                    ]}
+                  >
+                    {getStatusLabel(driver.status)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {driver.currentLoad && (
+            <View style={styles.infoSection}>
+              <View style={styles.infoHeader}>
+                <Package size={18} color="#1E3A8A" />
+                <Text style={styles.infoHeaderText}>Current Load</Text>
+              </View>
+              <View style={styles.infoCard}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Load ID</Text>
+                  <Text style={styles.infoValue}>{driver.currentLoad}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Route</Text>
+                  <Text style={styles.infoValue}>
+                    {mockRouteData.origin} → {mockRouteData.destination}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.infoSection}>
+            <View style={styles.infoHeader}>
+              <Navigation size={18} color="#1E3A8A" />
+              <Text style={styles.infoHeaderText}>Route Information</Text>
+            </View>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Distance Remaining</Text>
+                <Text style={styles.infoValue}>{mockRouteData.distance}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Estimated Time</Text>
+                <Text style={styles.infoValue}>{mockRouteData.eta}</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Progress</Text>
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        { width: `${mockRouteData.progress}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.progressText}>{mockRouteData.progress}%</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.infoSection}>
+            <View style={styles.infoHeader}>
+              <Clock size={18} color="#1E3A8A" />
+              <Text style={styles.infoHeaderText}>Location</Text>
+            </View>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Latitude</Text>
+                <Text style={styles.infoValue}>
+                  {driver.location.latitude.toFixed(4)}°N
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Longitude</Text>
+                <Text style={styles.infoValue}>
+                  {driver.location.longitude.toFixed(4)}°W
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Last Update</Text>
+                <Text style={styles.infoValue}>
+                  {driver.lastUpdate.toLocaleTimeString()}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewRouteButton}
+            activeOpacity={0.7}
+            disabled
+          >
+            <TrendingUp size={18} color="#9CA3AF" />
+            <Text style={styles.viewRouteButtonText}>View Route (Coming Soon)</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </Animated.View>
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -457,5 +710,206 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     fontWeight: '500' as const,
+  },
+  panelOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000000',
+    zIndex: 999,
+  },
+  detailPanel: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#F9FAFB',
+    shadowColor: '#000',
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 1000,
+  },
+  panelHeader: {
+    backgroundColor: '#1E3A8A',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E40AF',
+  },
+  panelHeaderLeft: {
+    flex: 1,
+  },
+  panelTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  panelSubtitle: {
+    fontSize: 13,
+    color: '#93C5FD',
+    fontWeight: '500' as const,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  panelContent: {
+    flex: 1,
+    padding: 20,
+  },
+  driverSection: {
+    marginBottom: 24,
+  },
+  driverHeaderPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  driverAvatarPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#1E3A8A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  driverInitials: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  driverMetaPanel: {
+    flex: 1,
+  },
+  driverNamePanel: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#111827',
+    marginBottom: 8,
+  },
+  statusBadgePanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  statusDotPanel: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusTextPanel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  infoHeaderText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#1E3A8A',
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500' as const,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600' as const,
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 4,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginLeft: 12,
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#22C55E',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#111827',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  viewRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  viewRouteButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#9CA3AF',
   },
 });
