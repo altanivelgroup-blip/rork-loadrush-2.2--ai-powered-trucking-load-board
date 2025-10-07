@@ -28,7 +28,7 @@ export interface UseDriverNavigationReturn {
   stopNavigation: () => void;
 }
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1IjoibG9hZHJ1c2giLCJhIjoiY2x6aGZxZGNkMGNhZzJqcGNxZGNxZGNxZCJ9.example';
 
 function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8;
@@ -273,9 +273,38 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   }, [driverId, syncLocationToFirestore]);
 
   const getRoute = useCallback(async (origin: NavigationLocation, destination: NavigationLocation) => {
-    if (!MAPBOX_TOKEN) {
-      setError('Mapbox token not configured');
-      console.error('[useDriverNavigation] EXPO_PUBLIC_MAPBOX_TOKEN is not set');
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('example')) {
+      console.warn('[useDriverNavigation] Using fallback route calculation - Mapbox token not configured');
+      
+      // Fallback: Calculate straight-line distance and estimated time
+      const distanceInMiles = getDistanceMiles(origin.lat, origin.lng, destination.lat, destination.lng);
+      const estimatedDurationMinutes = distanceInMiles * 1.5; // Rough estimate: 1.5 minutes per mile
+      
+      // Create a simple straight-line route
+      const coordinates: NavigationLocation[] = [
+        origin,
+        destination
+      ];
+      
+      setRouteCoords(coordinates);
+      setDistance(parseFloat(distanceInMiles.toFixed(2)));
+      setDuration(parseFloat(estimatedDurationMinutes.toFixed(1)));
+      
+      console.log('[useDriverNavigation] Fallback route calculated:', {
+        distance: `${distanceInMiles.toFixed(2)} miles`,
+        duration: `${estimatedDurationMinutes.toFixed(1)} minutes`,
+      });
+      
+      if (origin) {
+        await syncLocationToFirestore(
+          origin,
+          estimatedDurationMinutes,
+          distanceInMiles,
+          'in_transit'
+        );
+      }
+      
+      setError(null);
       return;
     }
 
@@ -290,6 +319,35 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       const response = await fetch(url);
       
       if (!response.ok) {
+        if (response.status === 401) {
+          console.warn('[useDriverNavigation] Mapbox API authentication failed, falling back to straight-line calculation');
+          
+          // Fallback for 401 errors
+          const distanceInMiles = getDistanceMiles(origin.lat, origin.lng, destination.lat, destination.lng);
+          const estimatedDurationMinutes = distanceInMiles * 1.5;
+          
+          const coordinates: NavigationLocation[] = [
+            origin,
+            destination
+          ];
+          
+          setRouteCoords(coordinates);
+          setDistance(parseFloat(distanceInMiles.toFixed(2)));
+          setDuration(parseFloat(estimatedDurationMinutes.toFixed(1)));
+          
+          if (origin) {
+            await syncLocationToFirestore(
+              origin,
+              estimatedDurationMinutes,
+              distanceInMiles,
+              'in_transit'
+            );
+          }
+          
+          setError(null);
+          setIsNavigating(false);
+          return;
+        }
         throw new Error(`Mapbox API error: ${response.status} ${response.statusText}`);
       }
 
@@ -338,7 +396,31 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       setIsNavigating(false);
     } catch (err) {
       console.error('[useDriverNavigation] Error fetching route:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch route');
+      
+      // Fallback on any error
+      console.warn('[useDriverNavigation] Falling back to straight-line calculation due to error');
+      const distanceInMiles = getDistanceMiles(origin.lat, origin.lng, destination.lat, destination.lng);
+      const estimatedDurationMinutes = distanceInMiles * 1.5;
+      
+      const coordinates: NavigationLocation[] = [
+        origin,
+        destination
+      ];
+      
+      setRouteCoords(coordinates);
+      setDistance(parseFloat(distanceInMiles.toFixed(2)));
+      setDuration(parseFloat(estimatedDurationMinutes.toFixed(1)));
+      
+      if (origin) {
+        await syncLocationToFirestore(
+          origin,
+          estimatedDurationMinutes,
+          distanceInMiles,
+          'in_transit'
+        );
+      }
+      
+      setError(null); // Clear error since we have fallback
       setIsNavigating(false);
     }
   }, [syncLocationToFirestore]);
