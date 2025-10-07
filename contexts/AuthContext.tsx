@@ -33,8 +33,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   useEffect(() => {
     console.log('🔥 Firebase Auth: Setting up auth state listener');
     
+    const timeoutId = setTimeout(() => {
+      console.log('⚠️ Firebase Auth: Timeout reached, forcing loading to false');
+      setLoading(false);
+    }, 3000);
+    
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       console.log('🔥 Firebase Auth: State changed -', fbUser ? `User: ${fbUser.email}` : 'No user');
+      clearTimeout(timeoutId);
       
       if (fbUser) {
         const storedRole = getStorageItem(`user_role_${fbUser.uid}`) as UserRole || 'driver';
@@ -65,6 +71,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     return () => {
       console.log('🔥 Firebase Auth: Cleaning up auth listener');
+      clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);

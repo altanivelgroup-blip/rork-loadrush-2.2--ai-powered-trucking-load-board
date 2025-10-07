@@ -16,15 +16,22 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
+    
+    if (loading) {
+      console.log('⏳ Still loading auth state...');
+      return;
+    }
 
     const inAuthGroup = segments[0] === 'auth';
 
-    console.log('Navigation check:', { user: user?.role, segments, inAuthGroup });
+    console.log('✅ Auth loaded:', { user: user?.role, segments, inAuthGroup });
 
     if (!user && !inAuthGroup) {
+      console.log('➡️ No user, redirecting to /auth');
       router.replace('/auth');
     } else if (user && inAuthGroup) {
+      console.log('➡️ User logged in, redirecting to dashboard');
       if (user.role === 'driver') {
         router.replace('/(driver)/dashboard');
       } else if (user.role === 'shipper') {
@@ -32,6 +39,8 @@ function RootLayoutNav() {
       } else if (user.role === 'admin') {
         router.replace('/(admin)/dashboard');
       }
+    } else {
+      console.log('✅ Navigation state is correct, no redirect needed');
     }
   }, [user, loading, segments]);
 
@@ -47,7 +56,12 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    console.log('🚀 RootLayout mounted');
+    const timer = setTimeout(() => {
+      console.log('🎬 Hiding splash screen');
+      SplashScreen.hideAsync();
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
