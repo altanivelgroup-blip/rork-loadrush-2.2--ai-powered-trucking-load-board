@@ -125,10 +125,19 @@ export default function PostSingleLoadScreen() {
 
       const docRef = await addDoc(collection(db, 'loads'), loadData);
 
-      console.log('✅ Load posted successfully!');
+      console.log('\n✅ Load posted successfully!');
       console.log('📄 Document ID:', docRef.id);
-      console.log('📅 Expires At:', expiresAt.toDate().toISOString());
-      console.log('🗓️ Expiration Date:', expiresAt.toDate().toLocaleDateString());
+      console.log('📊 Key Values:');
+      console.log('   🏷️  Status:', loadData.status);
+      console.log('   🚚 Load Type:', loadData.loadType);
+      console.log('   👤 Shipper ID:', loadData.shipperId);
+      console.log('   💰 Price: $' + loadData.price);
+      console.log('   📍 Pickup:', loadData.pickupAddress);
+      console.log('   📍 Dropoff:', loadData.dropoffAddress);
+      console.log('   📅 Expires At:', expiresAt.toDate().toISOString());
+      console.log('   🗓️  Expiration Date:', expiresAt.toDate().toLocaleDateString());
+      console.log('\n🔍 Driver Query Filter: status == "Available" AND expiresAt >= now');
+      console.log('✅ This load WILL appear on driver board\n');
 
       Alert.alert(
         'Success',
