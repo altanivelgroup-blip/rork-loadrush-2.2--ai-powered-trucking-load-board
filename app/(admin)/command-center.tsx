@@ -301,9 +301,9 @@ export default function CommandCenter() {
         />
         <FilterButton
           label="In Transit"
-          count={getStatusCount('in-transit')}
-          isActive={activeFilter === 'in-transit'}
-          onPress={() => setActiveFilter('in-transit')}
+          count={getStatusCount('in_transit')}
+          isActive={activeFilter === 'in_transit'}
+          onPress={() => setActiveFilter('in_transit')}
           color="#F59E0B"
         />
         <FilterButton
@@ -335,7 +335,7 @@ export default function CommandCenter() {
 
           <View style={styles.legendContainer}>
             <LegendItem status="pickup" label="Pickup" />
-            <LegendItem status="in-transit" label="In Transit" />
+            <LegendItem status="in_transit" label="In Transit" />
             <LegendItem status="accomplished" label="Accomplished" />
             <LegendItem status="breakdown" label="Breakdown" />
           </View>
@@ -449,8 +449,8 @@ interface DriverCardProps {
     name: string;
     status: DriverStatus;
     location: {
-      latitude: number;
-      longitude: number;
+      lat: number;
+      lng: number;
     };
     currentLoad?: string;
     pickupLocation?: {
@@ -468,7 +468,7 @@ interface DriverCardProps {
 
 function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
   const { routeData } = useDriverRoute({
-    origin: driver.location,
+    origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
     enabled: !!(driver.pickupLocation && driver.dropoffLocation),
   });
@@ -682,8 +682,8 @@ interface AnimatedMarkerProps {
     name: string;
     status: DriverStatus;
     location: {
-      latitude: number;
-      longitude: number;
+      lat: number;
+      lng: number;
     };
   };
   onPress: () => void;
@@ -692,13 +692,19 @@ interface AnimatedMarkerProps {
 
 function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const positionX = useRef(new Animated.Value(((driver.location.lng + 125) / 60) * 100)).current;
+  const positionY = useRef(new Animated.Value(((50 - driver.location.lat) / 25) * 100)).current;
+  const prevLocation = useRef({ lat: driver.location.lat, lng: driver.location.lng });
 
   useEffect(() => {
+    const isActiveDriver = driver.status === 'pickup' || driver.status === 'in_transit';
     const pulseSpeed = driver.status === 'breakdown' ? 1500 : 1000;
+    const pulseScale = isActiveDriver ? 1.5 : 1.3;
+    
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.5,
+          toValue: pulseScale,
           duration: pulseSpeed,
           useNativeDriver: true,
         }),
@@ -713,60 +719,117 @@ function AnimatedMarker({ driver, onPress, isSelected }: AnimatedMarkerProps) {
     return () => animation.stop();
   }, [driver.status, pulseAnim]);
 
+  useEffect(() => {
+    const newLat = driver.location.lat;
+    const newLng = driver.location.lng;
+    const oldLat = prevLocation.current.lat;
+    const oldLng = prevLocation.current.lng;
+
+    if (newLat !== oldLat || newLng !== oldLng) {
+      console.log(`[AnimatedMarker] ${driver.driverId} moving from (${oldLat.toFixed(4)}, ${oldLng.toFixed(4)}) to (${newLat.toFixed(4)}, ${newLng.toFixed(4)})`);
+      
+      const newX = ((newLng + 125) / 60) * 100;
+      const newY = ((50 - newLat) / 25) * 100;
+
+      Animated.parallel([
+        Animated.timing(positionX, {
+          toValue: newX,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(positionY, {
+          toValue: newY,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ]).start();
+
+      prevLocation.current = { lat: newLat, lng: newLng };
+    }
+  }, [driver.location.lat, driver.location.lng, driver.driverId, positionX, positionY]);
+
   const markerColor = getStatusColor(driver.status);
   const markerSize = isSelected ? 24 : 18;
+  const isActiveDriver = driver.status === 'pickup' || driver.status === 'in_transit';
 
   return (
-    <TouchableOpacity
+    <Animated.View
       style={[
         styles.mapMarker,
         {
-          left: `${((driver.location.longitude + 125) / 60) * 100}%`,
-          top: `${((50 - driver.location.latitude) / 25) * 100}%`,
+          left: positionX.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%'],
+          }),
+          top: positionY.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%'],
+          }),
         },
       ]}
-      onPress={onPress}
-      activeOpacity={0.8}
     >
-      {isSelected && (
+      <TouchableOpacity
+        style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        {isSelected && (
+          <Animated.View
+            style={[
+              styles.markerRing,
+              {
+                width: markerSize * 3,
+                height: markerSize * 3,
+                borderRadius: markerSize * 1.5,
+                borderColor: markerColor,
+              },
+            ]}
+          />
+        )}
+        {isActiveDriver && (
+          <Animated.View
+            style={[
+              styles.markerActivePulse,
+              {
+                backgroundColor: markerColor,
+                width: markerSize * 3.5,
+                height: markerSize * 3.5,
+                borderRadius: markerSize * 1.75,
+                transform: [{ scale: pulseAnim }],
+              },
+            ]}
+          />
+        )}
         <Animated.View
           style={[
-            styles.markerRing,
+            styles.markerGlow,
             {
-              width: markerSize * 3,
-              height: markerSize * 3,
-              borderRadius: markerSize * 1.5,
-              borderColor: markerColor,
+              backgroundColor: markerColor,
+              width: markerSize * 2,
+              height: markerSize * 2,
+              borderRadius: markerSize,
+              transform: [{ scale: pulseAnim.interpolate({
+                inputRange: [1, 1.5],
+                outputRange: [1, 1.2],
+              }) }],
             },
           ]}
         />
-      )}
-      <Animated.View
-        style={[
-          styles.markerGlow,
-          {
-            backgroundColor: markerColor,
-            width: markerSize * 2,
-            height: markerSize * 2,
-            borderRadius: markerSize,
-            transform: [{ scale: pulseAnim }],
-          },
-        ]}
-      />
-      <View
-        style={[
-          styles.markerCore,
-          {
-            backgroundColor: markerColor,
-            width: markerSize,
-            height: markerSize,
-            borderRadius: markerSize / 2,
-          },
-        ]}
-      >
-        {isSelected && <View style={styles.markerSelected} />}
-      </View>
-    </TouchableOpacity>
+        <View
+          style={[
+            styles.markerCore,
+            {
+              backgroundColor: markerColor,
+              width: markerSize,
+              height: markerSize,
+              borderRadius: markerSize / 2,
+            },
+          ]}
+        >
+          {isSelected && <View style={styles.markerSelected} />}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -774,7 +837,7 @@ function getStatusColor(status: DriverStatus): string {
   switch (status) {
     case 'pickup':
       return '#22C55E';
-    case 'in-transit':
+    case 'in_transit':
       return '#F59E0B';
     case 'accomplished':
       return '#8B5CF6';
@@ -789,7 +852,7 @@ function getStatusLabel(status: DriverStatus): string {
   switch (status) {
     case 'pickup':
       return 'Ready for Pickup';
-    case 'in-transit':
+    case 'in_transit':
       return 'In Transit';
     case 'accomplished':
       return 'Mission Accomplished';
@@ -807,8 +870,8 @@ interface DriverDetailPanelProps {
     name: string;
     status: DriverStatus;
     location: {
-      latitude: number;
-      longitude: number;
+      lat: number;
+      lng: number;
     };
     currentLoad?: string;
     lastUpdate: Date;
@@ -824,8 +887,8 @@ interface DriverPopupProps {
     name: string;
     status: DriverStatus;
     location: {
-      latitude: number;
-      longitude: number;
+      lat: number;
+      lng: number;
     };
     currentLoad?: string;
     pickupLocation?: {
@@ -843,7 +906,7 @@ interface DriverPopupProps {
 
 function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
   const { routeData } = useDriverRoute({
-    origin: driver.location,
+    origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
     enabled: !!(driver.pickupLocation && driver.dropoffLocation),
   });
@@ -1138,14 +1201,14 @@ function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProp
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Latitude</Text>
                 <Text style={styles.infoValue}>
-                  {driver.location.latitude.toFixed(4)}°N
+                  {driver.location.lat.toFixed(4)}°N
                 </Text>
               </View>
               <View style={styles.divider} />
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Longitude</Text>
                 <Text style={styles.infoValue}>
-                  {driver.location.longitude.toFixed(4)}°W
+                  {driver.location.lng.toFixed(4)}°W
                 </Text>
               </View>
               <View style={styles.divider} />
@@ -1179,8 +1242,8 @@ interface ProjectorOverlayProps {
     name: string;
     status: DriverStatus;
     location: {
-      latitude: number;
-      longitude: number;
+      lat: number;
+      lng: number;
     };
     currentLoad?: string;
     pickupLocation?: {
@@ -1468,7 +1531,7 @@ function PlaybackGhostMarker({ driver, location, progress }: PlaybackGhostMarker
 
 function ProjectorOverlay({ driver, animation }: ProjectorOverlayProps) {
   const { routeData } = useDriverRoute({
-    origin: driver.location,
+    origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
     enabled: !!(driver.pickupLocation && driver.dropoffLocation),
   });
@@ -1870,6 +1933,10 @@ const styles = StyleSheet.create({
   markerGlow: {
     position: 'absolute',
     opacity: 0.3,
+  },
+  markerActivePulse: {
+    position: 'absolute',
+    opacity: 0.15,
   },
   markerCore: {
     justifyContent: 'center',
