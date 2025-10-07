@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { LayoutDashboard, FileText, BarChart3, User, Package } from 'lucide-react-native';
+import { LayoutDashboard, FileText, BarChart3, User, Package, RadioTower } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 export default function AdminLayout() {
@@ -41,6 +41,13 @@ export default function AdminLayout() {
         options={{
           title: 'Analytics',
           tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="command-center"
+        options={{
+          title: 'Command',
+          tabBarIcon: ({ color }) => <RadioTower size={24} color={color} />,
         }}
       />
       <Tabs.Screen
