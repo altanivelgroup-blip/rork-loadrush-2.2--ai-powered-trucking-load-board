@@ -39,7 +39,12 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   const [destination, setDestination] = useState<NavigationLocation | null>(null);
   const routeRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const syncLocationToFirestore = useCallback(async (location: NavigationLocation) => {
+  const syncLocationToFirestore = useCallback(async (
+    location: NavigationLocation,
+    eta?: number,
+    distanceRemaining?: number,
+    status?: string
+  ) => {
     if (!driverId || driverId.startsWith('test-')) {
       console.log('[useDriverNavigation] Test user - skipping Firestore sync');
       return;
@@ -47,18 +52,53 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
 
     try {
       const driverRef = doc(db, 'drivers', driverId);
-      await updateDoc(driverRef, {
+      const updateData: any = {
         location: {
           lat: location.lat,
           lng: location.lng,
-          timestamp: serverTimestamp(),
         },
+        updatedAt: serverTimestamp(),
+      };
+
+      if (eta !== undefined) {
+        updateData.eta = eta;
+      }
+
+      if (distanceRemaining !== undefined) {
+        updateData.distanceRemaining = distanceRemaining;
+      }
+
+      if (status) {
+        updateData.status = status;
+      }
+
+      await updateDoc(driverRef, updateData);
+      console.log('[useDriverNavigation] Location synced to Firestore:', {
+        location,
+        eta,
+        distanceRemaining,
+        status,
       });
-      console.log('[useDriverNavigation] Location synced to Firestore:', location);
     } catch (err) {
       console.error('[useDriverNavigation] Error syncing to Firestore:', err);
     }
   }, [driverId]);
+
+  const isNavigatingRef = useRef(isNavigating);
+  const durationRef = useRef(duration);
+  const distanceRef = useRef(distance);
+
+  useEffect(() => {
+    isNavigatingRef.current = isNavigating;
+  }, [isNavigating]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  useEffect(() => {
+    distanceRef.current = distance;
+  }, [distance]);
 
   useEffect(() => {
     let locationSubscription: Location.LocationSubscription | null = null;
@@ -82,7 +122,12 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
         };
 
         setCurrentLocation(newLocation);
-        await syncLocationToFirestore(newLocation);
+        await syncLocationToFirestore(
+          newLocation,
+          undefined,
+          undefined,
+          isNavigatingRef.current ? 'in_transit' : 'available'
+        );
 
         locationSubscription = await Location.watchPositionAsync(
           {
@@ -96,7 +141,12 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
               lng: newLocation.coords.longitude,
             };
             setCurrentLocation(updatedLocation);
-            await syncLocationToFirestore(updatedLocation);
+            await syncLocationToFirestore(
+              updatedLocation,
+              durationRef.current > 0 ? durationRef.current : undefined,
+              distanceRef.current > 0 ? distanceRef.current : undefined,
+              isNavigatingRef.current ? 'in_transit' : 'available'
+            );
           }
         );
 
@@ -159,15 +209,27 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       const distanceInMiles = distanceInMeters * 0.000621371;
       const durationInMinutes = durationInSeconds / 60;
 
+      const finalDistance = parseFloat(distanceInMiles.toFixed(2));
+      const finalDuration = parseFloat(durationInMinutes.toFixed(1));
+
       setRouteCoords(coordinates);
-      setDistance(parseFloat(distanceInMiles.toFixed(2)));
-      setDuration(parseFloat(durationInMinutes.toFixed(1)));
+      setDistance(finalDistance);
+      setDuration(finalDuration);
 
       console.log('[useDriverNavigation] Route fetched successfully:', {
         points: coordinates.length,
-        distance: `${distanceInMiles.toFixed(2)} miles`,
-        duration: `${durationInMinutes.toFixed(1)} minutes`,
+        distance: `${finalDistance} miles`,
+        duration: `${finalDuration} minutes`,
       });
+
+      if (origin) {
+        await syncLocationToFirestore(
+          origin,
+          finalDuration,
+          finalDistance,
+          'in_transit'
+        );
+      }
 
       setIsNavigating(false);
     } catch (err) {
@@ -175,7 +237,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       setError(err instanceof Error ? err.message : 'Failed to fetch route');
       setIsNavigating(false);
     }
-  }, []);
+  }, [syncLocationToFirestore]);
 
   useEffect(() => {
     if (routeRefreshIntervalRef.current) {
@@ -210,7 +272,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     setIsNavigating(true);
   }, []);
 
-  const stopNavigation = useCallback(() => {
+  const stopNavigation = useCallback(async () => {
     console.log('[useDriverNavigation] Stopping navigation');
     setIsNavigating(false);
     setDestination(null);
@@ -222,7 +284,16 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       clearInterval(routeRefreshIntervalRef.current);
       routeRefreshIntervalRef.current = null;
     }
-  }, []);
+
+    if (currentLocation) {
+      await syncLocationToFirestore(
+        currentLocation,
+        undefined,
+        undefined,
+        'available'
+      );
+    }
+  }, [currentLocation, syncLocationToFirestore]);
 
   return {
     currentLocation,
