@@ -8,9 +8,12 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, useRouter } from 'expo-router';
-import { MapPin, Package, DollarSign, FileText, Save, Send } from 'lucide-react-native';
+import { MapPin, Package, DollarSign, FileText, Save, Send, Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { db } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
@@ -25,17 +28,48 @@ export default function PostSingleLoadScreen() {
   const [pickupState, setPickupState] = useState('');
   const [pickupZip, setPickupZip] = useState('');
   const [pickupDate, setPickupDate] = useState('');
+  const [showPickupDatePicker, setShowPickupDatePicker] = useState(false);
+  const [pickupDateObj, setPickupDateObj] = useState<Date>(new Date());
 
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoffCity, setDropoffCity] = useState('');
   const [dropoffState, setDropoffState] = useState('');
   const [dropoffZip, setDropoffZip] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
+  const [showDeliveryDatePicker, setShowDeliveryDatePicker] = useState(false);
+  const [deliveryDateObj, setDeliveryDateObj] = useState<Date>(new Date());
 
   const [loadType, setLoadType] = useState('');
   const [weight, setWeight] = useState('');
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
+
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handlePickupDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowPickupDatePicker(false);
+    }
+    if (selectedDate) {
+      setPickupDateObj(selectedDate);
+      setPickupDate(formatDate(selectedDate));
+    }
+  };
+
+  const handleDeliveryDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDeliveryDatePicker(false);
+    }
+    if (selectedDate) {
+      setDeliveryDateObj(selectedDate);
+      setDeliveryDate(formatDate(selectedDate));
+    }
+  };
 
   const calculateExpiresAt = (deliveryDateStr?: string): Timestamp => {
     let expirationDate: Date;
@@ -252,13 +286,16 @@ export default function PostSingleLoadScreen() {
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Pickup Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#9ca3af"
-                value={pickupDate}
-                onChangeText={setPickupDate}
-              />
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowPickupDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Calendar size={18} color="#6b7280" />
+                <Text style={pickupDate ? styles.dateText : styles.datePlaceholder}>
+                  {pickupDate || 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -318,13 +355,16 @@ export default function PostSingleLoadScreen() {
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Delivery Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#9ca3af"
-                value={deliveryDate}
-                onChangeText={setDeliveryDate}
-              />
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowDeliveryDatePicker(true)}
+                activeOpacity={0.7}
+              >
+                <Calendar size={18} color="#6b7280" />
+                <Text style={deliveryDate ? styles.dateText : styles.datePlaceholder}>
+                  {deliveryDate || 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -427,6 +467,96 @@ export default function PostSingleLoadScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {Platform.OS === 'ios' && showPickupDatePicker && (
+        <Modal
+          transparent
+          animationType="slide"
+          visible={showPickupDatePicker}
+          onRequestClose={() => setShowPickupDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.datePickerModal}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Pickup Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowPickupDatePicker(false)}
+                  style={styles.closeButton}
+                >
+                  <X size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={pickupDateObj}
+                mode="date"
+                display="spinner"
+                onChange={handlePickupDateChange}
+                textColor="#1a1a1a"
+              />
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={() => setShowPickupDatePicker(false)}
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {Platform.OS === 'android' && showPickupDatePicker && (
+        <DateTimePicker
+          value={pickupDateObj}
+          mode="date"
+          display="default"
+          onChange={handlePickupDateChange}
+        />
+      )}
+
+      {Platform.OS === 'ios' && showDeliveryDatePicker && (
+        <Modal
+          transparent
+          animationType="slide"
+          visible={showDeliveryDatePicker}
+          onRequestClose={() => setShowDeliveryDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.datePickerModal}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Delivery Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDeliveryDatePicker(false)}
+                  style={styles.closeButton}
+                >
+                  <X size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={deliveryDateObj}
+                mode="date"
+                display="spinner"
+                onChange={handleDeliveryDateChange}
+                textColor="#1a1a1a"
+              />
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={() => setShowDeliveryDatePicker(false)}
+              >
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {Platform.OS === 'android' && showDeliveryDatePicker && (
+        <DateTimePicker
+          value={deliveryDateObj}
+          mode="date"
+          display="default"
+          onChange={handleDeliveryDateChange}
+        />
+      )}
     </View>
   );
 }
@@ -541,6 +671,67 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
   },
   postButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#fff',
+  },
+  dateInput: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateText: {
+    fontSize: 15,
+    color: '#1a1a1a',
+  },
+  datePlaceholder: {
+    fontSize: 15,
+    color: '#9ca3af',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  datePickerModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: '#1a1a1a',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  confirmButton: {
+    backgroundColor: Colors.light.primary,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
     fontSize: 16,
     fontWeight: '600' as const,
     color: '#fff',
