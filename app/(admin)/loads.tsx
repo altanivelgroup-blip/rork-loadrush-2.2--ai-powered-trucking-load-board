@@ -344,7 +344,7 @@ export default function AdminLoadsPage() {
                   <User size={14} color="#6B7280" />
                   <Text style={styles.detailLabel}>Shipper:</Text>
                   <Text style={styles.detailValue} numberOfLines={1}>
-                    {load.shipperName || load.shipperId.slice(0, 8)}
+                    {load.shipperName || (load.shipperId ? load.shipperId.slice(0, 8) : 'N/A')}
                   </Text>
                 </View>
                 {load.matchedDriverId && (
@@ -352,7 +352,7 @@ export default function AdminLoadsPage() {
                     <Truck size={14} color="#6B7280" />
                     <Text style={styles.detailLabel}>Driver:</Text>
                     <Text style={styles.detailValue} numberOfLines={1}>
-                      {load.matchedDriverName || load.matchedDriverId.slice(0, 8)}
+                      {load.matchedDriverName || (load.matchedDriverId ? load.matchedDriverId.slice(0, 8) : 'N/A')}
                     </Text>
                   </View>
                 )}
