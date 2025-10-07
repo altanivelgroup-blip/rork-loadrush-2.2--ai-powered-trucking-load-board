@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     padding: 20,
     shadowColor: '#000',
@@ -261,19 +261,20 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: Colors.light.textSecondary,
+    color: '#FFFFFF',
     fontWeight: '500' as const,
     marginBottom: 4,
+    opacity: 0.8,
   },
   infoValue: {
     fontSize: 24,
     fontWeight: '700' as const,
-    color: Colors.light.text,
+    color: '#FFFFFF',
   },
   infoDivider: {
     width: 1,
     height: 40,
-    backgroundColor: Colors.light.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   navigationStatus: {
     flexDirection: 'row',
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
     gap: 8,
   },
   navigationDot: {
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
   navigationText: {
     fontSize: 13,
     fontWeight: '600' as const,
-    color: '#059669',
+    color: '#FFFFFF',
   },
   currentLocationMarker: {
     width: 24,
