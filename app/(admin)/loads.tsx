@@ -322,8 +322,8 @@ export default function AdminLoadsPage() {
                 <View style={styles.routePoint}>
                   <MapPin size={18} color="#3B82F6" />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.cityText}>{load.pickup.city}</Text>
-                    <Text style={styles.stateText}>{load.pickup.state}</Text>
+                    <Text style={styles.cityText}>{load.pickup?.city || 'N/A'}</Text>
+                    <Text style={styles.stateText}>{load.pickup?.state || ''}</Text>
                   </View>
                 </View>
                 <View style={styles.routeArrow}>
@@ -333,8 +333,8 @@ export default function AdminLoadsPage() {
                 <View style={styles.routePoint}>
                   <MapPin size={18} color="#EF4444" />
                   <View style={styles.routeInfo}>
-                    <Text style={styles.cityText}>{load.dropoff.city}</Text>
-                    <Text style={styles.stateText}>{load.dropoff.state}</Text>
+                    <Text style={styles.cityText}>{load.dropoff?.city || 'N/A'}</Text>
+                    <Text style={styles.stateText}>{load.dropoff?.state || ''}</Text>
                   </View>
                 </View>
               </View>
@@ -411,7 +411,7 @@ export default function AdminLoadsPage() {
             {selectedLoad && (
               <View style={styles.modalBody}>
                 <Text style={styles.modalLoadInfo}>
-                  {selectedLoad.pickup.city} → {selectedLoad.dropoff.city}
+                  {selectedLoad.pickup?.city || 'N/A'} → {selectedLoad.dropoff?.city || 'N/A'}
                 </Text>
                 <Text style={styles.modalLabel}>Select New Status:</Text>
                 <View style={styles.statusOptions}>
