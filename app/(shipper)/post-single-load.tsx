@@ -586,7 +586,7 @@ export default function PostSingleLoadScreen() {
                   <DateTimePicker
                     value={pickupDateObj}
                     mode="date"
-                    display="spinner"
+                    display="inline"
                     onChange={handlePickupDateChange}
                     textColor="#1a1a1a"
                   />
@@ -631,7 +631,7 @@ export default function PostSingleLoadScreen() {
                   <DateTimePicker
                     value={deliveryDateObj}
                     mode="date"
-                    display="spinner"
+                    display="inline"
                     onChange={handleDeliveryDateChange}
                     textColor="#1a1a1a"
                   />
