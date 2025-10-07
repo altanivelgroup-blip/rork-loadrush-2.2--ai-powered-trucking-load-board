@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { collectionGroup, query, where, onSnapshot } from 'firebase/firestore';
+import { collectionGroup, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { Platform } from 'react-native';
 
@@ -85,10 +85,7 @@ export function useTripPerformance(): TripPerformanceMetrics {
 
       console.log('[useTripPerformance] Fetching fresh data from Firestore');
 
-      const tripsQuery = query(
-        collectionGroup(db, 'trips'),
-        where('status', '==', 'completed')
-      );
+      const tripsQuery = collectionGroup(db, 'trips');
 
       const unsubscribe = onSnapshot(
         tripsQuery,
@@ -97,7 +94,10 @@ export function useTripPerformance(): TripPerformanceMetrics {
 
           const fetchedTrips: Trip[] = [];
           snapshot.forEach((doc) => {
-            fetchedTrips.push(doc.data() as Trip);
+            const tripData = doc.data() as Trip;
+            if (tripData.status === 'completed') {
+              fetchedTrips.push(tripData);
+            }
           });
 
           setTrips(fetchedTrips);

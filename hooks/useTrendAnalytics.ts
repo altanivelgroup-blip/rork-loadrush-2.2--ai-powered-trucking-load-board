@@ -120,39 +120,41 @@ export function useTrendAnalytics(): TrendAnalytics {
       const subscriptionsRef = collection(db, 'subscriptions');
 
       const [
-        currentCompletedLoadsSnap,
-        previousCompletedLoadsSnap,
+        allCompletedLoadsSnap,
         currentActiveLoadsSnap,
-        previousActiveLoadsSnap,
         currentDriversSnap,
-        previousDriversSnap,
         currentShippersSnap,
-        previousShippersSnap,
       ] = await Promise.all([
-        getDocs(query(loadsRef, where('status', '==', 'Completed'), where('completedAt', '>=', currentWeekStart))),
-        getDocs(query(loadsRef, where('status', '==', 'Completed'), where('completedAt', '>=', previousWeekStart), where('completedAt', '<', previousWeekEnd))),
-        getDocs(query(loadsRef, where('status', 'in', ['Available', 'In Transit', 'Pickup']))),
+        getDocs(query(loadsRef, where('status', '==', 'Completed'))),
         getDocs(query(loadsRef, where('status', 'in', ['Available', 'In Transit', 'Pickup']))),
         getDocs(query(subscriptionsRef, where('role', '==', 'driver'), where('status', '==', 'active'))),
-        getDocs(query(subscriptionsRef, where('role', '==', 'driver'), where('status', '==', 'active'))),
-        getDocs(query(subscriptionsRef, where('role', '==', 'shipper'), where('status', '==', 'active'))),
         getDocs(query(subscriptionsRef, where('role', '==', 'shipper'), where('status', '==', 'active'))),
       ]);
 
       let currentRevenue = 0;
-      currentCompletedLoadsSnap.docs.forEach((doc) => {
-        const data = doc.data();
-        currentRevenue += data.price || data.rate || 0;
-      });
-
       let previousRevenue = 0;
-      previousCompletedLoadsSnap.docs.forEach((doc) => {
-        const data = doc.data();
-        previousRevenue += data.price || data.rate || 0;
-      });
+      let currentCompletedCount = 0;
+      let previousCompletedCount = 0;
 
-      const currentCompletedCount = currentCompletedLoadsSnap.size;
-      const previousCompletedCount = previousCompletedLoadsSnap.size;
+      allCompletedLoadsSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        const completedAt = data.completedAt;
+        
+        if (completedAt && completedAt.toMillis) {
+          const completedTime = completedAt.toMillis();
+          const currentWeekTime = currentWeekStart.toMillis();
+          const previousWeekTime = previousWeekStart.toMillis();
+          const previousWeekEndTime = previousWeekEnd.toMillis();
+          
+          if (completedTime >= currentWeekTime) {
+            currentRevenue += data.price || data.rate || 0;
+            currentCompletedCount++;
+          } else if (completedTime >= previousWeekTime && completedTime < previousWeekEndTime) {
+            previousRevenue += data.price || data.rate || 0;
+            previousCompletedCount++;
+          }
+        }
+      });
 
       const currentActiveCount = currentActiveLoadsSnap.size;
       const previousActiveCount = Math.round(currentActiveCount * (0.85 + Math.random() * 0.3));
