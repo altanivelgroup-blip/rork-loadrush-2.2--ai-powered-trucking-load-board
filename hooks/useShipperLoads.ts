@@ -31,7 +31,7 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
 
     const now = Timestamp.now();
     const constraints: QueryConstraint[] = [
-      where('shipperId', 'in', [shipperId, 'TEST_SHIPPER']),
+      where('shipperId', '==', shipperId),
       where('expiresAt', '>=', now)
     ];
 
