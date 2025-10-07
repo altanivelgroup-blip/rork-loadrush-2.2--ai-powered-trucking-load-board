@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Navigation, MapPin, Play, Square } from 'lucide-react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import useDriverNavigation from '@/hooks/useDriverNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Colors from '@/constants/colors';
+
+let MapView: any;
+let Marker: any;
+let Polyline: any;
+let PROVIDER_GOOGLE: any;
+
+if (Platform.OS !== 'web') {
+  const maps = require('react-native-maps');
+  MapView = maps.default;
+  Marker = maps.Marker;
+  Polyline = maps.Polyline;
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+}
 
 const { width } = Dimensions.get('window');
 
@@ -41,7 +53,7 @@ export default function NavigationScreen() {
 
   const [mapReady, setMapReady] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const mapRef = React.useRef<MapView>(null);
+  const mapRef = React.useRef<any>(null);
   const confettiRef = React.useRef<any>(null);
 
   useEffect(() => {
@@ -109,6 +121,24 @@ export default function NavigationScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={Colors.light.primary} />
         <Text style={styles.loadingText}>Getting your location...</Text>
+      </View>
+    );
+  }
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.webFallback}>
+          <MapPin size={64} color={Colors.light.primary} />
+          <Text style={styles.webFallbackTitle}>Navigation Not Available on Web</Text>
+          <Text style={styles.webFallbackText}>
+            Please use the mobile app to access live navigation features.
+          </Text>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <Text style={styles.closeButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -462,5 +492,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#E2E8F0',
     textAlign: 'center',
+  },
+  webFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.light.background,
+    padding: 20,
+  },
+  webFallbackTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  webFallbackText: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    maxWidth: 300,
   },
 });
