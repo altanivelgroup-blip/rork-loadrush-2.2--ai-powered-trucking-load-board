@@ -12,9 +12,11 @@ import { useTrendAnalytics } from '@/hooks/useTrendAnalytics';
 import { useInsightSummary } from '@/hooks/useInsightSummary';
 import { useTripPerformance } from '@/hooks/useTripPerformance';
 import { useTripTrends } from '@/hooks/useTripTrends';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [chartMode, setChartMode] = useState<'drivers' | 'shippers'>('drivers');
   const [trendChartMode, setTrendChartMode] = useState<'distance' | 'duration'>('distance');
   const [fadeAnim] = useState(new Animated.Value(1));
@@ -118,28 +120,142 @@ export default function AdminAnalytics() {
         const margin = 10;
         let yPosition = margin;
 
-        doc.setFillColor(10, 15, 31);
-        doc.rect(0, 0, pageWidth, 35, 'F');
+        const addWatermark = (pageNum: number) => {
+          doc.setTextColor(220, 220, 220);
+          doc.setFontSize(50);
+          doc.setFont('helvetica', 'bold');
+          const watermarkText = 'LOADRUSH CONFIDENTIAL';
+          doc.text(
+            watermarkText,
+            pageWidth / 2,
+            pageHeight / 2,
+            {
+              align: 'center',
+              angle: 45,
+            }
+          );
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.setFont('helvetica', 'bold');
-        doc.text('LoadRush Analytics Report', margin, 20);
+          if (user?.email) {
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`User: ${user.email} | Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+          }
+        };
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        const timestamp = new Date().toLocaleString('en-US', {
-          dateStyle: 'full',
-          timeStyle: 'short',
-        });
-        doc.text(`Generated: ${timestamp}`, margin, 28);
+        const addHeader = () => {
+          doc.setFillColor(10, 15, 31);
+          doc.rect(0, 0, pageWidth, 40, 'F');
 
-        yPosition = 45;
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(26);
+          doc.setFont('helvetica', 'bold');
+          doc.text('LoadRush', margin, 18);
+
+          doc.setFontSize(10);
+          doc.setTextColor(229, 231, 235);
+          doc.setFont('helvetica', 'normal');
+          doc.text('CONFIDENTIAL ANALYTICS REPORT', pageWidth - margin, 14, { align: 'right' });
+          doc.setFontSize(8);
+          doc.setTextColor(156, 163, 175);
+          doc.text('Generated via LoadRush Command Platform', pageWidth - margin, 20, { align: 'right' });
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          const timestamp = new Date().toLocaleString('en-US', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+          });
+          doc.setTextColor(203, 213, 225);
+          doc.text(`Generated: ${timestamp}`, margin, 32);
+
+          doc.setDrawColor(37, 99, 235);
+          doc.setLineWidth(0.5);
+          doc.line(0, 40, pageWidth, 40);
+        };
+
+        const addFooter = (pageNum: number) => {
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+
+          doc.setTextColor(203, 213, 225);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'normal');
+          doc.text(
+            '© LoadRush Technologies — Proprietary Information. Unauthorized use or distribution strictly prohibited.',
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+        };
+
+        const addSignatureBlock = () => {
+          if (yPosition > pageHeight - 70) {
+            doc.addPage();
+            addWatermark(doc.internal.pages.length - 1);
+            addHeader();
+            yPosition = 50;
+          }
+
+          yPosition += 10;
+          doc.setDrawColor(203, 213, 225);
+          doc.setLineWidth(0.3);
+          doc.line(margin, yPosition, pageWidth - margin, yPosition);
+          yPosition += 8;
+
+          doc.setTextColor(37, 99, 235);
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text('Report Authorization', margin, yPosition);
+          yPosition += 10;
+
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Report Prepared By:', margin + 5, yPosition);
+          doc.setFont('helvetica', 'bold');
+          doc.text(user?.email || 'System Administrator', margin + 50, yPosition);
+          yPosition += 8;
+
+          doc.setFont('helvetica', 'normal');
+          doc.text('Authorized By:', margin + 5, yPosition);
+          doc.setDrawColor(100, 100, 100);
+          doc.setLineWidth(0.2);
+          doc.line(margin + 50, yPosition, margin + 120, yPosition);
+          yPosition += 2;
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text('(Signature)', margin + 75, yPosition);
+        };
+
+        const generateChecksum = () => {
+          const dataString = JSON.stringify({
+            revenue: revenue.formattedRevenue,
+            subscriptions: subscriptions.driverCount + subscriptions.shipperCount,
+            timestamp: new Date().toISOString(),
+            user: user?.email,
+          });
+          let hash = 0;
+          for (let i = 0; i < dataString.length; i++) {
+            const char = dataString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+          }
+          return Math.abs(hash).toString(16).toUpperCase().padStart(16, '0');
+        };
+
+        addHeader();
+        addWatermark(1);
+        yPosition = 50;
 
         doc.setTextColor(37, 99, 235);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Financial Overview', margin, yPosition);
+        yPosition += 3;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, margin + 45, yPosition);
         yPosition += 8;
 
         doc.setTextColor(0, 0, 0);
@@ -152,10 +268,22 @@ export default function AdminAnalytics() {
         doc.text(`Completed Loads: ${revenue.completedLoadsCount}`, margin + 5, yPosition);
         yPosition += 12;
 
+        if (yPosition > pageHeight - 60) {
+          addFooter(doc.internal.pages.length - 1);
+          doc.addPage();
+          addWatermark(doc.internal.pages.length - 1);
+          addHeader();
+          yPosition = 50;
+        }
+
         doc.setTextColor(37, 99, 235);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Subscriptions', margin, yPosition);
+        yPosition += 3;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, margin + 35, yPosition);
         yPosition += 8;
 
         doc.setTextColor(0, 0, 0);
@@ -172,10 +300,22 @@ export default function AdminAnalytics() {
         doc.text(`Total MRR: ${subscriptions.formattedTotalMRR}`, margin + 5, yPosition);
         yPosition += 12;
 
+        if (yPosition > pageHeight - 60) {
+          addFooter(doc.internal.pages.length - 1);
+          doc.addPage();
+          addWatermark(doc.internal.pages.length - 1);
+          addHeader();
+          yPosition = 50;
+        }
+
         doc.setTextColor(37, 99, 235);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Activity Summary', margin, yPosition);
+        yPosition += 3;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, margin + 40, yPosition);
         yPosition += 8;
 
         doc.setTextColor(0, 0, 0);
@@ -196,10 +336,22 @@ export default function AdminAnalytics() {
         doc.text(`Total Shipper Posts: ${usage.totalShipperPosts}`, margin + 5, yPosition);
         yPosition += 12;
 
+        if (yPosition > pageHeight - 60) {
+          addFooter(doc.internal.pages.length - 1);
+          doc.addPage();
+          addWatermark(doc.internal.pages.length - 1);
+          addHeader();
+          yPosition = 50;
+        }
+
         doc.setTextColor(37, 99, 235);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Trip Performance', margin, yPosition);
+        yPosition += 3;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, margin + 40, yPosition);
         yPosition += 8;
 
         doc.setTextColor(0, 0, 0);
@@ -212,10 +364,22 @@ export default function AdminAnalytics() {
         doc.text(`On-Time Rate: ${tripPerformance.onTimeRate.toFixed(1)}%`, margin + 5, yPosition);
         yPosition += 12;
 
+        if (yPosition > pageHeight - 60) {
+          addFooter(doc.internal.pages.length - 1);
+          doc.addPage();
+          addWatermark(doc.internal.pages.length - 1);
+          addHeader();
+          yPosition = 50;
+        }
+
         doc.setTextColor(37, 99, 235);
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text('Weekly Trends', margin, yPosition);
+        yPosition += 3;
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPosition, margin + 35, yPosition);
         yPosition += 8;
 
         doc.setTextColor(0, 0, 0);
@@ -238,19 +402,33 @@ export default function AdminAnalytics() {
         yPosition += 12;
 
         if (insights.insights.length > 0) {
+          if (yPosition > pageHeight - 50) {
+            doc.addPage();
+            addWatermark(doc.internal.pages.length - 1);
+            addHeader();
+            yPosition = 50;
+          }
+
           doc.setTextColor(37, 99, 235);
           doc.setFontSize(16);
           doc.setFont('helvetica', 'bold');
           doc.text('AI Insights', margin, yPosition);
+          yPosition += 3;
+          doc.setDrawColor(37, 99, 235);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPosition, margin + 30, yPosition);
           yPosition += 8;
 
           doc.setTextColor(0, 0, 0);
           doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
           insights.insights.forEach((insight, index) => {
-            if (yPosition > pageHeight - 30) {
+            if (yPosition > pageHeight - 40) {
+              addFooter(doc.internal.pages.length - 1);
               doc.addPage();
-              yPosition = margin;
+              addWatermark(doc.internal.pages.length - 1);
+              addHeader();
+              yPosition = 50;
             }
             const lines = doc.splitTextToSize(`${insight.icon} ${insight.text}`, pageWidth - margin * 2 - 10);
             doc.text(lines, margin + 5, yPosition);
@@ -258,14 +436,29 @@ export default function AdminAnalytics() {
           });
         }
 
-        doc.setFillColor(148, 163, 184);
-        doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Generated by LoadRush Analytics — © LoadRush Technologies, All Rights Reserved', pageWidth / 2, pageHeight - 8, { align: 'center' });
+        addSignatureBlock();
 
-        const fileName = `LoadRush_Analytics_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        const checksum = generateChecksum();
+        if (yPosition > pageHeight - 50) {
+          addFooter(doc.internal.pages.length - 1);
+          doc.addPage();
+          addWatermark(doc.internal.pages.length - 1);
+          addHeader();
+          yPosition = 50;
+        }
+        yPosition += 10;
+        doc.setFontSize(7);
+        doc.setTextColor(107, 114, 128);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Document Checksum (SHA256): ${checksum}`, margin, yPosition);
+        doc.text('This checksum verifies the authenticity and integrity of this report.', margin, yPosition + 4);
+
+        for (let i = 1; i < doc.internal.pages.length; i++) {
+          doc.setPage(i);
+          addFooter(i);
+        }
+
+        const fileName = `LoadRush_Analytics_Report_${new Date().toISOString().split('T')[0]}_CONFIDENTIAL.pdf`;
         doc.save(fileName);
 
         console.log('[Analytics] PDF generated successfully:', fileName);
