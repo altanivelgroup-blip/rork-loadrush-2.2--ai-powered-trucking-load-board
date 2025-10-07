@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Load } from '@/types';
 import { db } from '@/config/firebase';
-import { collection, query, where, onSnapshot, QueryConstraint } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, QueryConstraint, Timestamp } from 'firebase/firestore';
 
 export type ShipperLoadFilter = 'all' | 'active' | 'pending' | 'delivered' | 'cancelled';
 
@@ -29,8 +29,10 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
 
     console.log('[Shipper Loads] Setting up query for shipperId:', shipperId);
 
+    const now = Timestamp.now();
     const constraints: QueryConstraint[] = [
-      where('shipperId', 'in', [shipperId, 'TEST_SHIPPER'])
+      where('shipperId', 'in', [shipperId, 'TEST_SHIPPER']),
+      where('expiresAt', '>=', now)
     ];
 
     if (statusFilter && statusFilter !== 'all') {
@@ -46,13 +48,14 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
         snapshot.forEach((doc) => {
           const data = doc.data();
           loads.push({
-            id: doc.id,
             ...data,
+            id: doc.id,
             createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
             updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          } as Load);
+            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          } as unknown as Load);
         });
-        console.log('[Shipper Loads] Received', loads.length, 'loads from Firestore');
+        console.log('[Shipper Loads] Received', loads.length, 'non-expired loads from Firestore');
         setRawData(loads);
         setLoading(false);
         setError(null);
@@ -112,8 +115,8 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
     loading,
     error: error?.message,
     query: statusFilter 
-      ? `shipperId == ${shipperId} AND status == ${statusFilter}`
-      : `shipperId == ${shipperId}`,
+      ? `shipperId == ${shipperId} AND expiresAt >= now AND status == ${statusFilter}`
+      : `shipperId == ${shipperId} AND expiresAt >= now`,
   });
 
   if (!shipperId) {

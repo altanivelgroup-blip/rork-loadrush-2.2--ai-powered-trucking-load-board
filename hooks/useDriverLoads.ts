@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCollectionData } from './useCollectionData';
 import { Load } from '@/types';
+import { db } from '@/config/firebase';
+import { collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 
 export interface DriverLoadMetrics {
   totalActive: number;
@@ -13,13 +14,56 @@ export interface DriverLoadMetrics {
 export function useDriverLoads() {
   const { user } = useAuth();
   const driverId = user?.id;
+  const [rawData, setRawData] = useState<Load[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const { data: rawData, loading, error } = useCollectionData<Load>('loads', {
-    queries: driverId ? [
-      { field: 'assignedDriverId', operator: '==', value: driverId },
-      { field: 'status', operator: '==', value: 'active' }
-    ] : undefined,
-  });
+  useEffect(() => {
+    if (!driverId) {
+      setLoading(false);
+      return;
+    }
+
+    console.log('[Driver Loads] Setting up query for driverId:', driverId);
+
+    const now = Timestamp.now();
+    const q = query(
+      collection(db, 'loads'),
+      where('status', '==', 'Available'),
+      where('expiresAt', '>=', now)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const loads: Load[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          loads.push({
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          } as unknown as Load);
+        });
+        console.log('[Driver Loads] Received', loads.length, 'non-expired loads from Firestore');
+        setRawData(loads);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('[Driver Loads] Error:', err);
+        setError(err as Error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      console.log('[Driver Loads] Cleaning up listener');
+      unsubscribe();
+    };
+  }, [driverId]);
 
   const data = useMemo(() => {
     return [...rawData].sort((a, b) => {
@@ -61,7 +105,7 @@ export function useDriverLoads() {
     delayed: delayedLoads.length,
     loading,
     error: error?.message,
-    query: 'assignedDriverId == uid AND status == active',
+    query: 'status == Available AND expiresAt >= now',
   });
 
   if (!driverId) {

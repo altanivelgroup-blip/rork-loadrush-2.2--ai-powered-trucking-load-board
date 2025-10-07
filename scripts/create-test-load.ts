@@ -1,4 +1,4 @@
-import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 interface TestLoad {
@@ -11,11 +11,20 @@ interface TestLoad {
   loadType: string;
   vehicleCount: number;
   price: number;
+  rate: number;
   status: string;
   assignedDriverId: null;
   matchedDriverId: null;
+  shipperId: string;
   createdAt: any;
+  updatedAt: any;
+  expiresAt: Timestamp;
   notes: string;
+  pickup: any;
+  dropoff: any;
+  cargo: any;
+  distance: number;
+  ratePerMile: number;
 }
 
 async function createTestLoad() {
@@ -43,6 +52,10 @@ async function createTestLoad() {
       return;
     }
 
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 7);
+    const expiresAt = Timestamp.fromDate(expirationDate);
+
     const testLoadData: TestLoad = {
       pickupAddress,
       pickupLatitude: 36.1881,
@@ -53,11 +66,35 @@ async function createTestLoad() {
       loadType: "Vehicle Transport Test",
       vehicleCount: 1,
       price: 120,
+      rate: 120,
       status: "Available",
       assignedDriverId: null,
       matchedDriverId: null,
+      shipperId: "TEST_SHIPPER",
       createdAt: serverTimestamp(),
-      notes: "Live ORS + GPS field test: N Lamb Blvd → Sam's Club Tropical Pkwy."
+      updatedAt: serverTimestamp(),
+      expiresAt,
+      notes: "Live ORS + GPS field test: N Lamb Blvd → Sam's Club Tropical Pkwy.",
+      pickup: {
+        address: pickupAddress,
+        city: "Las Vegas",
+        state: "NV",
+        zip: "89110",
+        date: new Date().toISOString(),
+      },
+      dropoff: {
+        address: dropoffAddress,
+        city: "Las Vegas",
+        state: "NV",
+        zip: "89149",
+        date: new Date().toISOString(),
+      },
+      cargo: {
+        type: "Vehicle Transport Test",
+        weight: 5000,
+      },
+      distance: 15,
+      ratePerMile: 8.0,
     };
 
     console.log('📝 Validating coordinates...');
@@ -80,6 +117,8 @@ async function createTestLoad() {
     console.log('    Dropoff: (' + testLoadData.dropoffLatitude + ', ' + testLoadData.dropoffLongitude + ')');
     console.log('  📝 Status:', testLoadData.status);
     console.log('  📋 Notes:', testLoadData.notes);
+    console.log('  📅 Expires At:', expiresAt.toDate().toISOString());
+    console.log('  🗓️  Expiration Date:', expiresAt.toDate().toLocaleDateString());
 
   } catch (error) {
     console.error('❌ Error creating test load:', error);
