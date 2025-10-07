@@ -1,17 +1,25 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   ActivityIndicator,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import useTripArchive from '@/hooks/useTripArchive';
-import { MapPin, Clock, Navigation } from 'lucide-react-native';
+import { MapPin, Clock, Navigation, ChevronDown } from 'lucide-react-native';
+
+type FilterType = 'all' | 'last7' | 'last30' | 'topDrivers';
+type SortType = 'recent' | 'distance' | 'fastest';
 
 export default function TripArchiveScreen() {
   const { trips, loading, error } = useTripArchive();
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('recent');
+  const [showSortMenu, setShowSortMenu] = useState(false);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
@@ -31,6 +39,64 @@ export default function TripArchiveScreen() {
     }
     return `${mins}m`;
   };
+
+  const filteredAndSortedTrips = useMemo(() => {
+    let filtered = [...trips];
+    const now = new Date();
+
+    switch (activeFilter) {
+      case 'last7':
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        filtered = filtered.filter((trip) => {
+          const tripDate = trip.completedAt.toDate ? trip.completedAt.toDate() : trip.completedAt;
+          const date = tripDate instanceof Date ? tripDate : new Date(tripDate as any);
+          return date >= sevenDaysAgo;
+        });
+        break;
+      case 'last30':
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filtered = filtered.filter((trip) => {
+          const tripDate = trip.completedAt.toDate ? trip.completedAt.toDate() : trip.completedAt;
+          const date = tripDate instanceof Date ? tripDate : new Date(tripDate as any);
+          return date >= thirtyDaysAgo;
+        });
+        break;
+      case 'topDrivers':
+        const driverStats = new Map<string, { count: number; totalDistance: number }>();
+        trips.forEach((trip) => {
+          const stats = driverStats.get(trip.driverId) || { count: 0, totalDistance: 0 };
+          stats.count++;
+          stats.totalDistance += trip.totalDistance;
+          driverStats.set(trip.driverId, stats);
+        });
+        const topDriverIds = Array.from(driverStats.entries())
+          .sort((a, b) => b[1].count - a[1].count)
+          .slice(0, 5)
+          .map(([driverId]) => driverId);
+        filtered = filtered.filter((trip) => topDriverIds.includes(trip.driverId));
+        break;
+    }
+
+    switch (sortBy) {
+      case 'recent':
+        filtered.sort((a, b) => {
+          const dateA = a.completedAt.toDate ? a.completedAt.toDate() : a.completedAt;
+          const dateB = b.completedAt.toDate ? b.completedAt.toDate() : b.completedAt;
+          const timeA = dateA instanceof Date ? dateA.getTime() : new Date(dateA as any).getTime();
+          const timeB = dateB instanceof Date ? dateB.getTime() : new Date(dateB as any).getTime();
+          return timeB - timeA;
+        });
+        break;
+      case 'distance':
+        filtered.sort((a, b) => b.totalDistance - a.totalDistance);
+        break;
+      case 'fastest':
+        filtered.sort((a, b) => a.durationMinutes - b.durationMinutes);
+        break;
+    }
+
+    return filtered;
+  }, [trips, activeFilter, sortBy]);
 
   if (loading) {
     return (
@@ -80,12 +146,104 @@ export default function TripArchiveScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Completed Trips Archive</Text>
         <Text style={styles.headerSubtitle}>
-          {trips.length} {trips.length === 1 ? 'trip' : 'trips'} completed
+          {filteredAndSortedTrips.length} {filteredAndSortedTrips.length === 1 ? 'trip' : 'trips'} shown
         </Text>
       </View>
 
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === 'all' && styles.filterButtonActive]}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={[styles.filterButtonText, activeFilter === 'all' && styles.filterButtonTextActive]}>
+              All Trips
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === 'last7' && styles.filterButtonActive]}
+            onPress={() => setActiveFilter('last7')}
+          >
+            <Text style={[styles.filterButtonText, activeFilter === 'last7' && styles.filterButtonTextActive]}>
+              Last 7 Days
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === 'last30' && styles.filterButtonActive]}
+            onPress={() => setActiveFilter('last30')}
+          >
+            <Text style={[styles.filterButtonText, activeFilter === 'last30' && styles.filterButtonTextActive]}>
+              Last 30 Days
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterButton, activeFilter === 'topDrivers' && styles.filterButtonActive]}
+            onPress={() => setActiveFilter('topDrivers')}
+          >
+            <Text style={[styles.filterButtonText, activeFilter === 'topDrivers' && styles.filterButtonTextActive]}>
+              Top Drivers
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        <View style={styles.sortContainer}>
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={() => setShowSortMenu(!showSortMenu)}
+          >
+            <Text style={styles.sortButtonText}>
+              {sortBy === 'recent' ? 'Most Recent' : sortBy === 'distance' ? 'Longest Distance' : 'Fastest Delivery'}
+            </Text>
+            <ChevronDown size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          {showSortMenu && (
+            <View style={styles.sortMenu}>
+              <TouchableOpacity
+                style={styles.sortMenuItem}
+                onPress={() => {
+                  setSortBy('recent');
+                  setShowSortMenu(false);
+                }}
+              >
+                <Text style={[styles.sortMenuText, sortBy === 'recent' && styles.sortMenuTextActive]}>
+                  Most Recent
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sortMenuItem}
+                onPress={() => {
+                  setSortBy('distance');
+                  setShowSortMenu(false);
+                }}
+              >
+                <Text style={[styles.sortMenuText, sortBy === 'distance' && styles.sortMenuTextActive]}>
+                  Longest Distance
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.sortMenuItem}
+                onPress={() => {
+                  setSortBy('fastest');
+                  setShowSortMenu(false);
+                }}
+              >
+                <Text style={[styles.sortMenuText, sortBy === 'fastest' && styles.sortMenuTextActive]}>
+                  Fastest Delivery
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+
       <FlatList
-        data={trips}
+        data={filteredAndSortedTrips}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item }) => (
@@ -313,5 +471,92 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#94A3B8',
+  },
+  filterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  filterScrollContent: {
+    paddingRight: 16,
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginRight: 8,
+  },
+  filterButtonActive: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  sortContainer: {
+    marginTop: 12,
+    position: 'relative',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  sortButtonText: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: '#E2E8F0',
+  },
+  sortMenu: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  sortMenuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sortMenuText: {
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  sortMenuTextActive: {
+    color: '#2563EB',
+    fontWeight: '600' as const,
   },
 });
