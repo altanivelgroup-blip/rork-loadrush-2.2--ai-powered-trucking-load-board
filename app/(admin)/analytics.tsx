@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import AnalyticsCard from '@/components/AnalyticsCard';
-import { Users, Package, DollarSign, Truck, Building2, Clock } from 'lucide-react-native';
+import { Users, Package, DollarSign, Truck, Building2, Clock, TrendingUp, TrendingDown, Minus, Lightbulb } from 'lucide-react-native';
 import { usePlatformRevenue } from '@/hooks/usePlatformRevenue';
 import { useSubscriptionAnalytics } from '@/hooks/useSubscriptionAnalytics';
 import { useUsageAnalytics } from '@/hooks/useUsageAnalytics';
 import { useAdminLoads } from '@/hooks/useAdminLoads';
+import { useTrendAnalytics } from '@/hooks/useTrendAnalytics';
+import { useInsightSummary } from '@/hooks/useInsightSummary';
 
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
@@ -18,6 +20,8 @@ export default function AdminAnalytics() {
   const subscriptions = useSubscriptionAnalytics();
   const usage = useUsageAnalytics();
   const { metrics } = useAdminLoads();
+  const trends = useTrendAnalytics();
+  const insights = useInsightSummary();
 
   const handleChartToggle = (mode: 'drivers' | 'shippers') => {
     Animated.sequence([
@@ -40,6 +44,31 @@ export default function AdminAnalytics() {
 
   const totalUsers = subscriptions.driverCount + subscriptions.shipperCount;
 
+  const renderTrendIndicator = (metric: typeof trends.revenue) => {
+    if (trends.isLoading) return null;
+
+    const getTrendColor = () => {
+      if (metric.direction === 'up') return '#16A34A';
+      if (metric.direction === 'down') return '#DC2626';
+      return '#94A3B8';
+    };
+
+    const getTrendIcon = () => {
+      if (metric.direction === 'up') return <TrendingUp size={12} color={getTrendColor()} />;
+      if (metric.direction === 'down') return <TrendingDown size={12} color={getTrendColor()} />;
+      return <Minus size={12} color={getTrendColor()} />;
+    };
+
+    return (
+      <View style={[styles.trendBadge, { backgroundColor: `${getTrendColor()}15` }]}>
+        {getTrendIcon()}
+        <Text style={[styles.trendText, { color: getTrendColor() }]}>
+          {metric.percentChange.toFixed(1)}%
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -52,15 +81,41 @@ export default function AdminAnalytics() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
+        {insights.insights.length > 0 && (
+          <View style={styles.insightsSection}>
+            <View style={styles.insightHeader}>
+              <Lightbulb size={20} color="#F59E0B" />
+              <Text style={styles.insightTitle}>AI Insights</Text>
+            </View>
+            {insights.insights.map((insight) => (
+              <View
+                key={insight.id}
+                style={[
+                  styles.insightCard,
+                  insight.type === 'positive' && styles.insightPositive,
+                  insight.type === 'negative' && styles.insightNegative,
+                  insight.type === 'warning' && styles.insightWarning,
+                ]}
+              >
+                <Text style={styles.insightIcon}>{insight.icon}</Text>
+                <Text style={styles.insightText}>{insight.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <Text style={styles.sectionLabel}>Overview</Text>
         <View style={styles.grid}>
           <View style={styles.gridItem}>
-            <AnalyticsCard
-              title="Total Revenue"
-              value={revenue.formattedRevenue}
-              icon={<DollarSign size={18} color={Colors.light.success} />}
-              color={Colors.light.success}
-            />
+            <View style={styles.cardWithTrend}>
+              <AnalyticsCard
+                title="Total Revenue"
+                value={revenue.formattedRevenue}
+                icon={<DollarSign size={18} color={Colors.light.success} />}
+                color={Colors.light.success}
+              />
+              {renderTrendIndicator(trends.revenue)}
+            </View>
           </View>
           <View style={styles.gridItem}>
             <AnalyticsCard
@@ -71,41 +126,53 @@ export default function AdminAnalytics() {
             />
           </View>
           <View style={styles.gridItem}>
-            <AnalyticsCard
-              title="Active Loads"
-              value={metrics.totalActive}
-              icon={<Package size={18} color={Colors.light.accent} />}
-              color={Colors.light.accent}
-            />
+            <View style={styles.cardWithTrend}>
+              <AnalyticsCard
+                title="Active Loads"
+                value={metrics.totalActive}
+                icon={<Package size={18} color={Colors.light.accent} />}
+                color={Colors.light.accent}
+              />
+              {renderTrendIndicator(trends.activeLoads)}
+            </View>
           </View>
           <View style={styles.gridItem}>
-            <AnalyticsCard
-              title="Completed Loads"
-              value={metrics.totalDelivered.toLocaleString()}
-              color={Colors.light.success}
-            />
+            <View style={styles.cardWithTrend}>
+              <AnalyticsCard
+                title="Completed Loads"
+                value={metrics.totalDelivered.toLocaleString()}
+                color={Colors.light.success}
+              />
+              {renderTrendIndicator(trends.completedLoads)}
+            </View>
           </View>
         </View>
 
         <Text style={styles.sectionLabel}>Roles</Text>
         <View style={styles.grid}>
           <View style={styles.gridItem}>
-            <AnalyticsCard
-              title="Drivers"
-              value={subscriptions.driverCount}
-              subtitle="registered"
-              icon={<Truck size={18} color='#2563EB' />}
-              color='#2563EB'
-            />
+            <View style={styles.cardWithTrend}>
+              <AnalyticsCard
+                title="Drivers"
+                value={subscriptions.driverCount}
+                subtitle="registered"
+                icon={<Truck size={18} color='#2563EB' />}
+                color='#2563EB'
+              />
+              {renderTrendIndicator(trends.driverCount)}
+            </View>
           </View>
           <View style={styles.gridItem}>
-            <AnalyticsCard
-              title="Shippers"
-              value={subscriptions.shipperCount}
-              subtitle="registered"
-              icon={<Building2 size={18} color='#4F46E5' />}
-              color='#4F46E5'
-            />
+            <View style={styles.cardWithTrend}>
+              <AnalyticsCard
+                title="Shippers"
+                value={subscriptions.shipperCount}
+                subtitle="registered"
+                icon={<Building2 size={18} color='#4F46E5' />}
+                color='#4F46E5'
+              />
+              {renderTrendIndicator(trends.shipperCount)}
+            </View>
           </View>
         </View>
 
@@ -370,5 +437,75 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.light.textSecondary,
     marginTop: 4,
+  },
+  insightsSection: {
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.2)',
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  insightTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  insightCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#94A3B8',
+  },
+  insightPositive: {
+    borderLeftColor: '#16A34A',
+    backgroundColor: 'rgba(22, 163, 74, 0.05)',
+  },
+  insightNegative: {
+    borderLeftColor: '#DC2626',
+    backgroundColor: 'rgba(220, 38, 38, 0.05)',
+  },
+  insightWarning: {
+    borderLeftColor: '#F59E0B',
+    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+  },
+  insightIcon: {
+    fontSize: 18,
+    marginTop: 2,
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: Colors.light.text,
+  },
+  cardWithTrend: {
+    position: 'relative',
+  },
+  trendBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  trendText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
   },
 });
