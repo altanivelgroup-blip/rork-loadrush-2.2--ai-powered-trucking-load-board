@@ -29,6 +29,18 @@ export interface UseDriverNavigationReturn {
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
 
+function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function useDriverNavigation(driverId: string): UseDriverNavigationReturn {
   const [currentLocation, setCurrentLocation] = useState<NavigationLocation | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -38,6 +50,11 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   const [duration, setDuration] = useState<number>(0);
   const [destination, setDestination] = useState<NavigationLocation | null>(null);
   const routeRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const destinationRef = useRef<NavigationLocation | null>(null);
+
+  useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
 
   const syncLocationToFirestore = useCallback(async (
     location: NavigationLocation,
@@ -141,12 +158,48 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
               lng: newLocation.coords.longitude,
             };
             setCurrentLocation(updatedLocation);
+
+            let status = 'available';
+            let distanceToDestination: number | undefined;
+
+            if (destinationRef.current && isNavigatingRef.current) {
+              distanceToDestination = getDistanceMiles(
+                updatedLocation.lat,
+                updatedLocation.lng,
+                destinationRef.current.lat,
+                destinationRef.current.lng
+              );
+
+              if (distanceToDestination < 0.2) {
+                status = 'arrived_pickup';
+                console.log('Driver status: arrived_pickup (within 0.2 mi)');
+              } else if (distanceToDestination < 5) {
+                status = 'in_transit';
+                console.log('Driver status: in_transit (within 5 mi)');
+              } else {
+                status = 'navigating';
+                console.log('Driver status: navigating (> 5 mi)');
+              }
+            }
+
             await syncLocationToFirestore(
               updatedLocation,
               durationRef.current > 0 ? durationRef.current : undefined,
               distanceRef.current > 0 ? distanceRef.current : undefined,
-              isNavigatingRef.current ? 'in_transit' : 'available'
+              status
             );
+
+            if (distanceToDestination !== undefined && driverId && !driverId.startsWith('test-')) {
+              try {
+                const driverRef = doc(db, 'drivers', driverId);
+                await updateDoc(driverRef, {
+                  distanceToDestination,
+                  lastStatusUpdate: serverTimestamp(),
+                });
+              } catch (err) {
+                console.error('[useDriverNavigation] Error updating distanceToDestination:', err);
+              }
+            }
           }
         );
 
