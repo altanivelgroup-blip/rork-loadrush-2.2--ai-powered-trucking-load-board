@@ -17,6 +17,7 @@ export interface RouteData {
 export interface UseDriverNavigationReturn {
   currentLocation: NavigationLocation | null;
   isNavigating: boolean;
+  isCompleted: boolean;
   error: string | null;
   routeCoords: NavigationLocation[];
   distance: number;
@@ -44,12 +45,13 @@ function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number
 export default function useDriverNavigation(driverId: string): UseDriverNavigationReturn {
   const [currentLocation, setCurrentLocation] = useState<NavigationLocation | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [routeCoords, setRouteCoords] = useState<NavigationLocation[]>([]);
   const [distance, setDistance] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [destination, setDestination] = useState<NavigationLocation | null>(null);
-  const routeRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const routeRefreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const destinationRef = useRef<NavigationLocation | null>(null);
   const activeLoadIdRef = useRef<string | null>(null);
   const previousDistanceRef = useRef<number>(0);
@@ -194,6 +196,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
                       eta: 0,
                       distanceRemaining: 0,
                       completedAt: serverTimestamp(),
+                      color: 'purple',
                     });
 
                     const tripsRef = collection(db, 'drivers', driverId, 'trips');
@@ -208,6 +211,8 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
 
                     console.log('Route completed successfully - trip logged to Firestore');
                   }
+                  
+                  setIsCompleted(true);
                 } catch (err) {
                   console.error('[useDriverNavigation] Error completing route:', err);
                 }
@@ -375,6 +380,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   const stopNavigation = useCallback(async () => {
     console.log('[useDriverNavigation] Stopping navigation');
     setIsNavigating(false);
+    setIsCompleted(false);
     setDestination(null);
     setRouteCoords([]);
     setDistance(0);
@@ -405,6 +411,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
   return {
     currentLocation,
     isNavigating,
+    isCompleted,
     error,
     routeCoords,
     distance,

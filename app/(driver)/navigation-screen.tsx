@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Navigation, MapPin, Play, Square } from 'lucide-react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import useDriverNavigation from '@/hooks/useDriverNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Colors from '@/constants/colors';
+
+const { width } = Dimensions.get('window');
 
 export default function NavigationScreen() {
   const insets = useSafeAreaInsets();
@@ -30,13 +33,16 @@ export default function NavigationScreen() {
     duration,
     isNavigating,
     error,
+    isCompleted,
     setDestination,
     startNavigation,
     stopNavigation,
   } = useDriverNavigation(user?.id || 'unknown');
 
   const [mapReady, setMapReady] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const mapRef = React.useRef<MapView>(null);
+  const confettiRef = React.useRef<any>(null);
 
   useEffect(() => {
     if (destination.lat !== 0 && destination.lng !== 0) {
@@ -47,6 +53,24 @@ export default function NavigationScreen() {
       setDestination(null);
     };
   }, [destination.lat, destination.lng, setDestination]);
+
+  useEffect(() => {
+    if (isCompleted) {
+      console.log('🎉 Trip completed - showing celebration!');
+      setShowCelebration(true);
+      
+      if (confettiRef.current) {
+        confettiRef.current.start();
+      }
+
+      const timer = setTimeout(() => {
+        setShowCelebration(false);
+        router.back();
+      }, 6000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isCompleted, router]);
 
   useEffect(() => {
     if (mapReady && currentLocation && routeCoords.length > 0 && mapRef.current) {
@@ -199,6 +223,22 @@ export default function NavigationScreen() {
             )}
           </View>
         </View>
+      )}
+
+      {showCelebration && (
+        <>
+          <View style={styles.celebrationOverlay}>
+            <Text style={styles.celebrationTitle}>🎯 Mission Accomplished!</Text>
+            <Text style={styles.celebrationSubtitle}>Trip successfully completed.</Text>
+          </View>
+          <ConfettiCannon
+            ref={confettiRef}
+            count={200}
+            origin={{ x: width / 2, y: 0 }}
+            fadeOut={true}
+            autoStart={false}
+          />
+        </>
       )}
     </View>
   );
@@ -399,5 +439,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  celebrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  celebrationTitle: {
+    fontSize: 28,
+    color: '#C084FC',
+    fontWeight: '700' as const,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  celebrationSubtitle: {
+    fontSize: 16,
+    color: '#E2E8F0',
+    textAlign: 'center',
   },
 });

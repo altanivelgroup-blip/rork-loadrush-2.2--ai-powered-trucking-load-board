@@ -51,11 +51,16 @@ export function useCommandCenterDrivers() {
         snapshot.forEach((doc) => {
           const data = doc.data();
           
+          let status = (data.status as DriverStatus) || 'in_transit';
+          if (data.status === 'completed') {
+            status = 'accomplished';
+          }
+          
           const driver: CommandCenterDriver = {
             id: doc.id,
             driverId: data.driverId || doc.id,
             name: data.name || 'Unknown Driver',
-            status: (data.status as DriverStatus) || 'in_transit',
+            status,
             location: data.location || getDefaultLocation(driversList.length),
             currentLoad: data.currentLoad,
             lastUpdate: data.lastUpdate?.toDate() || new Date(),
