@@ -465,26 +465,22 @@ export default function EditProfileScreen() {
       if (user?.id && !user.id.startsWith('test-')) {
         console.log('[EditProfile] Updating Firestore for driver:', user.id);
         
-        const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : null;
+        const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : undefined;
         
-        const updateData: Record<string, any> = {
-          'truckInfo.make': truckInfo.make,
-          'truckInfo.model': truckInfo.model,
-          'truckInfo.year': parseInt(truckInfo.year) || 0,
-          'truckInfo.vin': truckInfo.vin,
-          'truckInfo.licensePlate': truckInfo.licensePlate,
-          'truckInfo.fuelTankSize': parseInt(truckInfo.fuelTankSize) || 0,
-          'truckInfo.mpg': parseFloat(truckInfo.averageMpg) || 0,
-          'truckInfo.odometer': parseInt(truckInfo.currentOdometer) || 0,
-          'truckInfo.fuelType': truckInfo.fuelType,
-          'truckInfo.updatedAt': serverTimestamp(),
-        };
+        const truckData: Record<string, any> = {};
+        if (truckInfo.make) truckData['truckInfo.make'] = truckInfo.make;
+        if (truckInfo.model) truckData['truckInfo.model'] = truckInfo.model;
+        if (truckInfo.year) truckData['truckInfo.year'] = parseInt(truckInfo.year) || 0;
+        if (truckInfo.vin) truckData['truckInfo.vin'] = truckInfo.vin;
+        if (truckInfo.licensePlate) truckData['truckInfo.licensePlate'] = truckInfo.licensePlate;
+        if (truckInfo.fuelTankSize) truckData['truckInfo.fuelTankSize'] = parseInt(truckInfo.fuelTankSize) || 0;
+        if (truckInfo.averageMpg) truckData['truckInfo.mpg'] = parseFloat(truckInfo.averageMpg) || 0;
+        if (truckInfo.currentOdometer) truckData['truckInfo.odometer'] = parseInt(truckInfo.currentOdometer) || 0;
+        if (truckInfo.fuelType) truckData['truckInfo.fuelType'] = truckInfo.fuelType;
+        if (photoUrl !== undefined) truckData['truckInfo.photoUrl'] = photoUrl;
+        truckData['truckInfo.updatedAt'] = serverTimestamp();
         
-        if (photoUrl) {
-          updateData['truckInfo.photoUrl'] = photoUrl;
-        }
-        
-        await updateDoc(doc(db, 'drivers', user.id), updateData);
+        await updateDoc(doc(db, 'drivers', user.id), truckData);
         
         console.log('[EditProfile] ✅ Firestore update successful');
       }
