@@ -462,7 +462,7 @@ export default function EditProfileScreen() {
 
       await AsyncStorage.setItem(`driver_profile_${driverId}`, JSON.stringify(profileData));
       
-      if (user?.id && !user.id.startsWith('test-')) {
+      if (user?.id) {
         console.log('[EditProfile] Updating Firestore for driver:', user.id);
         
         const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : undefined;
@@ -480,9 +480,18 @@ export default function EditProfileScreen() {
         if (photoUrl !== undefined) truckData['truckInfo.photoUrl'] = photoUrl;
         truckData['truckInfo.updatedAt'] = serverTimestamp();
         
-        await updateDoc(doc(db, 'drivers', user.id), truckData);
+        const collectionName = user.role === 'driver' ? 'driver_test' : 'drivers';
+        const docId = user.id === 'DRIVER_TEST_001' ? 'DRIVER_TEST_001' : user.id;
         
-        console.log('[EditProfile] ✅ Firestore update successful');
+        console.log(`[EditProfile] Updating ${collectionName}/${docId}`);
+        
+        try {
+          await updateDoc(doc(db, collectionName, docId), truckData);
+          console.log('[EditProfile] ✅ Firestore update successful');
+        } catch (firestoreError: any) {
+          console.error('[EditProfile] Firestore update failed:', firestoreError.message);
+          console.log('[EditProfile] ⚠️ Continuing with local storage only');
+        }
       }
       
       console.log('[EditProfile] Profile saved successfully');
