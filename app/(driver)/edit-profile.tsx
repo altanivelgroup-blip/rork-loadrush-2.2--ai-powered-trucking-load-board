@@ -61,6 +61,7 @@ interface TruckInfo {
   licensePlate: string;
   fuelTankSize: string;
   averageMpg: string;
+  fuelType: 'diesel' | 'gasoline';
   currentOdometer: string;
   photos: { uri: string; type: string }[];
 }
@@ -175,6 +176,7 @@ export default function EditProfileScreen() {
     licensePlate: 'TX-ABC1234',
     fuelTankSize: '100',
     averageMpg: '8.5',
+    fuelType: 'diesel',
     currentOdometer: '125000',
     photos: [],
   });
@@ -741,6 +743,44 @@ export default function EditProfileScreen() {
               keyboardType="decimal-pad"
               testID="input-averageMpg"
             />
+          </View>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, styles.analyticsLabel]}>Fuel Type *</Text>
+          <View style={styles.fuelTypeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.fuelTypePill,
+                truckInfo.fuelType === 'diesel' && styles.fuelTypePillActive
+              ]}
+              onPress={() => setTruckInfo(prev => ({ ...prev, fuelType: 'diesel' }))}
+              testID="fuel-type-diesel"
+            >
+              <Text style={styles.fuelTypeEmoji}>💧</Text>
+              <Text style={[
+                styles.fuelTypeText,
+                truckInfo.fuelType === 'diesel' && styles.fuelTypeTextActive
+              ]}>
+                Diesel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.fuelTypePill,
+                truckInfo.fuelType === 'gasoline' && styles.fuelTypePillActive
+              ]}
+              onPress={() => setTruckInfo(prev => ({ ...prev, fuelType: 'gasoline' }))}
+              testID="fuel-type-gasoline"
+            >
+              <Text style={styles.fuelTypeEmoji}>⛽</Text>
+              <Text style={[
+                styles.fuelTypeText,
+                truckInfo.fuelType === 'gasoline' && styles.fuelTypeTextActive
+              ]}>
+                Gasoline
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1909,5 +1949,37 @@ const styles = StyleSheet.create({
   photoItemText: {
     fontSize: 13,
     color: '#4B5563',
+  },
+  fuelTypeContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fuelTypePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  fuelTypePillActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
+  fuelTypeEmoji: {
+    fontSize: 20,
+  },
+  fuelTypeText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#6B7280',
+  },
+  fuelTypeTextActive: {
+    color: '#10B981',
   },
 });
