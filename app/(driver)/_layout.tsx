@@ -74,6 +74,27 @@ export default function DriverLayout() {
           tabBarLabel: 'Profile',
         }}
       />
+      <Tabs.Screen name="service-finder" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="maintenance" options={{ href: null }} />
+      <Tabs.Screen name="wallet" options={{ href: null }} />
+      <Tabs.Screen name="edit-profile" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="add-vehicle" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="membership" options={{ href: null }} />
+      <Tabs.Screen name="documents" options={{ href: null }} />
+      <Tabs.Screen name="privacy" options={{ href: null }} />
+      <Tabs.Screen name="payment-methods" options={{ href: null }} />
+      <Tabs.Screen name="terms-of-service" options={{ href: null }} />
+      <Tabs.Screen name="how-we-use-data" options={{ href: null }} />
+      <Tabs.Screen name="help-support" options={{ href: null }} />
+      <Tabs.Screen name="load-details" options={{ href: null }} />
+      <Tabs.Screen name="ai-tools" options={{ href: null }} />
+      <Tabs.Screen name="increase-revenue" options={{ href: null }} />
+      <Tabs.Screen name="advanced-security" options={{ href: null }} />
+      <Tabs.Screen name="navigation-screen" options={{ href: null }} />
+      <Tabs.Screen name="map-screen" options={{ href: null }} />
     </Tabs>
   );
 }
