@@ -18,7 +18,7 @@ const FUEL_API_KEY_RAW = process.env.EXPO_PUBLIC_COLLECTAPI_KEY || '3h76TGQbMdx0
 const FUEL_API_KEY = FUEL_API_KEY_RAW.startsWith('apikey ') ? FUEL_API_KEY_RAW : `apikey ${FUEL_API_KEY_RAW}`;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 
-export function useFuelPrices(driverState?: string) {
+export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoline' = 'diesel') {
   const [dieselPrice, setDieselPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function useFuelPrices(driverState?: string) {
 
   const fetchFuelPrices = useCallback(async () => {
     try {
-      console.log('⛽ Fuel Sync Active - Fetching prices from CollectAPI');
+      console.log(`⛽ Fuel Sync Active - Fetching ${fuelType} prices from CollectAPI`);
       console.log(`🔑 Using API Key: ${FUEL_API_KEY.substring(0, 15)}...`);
       setLoading(true);
       setError(null);
@@ -61,27 +61,34 @@ export function useFuelPrices(driverState?: string) {
         );
 
         if (stateData) {
-          targetPrice = parseFloat(stateData.diesel.replace('$', ''));
+          const priceString = fuelType === 'diesel' ? stateData.diesel : stateData.gasoline;
+          targetPrice = parseFloat(priceString.replace('$', ''));
           matchedState = stateData.state;
           console.log(`✅ State match found: ${matchedState}`);
-          console.log(`⛽ Diesel price for ${matchedState}: $${targetPrice.toFixed(2)}`);
+          console.log(`⛽ ${fuelType.charAt(0).toUpperCase() + fuelType.slice(1)} price for ${matchedState}: $${targetPrice.toFixed(2)}`);
         } else {
           console.warn(`⚠️ State "${driverState}" not found in API response`);
           console.log(`📋 Available states (first 10): ${data.result.map(s => s.state).slice(0, 10).join(', ')}`);
           console.log(`📋 Total states fetched: ${data.result.length}`);
           const allPrices = data.result
-            .map((item) => parseFloat(item.diesel.replace('$', '')))
+            .map((item) => {
+              const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
+              return parseFloat(priceString.replace('$', ''));
+            })
             .filter((price) => !isNaN(price));
           targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-          console.log(`⛽ Using U.S. average diesel price: $${targetPrice.toFixed(2)}`);
+          console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
         }
       } else {
         console.log(`ℹ️ No driver state specified, calculating U.S. average`);
         const allPrices = data.result
-          .map((item) => parseFloat(item.diesel.replace('$', '')))
+          .map((item) => {
+            const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
+            return parseFloat(priceString.replace('$', ''));
+          })
           .filter((price) => !isNaN(price));
         targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-        console.log(`⛽ U.S. average diesel price: $${targetPrice.toFixed(2)}`);
+        console.log(`⛽ U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
       }
 
       setDieselPrice(targetPrice);
@@ -92,7 +99,7 @@ export function useFuelPrices(driverState?: string) {
       setError(err instanceof Error ? err.message : 'Failed to fetch fuel prices');
       setLoading(false);
     }
-  }, [driverState]);
+  }, [driverState, fuelType]);
 
   useEffect(() => {
     const shouldFetch = !lastFetch || Date.now() - lastFetch.getTime() > CACHE_DURATION;

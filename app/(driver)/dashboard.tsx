@@ -28,7 +28,8 @@ export default function DriverDashboard() {
   
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const driverState = profile?.truckInfo?.state;
-  const { dieselPrice, loading: fuelLoading, error: fuelError, lastFetch } = useFuelPrices(driverState);
+  const fuelType = (profile?.truckInfo?.fuelType === 'gasoline' ? 'gasoline' : 'diesel') as 'diesel' | 'gasoline';
+  const { dieselPrice, loading: fuelLoading, error: fuelError, lastFetch } = useFuelPrices(driverState, fuelType);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
     (load) => load.status === 'matched' || load.status === 'in_transit'
@@ -194,7 +195,7 @@ export default function DriverDashboard() {
         <View style={styles.fuelPriceCard}>
           <View style={styles.fuelPriceHeader}>
             <Fuel size={20} color={Colors.light.accent} />
-            <Text style={styles.fuelPriceTitle}>💧 Current Diesel Price (Auto-Updated)</Text>
+            <Text style={styles.fuelPriceTitle}>{fuelType === 'diesel' ? '💧' : '⛽'} Current {fuelType === 'diesel' ? 'Diesel' : 'Gasoline'} Price (Auto-Updated)</Text>
           </View>
           {fuelLoading && dieselPrice === null ? (
             <View style={styles.fuelPriceLoading}>
@@ -209,7 +210,7 @@ export default function DriverDashboard() {
           ) : dieselPrice !== null ? (
             <>
               <Text style={styles.fuelPriceValue}>${dieselPrice.toFixed(2)}</Text>
-              <Text style={styles.fuelPriceSubtext}>per gallon • Diesel</Text>
+              <Text style={styles.fuelPriceSubtext}>per gallon • {fuelType === 'diesel' ? 'Diesel' : 'Gasoline'}</Text>
               {driverState && (
                 <View style={styles.fuelPriceLocationContainer}>
                   <MapPin size={14} color={Colors.light.textSecondary} />
