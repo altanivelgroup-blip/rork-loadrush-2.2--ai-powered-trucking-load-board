@@ -13,8 +13,8 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import {
   Package,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
+  ChevronLeft,
+  ChevronRight,
   Upload,
   FileText,
   Send,
@@ -265,7 +265,7 @@ export default function PostSingleLoadWizard() {
           title: 'Post Load',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-              <ChevronLeftIcon size={24} color="#1a1a1a" />
+              <ChevronLeft size={24} color="#1a1a1a" />
             </TouchableOpacity>
           ),
           headerRight: () => (
@@ -607,13 +607,13 @@ export default function PostSingleLoadWizard() {
           <View style={styles.calendarModal}>
             <View style={styles.calendarHeader}>
               <TouchableOpacity onPress={goToPreviousMonth} style={styles.calendarNavBtn}>
-                <ChevronLeftIcon size={24} color="#1a1a1a" />
+                <ChevronLeft size={24} color="#1a1a1a" />
               </TouchableOpacity>
               <Text style={styles.calendarMonthYear}>
                 {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
               </Text>
               <TouchableOpacity onPress={goToNextMonth} style={styles.calendarNavBtn}>
-                <ChevronRightIcon size={24} color="#1a1a1a" />
+                <ChevronRight size={24} color="#1a1a1a" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowCalendar(false)} style={styles.calendarCloseBtn}>
                 <X size={24} color="#1a1a1a" />
