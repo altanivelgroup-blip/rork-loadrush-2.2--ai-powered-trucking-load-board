@@ -91,7 +91,7 @@ export default function AuthScreen() {
           delayLongPress={2000}
         >
           <Image
-            source={require('../images/icon.png')} // ✅ fixed: matches your real folder
+            source={require('../assets/images/icon.png')}
             style={{
               width: 170,
               height: 170,
