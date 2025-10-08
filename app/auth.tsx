@@ -91,7 +91,7 @@ export default function AuthScreen() {
           delayLongPress={2000}
         >
           <Image
-            source={require('@/assets/loadrush-logo.png')} // 👈 use your upgraded logo file here
+            source={require('../images/icon.png')} // ✅ fixed: matches your real folder
             style={{
               width: 170,
               height: 170,
@@ -362,4 +362,5 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
 });
+
 
