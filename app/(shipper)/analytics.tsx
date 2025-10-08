@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { Stack } from 'expo-router';
-
 import { ChevronDown, Lightbulb, Truck, TrendingUp } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -84,9 +82,7 @@ export default function ShipperAnalytics() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true }} />
-
-      <View style={[styles.filterBar, { paddingTop: insets.top }]}>
+      <View style={styles.filterBar}>
         <Text style={styles.filterLabel}>Time Period:</Text>
         <TouchableOpacity 
           style={styles.filterButton}
