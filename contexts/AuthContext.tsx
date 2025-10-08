@@ -160,9 +160,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     setLoading(true);
 
     try {
-      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
-      const firebaseApp = (await import('@/config/firebase')).default;
-      const db = getFirestore(firebaseApp);
+      const { db } = await import('@/config/firebase');
+      const { doc, getDoc } = await import('firebase/firestore');
 
       const collectionName = role === 'driver' ? 'driver_test' : role === 'shipper' ? 'shipper_test' : 'admin_test';
       const docId = role === 'driver' ? 'DRIVER_TEST_001' : role === 'shipper' ? 'SHIPPER_TEST_001' : 'ADMIN_TEST_001';
