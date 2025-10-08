@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Package, TrendingUp, Eye, PlusCircle, Upload, FileText } from 'lucide-react-native';
 
 interface StatCardProps {
@@ -71,7 +71,6 @@ export default function PostLoadsScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true }} />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={styles.subtitle}>Create new postings and manage existing ones</Text>
