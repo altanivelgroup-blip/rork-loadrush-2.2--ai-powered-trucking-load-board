@@ -9,7 +9,7 @@ import {
   onAuthStateChanged,
   AuthError,
 } from 'firebase/auth';
-import { User, UserRole, ShipperProfile, DriverProfile } from '@/types';
+import { User, UserRole, ShipperProfile, DriverProfile, AdminProfile } from '@/types';
 import { dummyDriverProfile, dummyShipperProfile } from '@/mocks/dummyData';
 
 // 🔧 Local storage helpers (web only)
@@ -161,8 +161,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
     try {
       const { getFirestore, doc, getDoc } = await import('firebase/firestore');
-      const { app } = await import('@/config/firebase');
-      const db = getFirestore(app);
+      const firebaseApp = (await import('@/config/firebase')).default;
+      const db = getFirestore(firebaseApp);
 
       const collectionName = role === 'driver' ? 'driver_test' : role === 'shipper' ? 'shipper_test' : 'admin_test';
       const docId = role === 'driver' ? 'DRIVER_TEST_001' : role === 'shipper' ? 'SHIPPER_TEST_001' : 'ADMIN_TEST_001';
@@ -174,15 +174,34 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const data = docSnap.data();
       console.log('✅ Firestore Test Account Loaded:', data);
 
+      let profile: ShipperProfile | DriverProfile | AdminProfile;
+      
+      if (role === 'driver') {
+        profile = {
+          ...dummyDriverProfile,
+          ...data,
+          firstName: data.firstName || data.name || 'Demo',
+          lastName: data.lastName || 'Driver',
+        };
+      } else if (role === 'shipper') {
+        profile = {
+          ...dummyShipperProfile,
+          ...data,
+          companyName: data.companyName || data.name || 'Demo Company',
+        };
+      } else {
+        profile = {
+          name: data.name || 'Admin User',
+          permissions: data.permissions || ['all'],
+        };
+      }
+
       const testUser: User = {
         id: data.uid || docId,
         email: data.email || `${role}_test@loadrush.ai`,
         role: data.role as UserRole,
         createdAt: data.createdAt || new Date().toISOString(),
-        profile: {
-          ...data,
-          name: data.name || (role === 'driver' ? 'Demo Driver' : 'Demo Shipper'),
-        },
+        profile,
       };
 
       setUser(testUser);
