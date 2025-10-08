@@ -15,6 +15,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import Colors from '@/constants/colors';
 import { Truck, Package } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { Platform } from 'react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
