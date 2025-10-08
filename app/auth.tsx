@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -82,9 +83,23 @@ export default function AuthScreen() {
         { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
       ]}
     >
+      {/* 🔒 Hidden Admin Access on Logo */}
       <View style={styles.header}>
-        <Text style={styles.logo}>LoadRush 2.2</Text>
-        <Text style={styles.tagline}>Professional Load Board Platform</Text>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onLongPress={() => handleQuickLogin('admin')}
+          delayLongPress={2000}
+        >
+          <Image
+            source={require('@/assets/loadrush-logo.png')} // 👈 use your upgraded logo file here
+            style={{
+              width: 170,
+              height: 170,
+              alignSelf: 'center',
+              resizeMode: 'contain',
+            }}
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.formContainer}>
@@ -163,10 +178,7 @@ export default function AuthScreen() {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.switchButton}
-          onPress={() => setIsSignUp(!isSignUp)}
-        >
+        <TouchableOpacity style={styles.switchButton} onPress={() => setIsSignUp(!isSignUp)}>
           <Text style={styles.switchButtonText}>
             {isSignUp
               ? 'Already have an account? Sign In'
@@ -203,13 +215,8 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-  },
-  contentContainer: {
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.light.background },
+  contentContainer: { padding: 20 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -220,16 +227,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
     marginBottom: 40,
-  },
-  logo: {
-    fontSize: 36,
-    fontWeight: '700' as const,
-    color: Colors.light.primary,
-    marginBottom: 8,
-  },
-  tagline: {
-    fontSize: 16,
-    color: Colors.light.textSecondary,
   },
   formContainer: {
     backgroundColor: Colors.light.cardBackground,
@@ -247,19 +244,14 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 24,
   },
-  roleSelector: {
-    marginBottom: 24,
-  },
+  roleSelector: { marginBottom: 24 },
   label: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.light.text,
     marginBottom: 12,
   },
-  roleOptions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
+  roleOptions: { flexDirection: 'row', gap: 12 },
   roleCard: {
     flex: 1,
     backgroundColor: Colors.light.background,
@@ -279,18 +271,14 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginTop: 8,
   },
-  roleLabelSelected: {
-    color: Colors.light.primary,
-  },
+  roleLabelSelected: { color: Colors.light.primary },
   roleDescription: {
     fontSize: 11,
     color: Colors.light.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },
-  inputContainer: {
-    marginBottom: 20,
-  },
+  inputContainer: { marginBottom: 20 },
   input: {
     backgroundColor: Colors.light.background,
     borderRadius: 8,
@@ -307,18 +295,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
+  submitButtonDisabled: { opacity: 0.6 },
   submitButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600' as const,
   },
-  switchButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
+  switchButton: { marginTop: 16, alignItems: 'center' },
   switchButtonText: {
     color: Colors.light.primary,
     fontSize: 14,
@@ -379,3 +362,4 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
 });
+
