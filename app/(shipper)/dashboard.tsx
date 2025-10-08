@@ -75,7 +75,7 @@ export default function ShipperDashboard() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[styles.content, { paddingTop: 8, paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   welcomeBack: {
     fontSize: 14,
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
 
   searchContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   searchInput: {
     backgroundColor: Colors.light.cardBackground,
@@ -397,16 +397,16 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadCard: {
-    backgroundColor: '#F7F9FC',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    borderWidth: 2,
-    borderColor: '#1E3A8A',
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   loadHeader: {
     flexDirection: 'row',
@@ -416,8 +416,8 @@ const styles = StyleSheet.create({
   },
   statusBadgeSmall: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   statusBadgeText: {
     fontSize: 12,

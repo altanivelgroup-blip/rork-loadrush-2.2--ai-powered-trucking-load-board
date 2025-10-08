@@ -8,12 +8,10 @@ import Colors from '@/constants/colors';
 const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.headerContainer, { paddingTop: insets.top + 8 }]}>
       <Text style={styles.headerTitle}>{title}</Text>
-      {tagline ? (
+      {tagline && (
         <Text style={styles.headerTagline}>{tagline}</Text>
-      ) : (
-        <Text style={styles.headerSubtitle}>Shipper Portal</Text>
       )}
     </View>
   );
@@ -109,7 +107,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   headerTitle: {
     fontSize: 20,
