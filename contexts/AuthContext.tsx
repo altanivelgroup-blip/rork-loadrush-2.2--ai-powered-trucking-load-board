@@ -168,7 +168,36 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const docRef = doc(db, collectionName, docId);
       const docSnap = await getDoc(docRef);
 
-      if (!docSnap.exists()) throw new Error(`❌ No test document found in ${collectionName}`);
+      if (!docSnap.exists()) {
+        console.warn(`⚠️ No test document found in ${collectionName}, creating fallback user`);
+        
+        let profile: ShipperProfile | DriverProfile | AdminProfile;
+        
+        if (role === 'driver') {
+          profile = dummyDriverProfile;
+        } else if (role === 'shipper') {
+          profile = dummyShipperProfile;
+        } else {
+          profile = {
+            name: 'Admin User',
+            permissions: ['all'],
+          };
+        }
+
+        const fallbackUser: User = {
+          id: `test-${role}-${Date.now()}`,
+          email: `${role}_test@loadrush.ai`,
+          role: role,
+          createdAt: new Date().toISOString(),
+          profile,
+        };
+
+        setUser(fallbackUser);
+        setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
+        console.log(`✅ ${role} fallback test account created successfully`);
+        setLoading(false);
+        return;
+      }
 
       const data = docSnap.data();
       console.log('✅ Firestore Test Account Loaded:', data);
@@ -198,14 +227,14 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const testUser: User = {
         id: data.uid || docId,
         email: data.email || `${role}_test@loadrush.ai`,
-        role: data.role as UserRole,
+        role: role,
         createdAt: data.createdAt || new Date().toISOString(),
         profile,
       };
 
       setUser(testUser);
       setStorageItem(`user_role_${testUser.id}`, testUser.role);
-      console.log(`✅ ${role} test account connected successfully`);
+      console.log(`✅ ${role} test account connected successfully`, testUser);
     } catch (err) {
       console.error('🔥 Firestore Quick Login Error:', err);
       setError('Failed to load test account');
