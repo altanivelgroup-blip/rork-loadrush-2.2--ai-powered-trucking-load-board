@@ -1,34 +1,40 @@
 import { Stack, Tabs } from 'expo-router';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LayoutDashboard, Package, BarChart3, User, PlusCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
-const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => (
-  <View style={styles.headerContainer}>
-    <View style={styles.badgeContainer}>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>SHIPPER</Text>
+const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.headerContainer, { paddingTop: insets.top + 6 }]}>
+      <View style={styles.badgeContainer}>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>SHIPPER</Text>
+        </View>
+        <Text style={styles.headerTitle}>{title}</Text>
       </View>
-      <Text style={styles.headerTitle}>{title}</Text>
+      {tagline ? (
+        <Text style={styles.headerTagline}>{tagline}</Text>
+      ) : (
+        <Text style={styles.headerSubtitle}>Shipper Portal</Text>
+      )}
     </View>
-    {tagline ? (
-      <Text style={styles.headerTagline}>{tagline}</Text>
-    ) : (
-      <Text style={styles.headerSubtitle}>Shipper Portal</Text>
-    )}
-  </View>
-);
+  );
+};
 
 export default function ShipperLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <>
-      {/* 🚫 Remove automatic header space */}
+      {/* Hide auto (shipper) header and reset spacing */}
       <Stack.Screen
         options={{
           headerShown: false,
           title: '',
-          headerTitle: '',
           headerTransparent: true,
           contentStyle: { paddingTop: 0, marginTop: 0 },
         }}
@@ -39,19 +45,22 @@ export default function ShipperLayout() {
           tabBarActiveTintColor: Colors.light.primary,
           headerShown: true,
           headerTransparent: true,
+          headerTitle: () => null,
           headerStyle: {
-            height: 64, // tightened header height
             backgroundColor: '#FFFFFF',
-            elevation: 0,
-            shadowOpacity: 0,
+            height: 80,
             borderBottomWidth: 1,
             borderBottomColor: '#E5E7EB',
+            elevation: 0,
+            shadowOpacity: 0,
           },
           tabBarStyle: {
             backgroundColor: Colors.light.cardBackground,
             borderTopColor: Colors.light.border,
+            height: 64 + insets.bottom, // keeps consistent bottom padding
+            paddingBottom: insets.bottom > 0 ? insets.bottom - 4 : 6,
+            paddingTop: 2,
           },
-          headerTitle: () => null,
         }}
       >
         <Tabs.Screen
@@ -108,8 +117,9 @@ const styles = StyleSheet.create({
   headerContainer: {
     flex: 1,
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingTop: 0, // removed extra top padding
+    paddingBottom: 10,
   },
   badgeContainer: {
     flexDirection: 'row',
