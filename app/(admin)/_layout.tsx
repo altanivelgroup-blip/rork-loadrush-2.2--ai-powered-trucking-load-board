@@ -69,6 +69,12 @@ export default function AdminLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="trip-archive"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
