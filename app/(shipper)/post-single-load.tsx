@@ -196,7 +196,7 @@ export default function PostSingleLoadWizard() {
 
     if (valid) next();
     else Alert.alert('Missing Info', 'Please fill in all required fields before continuing.');
-  }, [stepIndex, title, description, pickupLocation, deliveryLocation, pickupDate, deliveryDate, rateAmount, next]);
+  }, [stepIndex, title, description, pickupLocation, deliveryLocation, pickupDate, deliveryDate, rateAmount, contact, next]);
 
   const handleSubmit = useCallback(async () => {
     setLoading(true);
@@ -238,7 +238,7 @@ export default function PostSingleLoadWizard() {
     } finally {
       setLoading(false);
     }
-  }, [title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, contact, router, formatDate]);
+  }, [title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, router, formatDate]);
 
   const renderStepIndicator = (
     <View style={styles.stepper}>
