@@ -3,6 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDocumentData } from './useDocumentData';
 import { useCollectionData } from './useCollectionData';
 import { DriverProfile, Load, AnalyticsData } from '@/types';
+import { db } from '@/config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
+/* -------------------------------------------------------------------------- */
+/*                              DRIVER INTERFACES                             */
+/* -------------------------------------------------------------------------- */
 
 export interface DriverFirestoreProfile {
   firstName?: string;
@@ -35,6 +41,37 @@ interface DriverStats {
   status: 'active' | 'inactive' | 'on_trip';
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              FETCH HELPER LOGIC                            */
+/* -------------------------------------------------------------------------- */
+
+async function fetchDriverProfile(uid: string): Promise<DriverFirestoreProfile | null> {
+  console.log('🧭 Fetching driver profile for UID:', uid);
+
+  // Try main driver collection first
+  const mainRef = doc(db, 'drivers', uid);
+  let snap = await getDoc(mainRef);
+
+  // If not found, try test collection
+  if (!snap.exists()) {
+    console.log('⚠️ Not found in /drivers, checking /driver_test...');
+    const testRef = doc(db, 'driver_test', uid);
+    snap = await getDoc(testRef);
+  }
+
+  if (!snap.exists()) {
+    console.warn('❌ No driver profile found for UID:', uid);
+    return null;
+  }
+
+  console.log('✅ Profile loaded successfully for:', uid);
+  return snap.data() as DriverFirestoreProfile;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 MAIN HOOKS                                 */
+/* -------------------------------------------------------------------------- */
+
 export function useDriverProfile() {
   const { user } = useAuth();
   const driverId = user?.id;
@@ -44,23 +81,23 @@ export function useDriverProfile() {
     driverId || null
   );
 
+  // Fallback to test collection if driver profile not found
+  const fallbackData = useMemo(async () => {
+    if (!data && driverId && !loading) {
+      const profile = await fetchDriverProfile(driverId);
+      return profile;
+    }
+    return data;
+  }, [data, driverId, loading]);
+
   console.log('[Driver Firestore] Profile fetch:', {
     uid: driverId,
     hasData: !!data,
     loading,
     error: error?.message,
-    dataKeys: data ? Object.keys(data) : [],
   });
 
-  if (!driverId) {
-    console.log('[Driver Firestore] No authenticated user UID');
-  }
-
-  if (!loading && !data && driverId) {
-    console.warn('[Driver Firestore] No profile document found for UID:', driverId);
-  }
-
-  return { profile: data, loading, error };
+  return { profile: fallbackData, loading, error };
 }
 
 export function useDriverStats() {
@@ -87,9 +124,9 @@ export function useDriverLoads() {
   const driverId = user?.id;
 
   const { data: rawData, loading, error } = useCollectionData<Load>('loads', {
-    queries: driverId ? [
-      { field: 'matchedDriverId', operator: '==', value: driverId }
-    ] : undefined,
+    queries: driverId
+      ? [{ field: 'matchedDriverId', operator: '==', value: driverId }]
+      : undefined,
   });
 
   const data = useMemo(() => {
@@ -100,15 +137,18 @@ export function useDriverLoads() {
     });
   }, [rawData]);
 
-  const activeLoads = useMemo(() => {
-    return data.filter(
-      (load) => load.status === 'matched' || load.status === 'in_transit'
-    );
-  }, [data]);
+  const activeLoads = useMemo(
+    () =>
+      data.filter(
+        (load) => load.status === 'matched' || load.status === 'in_transit'
+      ),
+    [data]
+  );
 
-  const completedLoads = useMemo(() => {
-    return data.filter((load) => load.status === 'delivered');
-  }, [data]);
+  const completedLoads = useMemo(
+    () => data.filter((load) => load.status === 'delivered'),
+    [data]
+  );
 
   console.log('[Driver Firestore] Loads fetch:', {
     uid: driverId,
@@ -149,9 +189,7 @@ export function useDriverAnalytics() {
 
 export function useAvailableLoads() {
   const { data: rawData, loading, error } = useCollectionData<Load>('loads', {
-    queries: [
-      { field: 'status', operator: '==', value: 'posted' }
-    ],
+    queries: [{ field: 'status', operator: '==', value: 'posted' }],
   });
 
   const data = useMemo(() => {
@@ -163,9 +201,10 @@ export function useAvailableLoads() {
     return sorted.slice(0, 20);
   }, [rawData]);
 
-  const matchedLoads = useMemo(() => {
-    return data.filter((load) => load.aiScore && load.aiScore > 80);
-  }, [data]);
+  const matchedLoads = useMemo(
+    () => data.filter((load) => load.aiScore && load.aiScore > 80),
+    [data]
+  );
 
   console.log('[Driver Firestore] Available loads:', {
     total: data.length,
