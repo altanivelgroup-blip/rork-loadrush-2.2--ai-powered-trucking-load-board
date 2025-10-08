@@ -1,8 +1,7 @@
-import { Stack, Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Package, BarChart3, User, PlusCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => {
@@ -26,11 +25,8 @@ const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) =
 };
 
 export default function ShipperLayout() {
-  const insets = useSafeAreaInsets();
-
   return (
     <>
-      {/* Hide auto (shipper) header and reset spacing */}
       <Stack.Screen
         options={{
           headerShown: false,
@@ -40,9 +36,8 @@ export default function ShipperLayout() {
         }}
       />
 
-      <Tabs
+      <Stack
         screenOptions={{
-          tabBarActiveTintColor: Colors.light.primary,
           headerShown: true,
           headerTransparent: true,
           headerTitle: () => null,
@@ -51,43 +46,28 @@ export default function ShipperLayout() {
             height: 80,
             borderBottomWidth: 1,
             borderBottomColor: '#E5E7EB',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          tabBarStyle: {
-            backgroundColor: Colors.light.cardBackground,
-            borderTopColor: Colors.light.border,
-            height: 64 + insets.bottom, // keeps consistent bottom padding
-            paddingBottom: insets.bottom > 0 ? insets.bottom - 4 : 6,
-            paddingTop: 2,
           },
         }}
       >
-        <Tabs.Screen
+        <Stack.Screen
           name="dashboard"
           options={{
             header: () => <CustomHeader title="Dashboard Overview" />,
-            tabBarIcon: ({ color }) => <LayoutDashboard size={24} color={color} />,
-            tabBarLabel: 'Dashboard',
           }}
         />
-        <Tabs.Screen
+        <Stack.Screen
           name="loads"
           options={{
             header: () => <CustomHeader title="My Loads" />,
-            tabBarIcon: ({ color }) => <Package size={24} color={color} />,
-            tabBarLabel: 'My Loads',
           }}
         />
-        <Tabs.Screen
+        <Stack.Screen
           name="post-loads"
           options={{
             header: () => <CustomHeader title="Post & Manage Loads" />,
-            tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
-            tabBarLabel: 'Post Loads',
           }}
         />
-        <Tabs.Screen
+        <Stack.Screen
           name="analytics"
           options={{
             header: () => (
@@ -96,19 +76,15 @@ export default function ShipperLayout() {
                 tagline="Track performance, optimize spend, and improve delivery reliability."
               />
             ),
-            tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
-            tabBarLabel: 'Analytics',
           }}
         />
-        <Tabs.Screen
+        <Stack.Screen
           name="profile"
           options={{
             header: () => <CustomHeader title="Profile" />,
-            tabBarIcon: ({ color }) => <User size={24} color={color} />,
-            tabBarLabel: 'Profile',
           }}
         />
-      </Tabs>
+      </Stack>
     </>
   );
 }
