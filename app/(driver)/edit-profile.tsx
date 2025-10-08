@@ -11,6 +11,8 @@ import {
   Platform,
   ActivityIndicator
 } from 'react-native';
+import { db } from '@/config/firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -460,8 +462,30 @@ export default function EditProfileScreen() {
 
       await AsyncStorage.setItem(`driver_profile_${driverId}`, JSON.stringify(profileData));
       
+      if (user?.id && !user.id.startsWith('test-')) {
+        console.log('[EditProfile] Updating Firestore for driver:', user.id);
+        
+        const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : undefined;
+        
+        await updateDoc(doc(db, 'drivers', user.id), {
+          'truckInfo.make': truckInfo.make,
+          'truckInfo.model': truckInfo.model,
+          'truckInfo.year': parseInt(truckInfo.year) || 0,
+          'truckInfo.vin': truckInfo.vin,
+          'truckInfo.licensePlate': truckInfo.licensePlate,
+          'truckInfo.fuelTankSize': parseInt(truckInfo.fuelTankSize) || 0,
+          'truckInfo.mpg': parseFloat(truckInfo.averageMpg) || 0,
+          'truckInfo.odometer': parseInt(truckInfo.currentOdometer) || 0,
+          'truckInfo.fuelType': truckInfo.fuelType,
+          'truckInfo.photoUrl': photoUrl,
+          'truckInfo.updatedAt': serverTimestamp(),
+        });
+        
+        console.log('[EditProfile] ✅ Firestore update successful');
+      }
+      
       console.log('[EditProfile] Profile saved successfully');
-      Alert.alert('Success', 'Profile saved successfully!', [
+      Alert.alert('✅ Success', 'Profile saved successfully!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error) {
@@ -470,7 +494,7 @@ export default function EditProfileScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [driverId, personalInfo, businessInfo, truckInfo, trailerInfo, photoInfo, documentInfo, router]);
+  }, [driverId, personalInfo, businessInfo, truckInfo, trailerInfo, photoInfo, documentInfo, router, user]);
 
   const renderPersonalTab = useCallback(() => (
     <View style={styles.tabContent}>
