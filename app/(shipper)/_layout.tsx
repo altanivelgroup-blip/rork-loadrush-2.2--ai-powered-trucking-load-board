@@ -24,8 +24,9 @@ export default function ShipperLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        headerTransparent: false, // solid header background
-        headerTitle: () => null,
+        headerTransparent: false,
+        headerTitle: '',
+        headerTitleStyle: { display: 'none' },
         headerStyle: {
           backgroundColor: '#FFFFFF',
           height: 100,
@@ -33,7 +34,6 @@ export default function ShipperLayout() {
           borderBottomColor: '#E5E7EB',
           elevation: 0,
           shadowOpacity: 0,
-          position: 'relative', // ✅ ensures layout spacing is respected
         },
         tabBarStyle: {
           backgroundColor: Colors.light.cardBackground,
@@ -63,6 +63,8 @@ export default function ShipperLayout() {
       <Tabs.Screen
         name="post-loads"
         options={{
+          title: '',
+          headerTitle: '',
           header: () => <CustomHeader title="Post & Manage Loads" />,
           tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
           tabBarLabel: 'Post Loads',
@@ -71,6 +73,8 @@ export default function ShipperLayout() {
       <Tabs.Screen
         name="analytics"
         options={{
+          title: '',
+          headerTitle: '',
           header: () => (
             <CustomHeader
               title="Analytics Dashboard"
@@ -84,6 +88,8 @@ export default function ShipperLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          title: '',
+          headerTitle: '',
           header: () => <CustomHeader title="Profile" />,
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
           tabBarLabel: 'Profile',
