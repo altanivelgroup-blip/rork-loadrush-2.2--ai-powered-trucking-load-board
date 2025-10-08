@@ -11,6 +11,7 @@ import { DollarSign, TrendingUp, Truck, Fuel, LogOut, Settings, LineChart, Shiel
 import { DriverProfile } from '@/types';
 import { useDriverProfile, useDriverStats, useDriverLoads, useDriverAnalytics, useAvailableLoads } from '@/hooks/useDriverData';
 import { useDriverGPS } from '@/hooks/useDriverGPS';
+import { useFuelPrices } from '@/hooks/useFuelPrices';
 
 export default function DriverDashboard() {
   const insets = useSafeAreaInsets();
@@ -25,9 +26,9 @@ export default function DriverDashboard() {
   
   const { location, isTracking } = useDriverGPS(user?.id);
   
-
-  
   const profile = firestoreProfile || (user?.profile as DriverProfile);
+  const driverState = profile?.truckInfo?.state;
+  const { dieselPrice } = useFuelPrices(driverState);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
     (load) => load.status === 'matched' || load.status === 'in_transit'
@@ -189,6 +190,20 @@ export default function DriverDashboard() {
             </Text>
           </View>
         </View>
+
+        {dieselPrice !== null && (
+          <View style={styles.fuelPriceCard}>
+            <View style={styles.fuelPriceHeader}>
+              <Fuel size={20} color={Colors.light.accent} />
+              <Text style={styles.fuelPriceTitle}>Live Fuel Cost</Text>
+            </View>
+            <Text style={styles.fuelPriceValue}>${dieselPrice.toFixed(2)}</Text>
+            <Text style={styles.fuelPriceSubtext}>per gallon • Diesel</Text>
+            {driverState && (
+              <Text style={styles.fuelPriceLocation}>{driverState}</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Performance Overview</Text>
@@ -639,5 +654,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.textSecondary,
     flex: 1,
+  },
+  fuelPriceCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: Colors.light.accent + '30',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fuelPriceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  fuelPriceTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  fuelPriceValue: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    color: Colors.light.accent,
+    marginBottom: 4,
+  },
+  fuelPriceSubtext: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+  },
+  fuelPriceLocation: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
   },
 });

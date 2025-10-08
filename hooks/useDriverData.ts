@@ -81,15 +81,6 @@ export function useDriverProfile() {
     driverId || null
   );
 
-  // Fallback to test collection if driver profile not found
-  const fallbackData = useMemo(async () => {
-    if (!data && driverId && !loading) {
-      const profile = await fetchDriverProfile(driverId);
-      return profile;
-    }
-    return data;
-  }, [data, driverId, loading]);
-
   console.log('[Driver Firestore] Profile fetch:', {
     uid: driverId,
     hasData: !!data,
@@ -97,7 +88,7 @@ export function useDriverProfile() {
     error: error?.message,
   });
 
-  return { profile: fallbackData, loading, error };
+  return { profile: data, loading, error };
 }
 
 export function useDriverStats() {
