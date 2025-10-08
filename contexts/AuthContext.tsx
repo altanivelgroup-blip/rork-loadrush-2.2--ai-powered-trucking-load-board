@@ -153,11 +153,39 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  // 🔹 Quick Test Login (Firestore connected)
+  // 🔹 Quick Test Login (Firestore connected with fallback)
   const quickTestLogin = useCallback(async (role: UserRole) => {
     console.log('🔥 Firestore Quick Test Login -', role);
     setError(null);
     setLoading(true);
+
+    const createFallbackUser = (role: UserRole) => {
+      let profile: ShipperProfile | DriverProfile | AdminProfile;
+      
+      if (role === 'driver') {
+        profile = dummyDriverProfile;
+      } else if (role === 'shipper') {
+        profile = dummyShipperProfile;
+      } else {
+        profile = {
+          name: 'Admin User',
+          permissions: ['all'],
+        };
+      }
+
+      const fallbackUser: User = {
+        id: `test-${role}-${Date.now()}`,
+        email: `${role}_test@loadrush.ai`,
+        role: role,
+        createdAt: new Date().toISOString(),
+        profile,
+      };
+
+      setUser(fallbackUser);
+      setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
+      console.log(`✅ ${role} fallback test account created successfully`);
+      setLoading(false);
+    };
 
     try {
       const { db } = await import('@/config/firebase');
@@ -165,37 +193,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       const collectionName = role === 'driver' ? 'driver_test' : role === 'shipper' ? 'shipper_test' : 'admin_test';
       const docId = role === 'driver' ? 'DRIVER_TEST_001' : role === 'shipper' ? 'SHIPPER_TEST_001' : 'ADMIN_TEST_001';
+      
+      console.log(`🔍 Attempting to fetch: ${collectionName}/${docId}`);
+      
       const docRef = doc(db, collectionName, docId);
-      const docSnap = await getDoc(docRef);
+      
+      const fetchPromise = getDoc(docRef);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore timeout')), 5000)
+      );
+      
+      const docSnap = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       if (!docSnap.exists()) {
-        console.warn(`⚠️ No test document found in ${collectionName}, creating fallback user`);
-        
-        let profile: ShipperProfile | DriverProfile | AdminProfile;
-        
-        if (role === 'driver') {
-          profile = dummyDriverProfile;
-        } else if (role === 'shipper') {
-          profile = dummyShipperProfile;
-        } else {
-          profile = {
-            name: 'Admin User',
-            permissions: ['all'],
-          };
-        }
-
-        const fallbackUser: User = {
-          id: `test-${role}-${Date.now()}`,
-          email: `${role}_test@loadrush.ai`,
-          role: role,
-          createdAt: new Date().toISOString(),
-          profile,
-        };
-
-        setUser(fallbackUser);
-        setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
-        console.log(`✅ ${role} fallback test account created successfully`);
-        setLoading(false);
+        console.warn(`⚠️ No test document found in ${collectionName}, using fallback`);
+        createFallbackUser(role);
         return;
       }
 
@@ -235,9 +247,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setUser(testUser);
       setStorageItem(`user_role_${testUser.id}`, testUser.role);
       console.log(`✅ ${role} test account connected successfully`, testUser);
-    } catch (err) {
+    } catch (err: any) {
       console.error('🔥 Firestore Quick Login Error:', err);
-      setError('Failed to load test account');
+      console.log('⚠️ Using fallback authentication due to:', err.message || 'Unknown error');
+      createFallbackUser(role);
     } finally {
       setLoading(false);
     }
