@@ -84,23 +84,31 @@ export default function AuthScreen() {
       ]}
     >
       {/* 🔒 Hidden Admin Access on Logo */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onLongPress={() => handleQuickLogin('admin')}
-          delayLongPress={2000}
-        >
-          <Image
-            source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/1zncb0hdtsgj0f6xzhdbv' }}
-            style={{
-              width: 170,
-              height: 170,
-              alignSelf: 'center',
-              resizeMode: 'contain',
-            }}
-          />
-        </TouchableOpacity>
-      </View>
+       <View style={styles.header}>
+       <TouchableOpacity
+       activeOpacity={0.8}
+       onLongPress={() => {
+      // subtle haptic + secret entry
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      handleQuickLogin('admin');
+    }}
+    delayLongPress={1200} // 1.2s hold feels more natural
+  >
+    <Image
+      source={require('../assets/images/icon.png')}
+      style={{
+        width: 170,
+        height: 170,
+        alignSelf: 'center',
+        resizeMode: 'contain',
+        opacity: 0.98,
+      }}
+    />
+  </TouchableOpacity>
+</View>
+
 
       <View style={styles.formContainer}>
         <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
