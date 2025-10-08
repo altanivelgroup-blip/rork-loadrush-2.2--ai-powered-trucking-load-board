@@ -40,7 +40,7 @@ export default function ShipperLoads() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Stack.Screen options={{ headerShown: true }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color="#2563EB" />
         <Text style={styles.loadingText}>Loading your loads...</Text>
       </View>
@@ -50,7 +50,7 @@ export default function ShipperLoads() {
   if (error) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Stack.Screen options={{ headerShown: true }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <Text style={styles.errorText}>Error loading loads</Text>
         <Text style={styles.errorSubtext}>{error.message}</Text>
       </View>
@@ -59,7 +59,7 @@ export default function ShipperLoads() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.loadsCount}>
@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
