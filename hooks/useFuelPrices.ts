@@ -14,7 +14,8 @@ interface FuelPricesResponse {
 }
 
 const FUEL_API_URL = process.env.EXPO_PUBLIC_COLLECTAPI_URL || 'https://api.collectapi.com/gasPrice/allUsaPrice';
-const FUEL_API_KEY = process.env.EXPO_PUBLIC_COLLECTAPI_KEY || 'apikey 3h76TGQbMdx0Tsny6kjteC:1Yfg3B0w4EkadHza3kUGH6';
+const FUEL_API_KEY_RAW = process.env.EXPO_PUBLIC_COLLECTAPI_KEY || '3h76TGQbMdx0Tsny6kjteC:1Yfg3B0w4EkadHza3kUGH6';
+const FUEL_API_KEY = FUEL_API_KEY_RAW.startsWith('apikey ') ? FUEL_API_KEY_RAW : `apikey ${FUEL_API_KEY_RAW}`;
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 
 export function useFuelPrices(driverState?: string) {
@@ -26,6 +27,7 @@ export function useFuelPrices(driverState?: string) {
   const fetchFuelPrices = useCallback(async () => {
     try {
       console.log('⛽ Fuel Sync Active - Fetching prices from CollectAPI');
+      console.log(`🔑 Using API Key: ${FUEL_API_KEY.substring(0, 15)}...`);
       setLoading(true);
       setError(null);
 
@@ -48,8 +50,10 @@ export function useFuelPrices(driverState?: string) {
       }
 
       console.log(`✅ Fuel Sync Success - Received data for ${data.result.length} states`);
+      console.log(`🔍 Looking for state: "${driverState || 'N/A'}"`);
 
       let targetPrice: number;
+      let matchedState: string | null = null;
 
       if (driverState) {
         const stateData = data.result.find(
@@ -58,21 +62,25 @@ export function useFuelPrices(driverState?: string) {
 
         if (stateData) {
           targetPrice = parseFloat(stateData.diesel.replace('$', ''));
-          console.log(`⛽ Diesel price for ${driverState}: $${targetPrice.toFixed(2)}`);
+          matchedState = stateData.state;
+          console.log(`✅ State match found: ${matchedState}`);
+          console.log(`⛽ Diesel price for ${matchedState}: $${targetPrice.toFixed(2)}`);
         } else {
-          console.warn(`⚠️ State "${driverState}" not found, calculating average`);
+          console.warn(`⚠️ State "${driverState}" not found in API response`);
+          console.log(`📋 Available states: ${data.result.map(s => s.state).slice(0, 5).join(', ')}...`);
           const allPrices = data.result
             .map((item) => parseFloat(item.diesel.replace('$', '')))
             .filter((price) => !isNaN(price));
           targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-          console.log(`⛽ Average diesel price across all states: $${targetPrice.toFixed(2)}`);
+          console.log(`⛽ Using U.S. average diesel price: $${targetPrice.toFixed(2)}`);
         }
       } else {
+        console.log(`ℹ️ No driver state specified, calculating U.S. average`);
         const allPrices = data.result
           .map((item) => parseFloat(item.diesel.replace('$', '')))
           .filter((price) => !isNaN(price));
         targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-        console.log(`⛽ Average diesel price (no state specified): $${targetPrice.toFixed(2)}`);
+        console.log(`⛽ U.S. average diesel price: $${targetPrice.toFixed(2)}`);
       }
 
       setDieselPrice(targetPrice);
