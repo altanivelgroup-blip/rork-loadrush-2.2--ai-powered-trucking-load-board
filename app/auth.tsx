@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import Colors from '@/constants/colors';
-import { Truck, Package, Shield } from 'lucide-react-native';
+import { Truck, Package } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -72,18 +72,15 @@ export default function AuthScreen() {
       label: 'Shipper',
       description: 'Post loads and find carriers',
     },
-    {
-      role: 'admin',
-      icon: Shield,
-      label: 'Admin',
-      description: 'Manage platform operations',
-    },
   ];
 
   return (
-    <ScrollView 
-      style={styles.container} 
-      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.contentContainer,
+        { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
+      ]}
     >
       <View style={styles.header}>
         <Text style={styles.logo}>LoadRush 2.2</Text>
@@ -171,10 +168,13 @@ export default function AuthScreen() {
           onPress={() => setIsSignUp(!isSignUp)}
         >
           <Text style={styles.switchButtonText}>
-            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            {isSignUp
+              ? 'Already have an account? Sign In'
+              : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
 
+        {/* Quick Testing Access */}
         <View style={styles.testingSection}>
           <Text style={styles.testingLabel}>Quick Testing Access</Text>
           <View style={styles.testingTabs}>
@@ -186,7 +186,7 @@ export default function AuthScreen() {
               <Truck size={28} color={Colors.light.primary} strokeWidth={2.5} />
               <Text style={styles.testingTabLabel}>Driver</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.testingTab}
               onPress={() => handleQuickLogin('shipper')}
@@ -194,15 +194,6 @@ export default function AuthScreen() {
             >
               <Package size={28} color={Colors.light.primary} strokeWidth={2.5} />
               <Text style={styles.testingTabLabel}>Shipper</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.testingTab}
-              onPress={() => handleQuickLogin('admin')}
-              disabled={isSubmitting}
-            >
-              <Shield size={28} color={Colors.light.primary} strokeWidth={2.5} />
-              <Text style={styles.testingTabLabel}>Admin</Text>
             </TouchableOpacity>
           </View>
         </View>
