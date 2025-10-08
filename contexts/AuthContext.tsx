@@ -2,58 +2,51 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { auth } from '@/config/firebase';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  AuthError
+  AuthError,
 } from 'firebase/auth';
 import { User, UserRole, ShipperProfile, DriverProfile } from '@/types';
 import { dummyDriverProfile, dummyShipperProfile } from '@/mocks/dummyData';
 
+// 🔧 Local storage helpers (web only)
 const getStorageItem = (key: string): string | null => {
-  if (Platform.OS === 'web') {
-    return localStorage.getItem(key);
-  }
+  if (Platform.OS === 'web') return localStorage.getItem(key);
   return null;
 };
 
 const setStorageItem = (key: string, value: string): void => {
-  if (Platform.OS === 'web') {
-    localStorage.setItem(key, value);
-  }
+  if (Platform.OS === 'web') localStorage.setItem(key, value);
 };
 
+// 🔥 Auth Context Provider
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Listen for Firebase Auth state
   useEffect(() => {
-    console.log('🔥 Firebase Auth: Setting up auth state listener');
-    
+    console.log('🔥 Firebase Auth: Setting up listener');
+
     const timeoutId = setTimeout(() => {
-      console.log('⚠️ Firebase Auth: Timeout reached, forcing loading to false');
+      console.log('⚠️ Auth timeout reached');
       setLoading(false);
     }, 3000);
-    
+
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      console.log('🔥 Firebase Auth: State changed -', fbUser ? `User: ${fbUser.email}` : 'No user');
       clearTimeout(timeoutId);
-      
       if (fbUser) {
-        const storedRole = getStorageItem(`user_role_${fbUser.uid}`) as UserRole || 'driver';
-        console.log('🔥 Firebase Auth: User role -', storedRole);
-        
-        let profile;
-        if (storedRole === 'driver') {
-          profile = dummyDriverProfile;
-        } else if (storedRole === 'shipper') {
-          profile = dummyShipperProfile;
-        } else {
-          profile = { name: 'Admin User', permissions: ['all'] };
-        }
+        const storedRole = (getStorageItem(`user_role_${fbUser.uid}`) as UserRole) || 'driver';
+        let profile =
+          storedRole === 'driver'
+            ? dummyDriverProfile
+            : storedRole === 'shipper'
+            ? dummyShipperProfile
+            : { name: 'Admin User', permissions: ['all'] };
 
         setUser({
           id: fbUser.uid,
@@ -62,7 +55,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           createdAt: new Date().toISOString(),
           profile,
         });
-        setError(null);
       } else {
         setUser(null);
       }
@@ -70,30 +62,24 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     });
 
     return () => {
-      console.log('🔥 Firebase Auth: Cleaning up auth listener');
       clearTimeout(timeoutId);
       unsubscribe();
     };
   }, []);
 
+  // 🔹 Sign Up
   const signUp = useCallback(async (email: string, password: string, role: UserRole) => {
     try {
-      console.log('🔥 Firebase Auth: Signing up -', email, role);
       setError(null);
-      
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       setStorageItem(`user_role_${userCredential.user.uid}`, role);
-      
-      console.log('🔥 Firebase Auth: Sign up successful -', userCredential.user.uid);
-    
-    let profile;
-    if (role === 'driver') {
-      profile = dummyDriverProfile;
-    } else if (role === 'shipper') {
-      profile = dummyShipperProfile;
-    } else {
-      profile = { name: 'Admin User', permissions: ['all'] };
-    }
+
+      let profile =
+        role === 'driver'
+          ? dummyDriverProfile
+          : role === 'shipper'
+          ? dummyShipperProfile
+          : { name: 'Admin User', permissions: ['all'] };
 
       const newUser: User = {
         id: userCredential.user.uid,
@@ -107,40 +93,29 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return newUser;
     } catch (err) {
       const authError = err as AuthError;
-      console.error('🔥 Firebase Auth: Sign up error -', authError.code, authError.message);
-      
-      let errorMessage = 'Failed to create account';
-      if (authError.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email already in use';
-      } else if (authError.code === 'auth/weak-password') {
-        errorMessage = 'Password should be at least 6 characters';
-      } else if (authError.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('🔥 Sign up error:', authError.code, authError.message);
+      let msg = 'Failed to create account';
+      if (authError.code === 'auth/email-already-in-use') msg = 'Email already in use';
+      else if (authError.code === 'auth/weak-password') msg = 'Weak password';
+      else if (authError.code === 'auth/invalid-email') msg = 'Invalid email';
+      setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
+  // 🔹 Sign In
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      console.log('🔥 Firebase Auth: Signing in -', email);
       setError(null);
-      
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const storedRole = getStorageItem(`user_role_${userCredential.user.uid}`) as UserRole || 'driver';
-      
-      console.log('🔥 Firebase Auth: Sign in successful -', userCredential.user.uid, storedRole);
-    
-    let profile;
-    if (storedRole === 'driver') {
-      profile = dummyDriverProfile;
-    } else if (storedRole === 'shipper') {
-      profile = dummyShipperProfile;
-    } else {
-      profile = { name: 'Admin User', permissions: ['all'] };
-    }
+      const storedRole = (getStorageItem(`user_role_${userCredential.user.uid}`) as UserRole) || 'driver';
+
+      let profile =
+        storedRole === 'driver'
+          ? dummyDriverProfile
+          : storedRole === 'shipper'
+          ? dummyShipperProfile
+          : { name: 'Admin User', permissions: ['all'] };
 
       const existingUser: User = {
         id: userCredential.user.uid,
@@ -154,97 +129,108 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return existingUser;
     } catch (err) {
       const authError = err as AuthError;
-      console.error('🔥 Firebase Auth: Sign in error -', authError.code, authError.message);
-      
-      let errorMessage = 'Failed to sign in';
-      if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
-        errorMessage = 'Invalid email or password';
-      } else if (authError.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if (authError.code === 'auth/too-many-requests') {
-        errorMessage = 'Too many failed attempts. Please try again later';
-      }
-      
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      console.error('🔥 Sign in error:', authError.code, authError.message);
+      let msg = 'Failed to sign in';
+      if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password')
+        msg = 'Invalid email or password';
+      else if (authError.code === 'auth/invalid-email') msg = 'Invalid email';
+      else if (authError.code === 'auth/too-many-requests') msg = 'Too many attempts, try later';
+      setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
+  // 🔹 Sign Out
   const signOut = useCallback(async () => {
     try {
-      console.log('🔥 Firebase Auth: Signing out');
       await firebaseSignOut(auth);
       setUser(null);
       setError(null);
-      console.log('🔥 Firebase Auth: Sign out successful');
     } catch (err) {
-      console.error('🔥 Firebase Auth: Sign out error -', err);
+      console.error('🔥 Sign out error:', err);
       setError('Failed to sign out');
       throw err;
     }
   }, []);
 
-  const quickTestLogin = useCallback((role: UserRole) => {
-    console.log('🔥 Firebase Auth: Quick test login (bypass) -', role);
+  // 🔹 Quick Test Login (Firestore connected)
+  const quickTestLogin = useCallback(async (role: UserRole) => {
+    console.log('🔥 Firestore Quick Test Login -', role);
     setError(null);
-    
-    let profile;
-    if (role === 'driver') {
-      profile = dummyDriverProfile;
-    } else if (role === 'shipper') {
-      profile = dummyShipperProfile;
-    } else {
-      profile = { name: 'Admin User', permissions: ['all'] };
-    }
+    setLoading(true);
 
-    const testUser: User = {
-      id: `test-${role}-${Date.now()}`,
-      email: `test-${role}@loadrush.app`,
-      role,
-      createdAt: new Date().toISOString(),
-      profile,
-    };
+    try {
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
+      const { app } = await import('@/config/firebase');
+      const db = getFirestore(app);
 
-    setUser(testUser);
-    setLoading(false);
-  }, []);
-  
-  const updateProfile = useCallback(async (updatedProfile: ShipperProfile | DriverProfile) => {
-    if (!user) {
-      throw new Error('No user logged in');
-    }
-    
-    console.log('Updating profile:', updatedProfile);
-    
-    const updatedUser: User = {
-      ...user,
-      profile: updatedProfile,
-    };
-    
-    setUser(updatedUser);
-    
-    if (user.id.startsWith('test-')) {
-      console.log('🔥 Firebase Auth: Test user - profile updated in memory only');
-    } else {
-      setStorageItem(`user_profile_${user.id}`, JSON.stringify(updatedProfile));
-      console.log('🔥 Firebase Auth: Profile updated in storage');
-    }
-  }, [user]);
+      const collectionName = role === 'driver' ? 'driver_test' : 'shipper_test';
+      const docId = role === 'driver' ? 'DRIVER_TEST_001' : 'SHIPPER_TEST_001';
+      const docRef = doc(db, collectionName, docId);
+      const docSnap = await getDoc(docRef);
 
-  const clearError = useCallback(() => {
-    setError(null);
+      if (!docSnap.exists()) throw new Error(`❌ No test document found in ${collectionName}`);
+
+      const data = docSnap.data();
+      console.log('✅ Firestore Test Account Loaded:', data);
+
+      const testUser: User = {
+        id: data.uid || docId,
+        email: data.email || `${role}_test@loadrush.ai`,
+        role: data.role as UserRole,
+        createdAt: data.createdAt || new Date().toISOString(),
+        profile: {
+          ...data,
+          name: data.name || (role === 'driver' ? 'Demo Driver' : 'Demo Shipper'),
+        },
+      };
+
+      setUser(testUser);
+      setStorageItem(`user_role_${testUser.id}`, testUser.role);
+      console.log(`✅ ${role} test account connected successfully`);
+    } catch (err) {
+      console.error('🔥 Firestore Quick Login Error:', err);
+      setError('Failed to load test account');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return useMemo(() => ({
-    user,
-    loading,
-    error,
-    signUp,
-    signIn,
-    signOut,
-    quickTestLogin,
-    updateProfile,
-    isAuthenticated: !!user,
-    clearError,
-  }), [user, loading, error, signUp, signIn, signOut, quickTestLogin, updateProfile, clearError]);
+  // 🔹 Update Profile
+  const updateProfile = useCallback(
+    async (updatedProfile: ShipperProfile | DriverProfile) => {
+      if (!user) throw new Error('No user logged in');
+
+      const updatedUser: User = { ...user, profile: updatedProfile };
+      setUser(updatedUser);
+
+      if (user.id.startsWith('test-')) {
+        console.log('🔥 Test user - profile updated in memory only');
+      } else {
+        setStorageItem(`user_profile_${user.id}`, JSON.stringify(updatedProfile));
+        console.log('🔥 Profile updated in local storage');
+      }
+    },
+    [user]
+  );
+
+  const clearError = useCallback(() => setError(null), []);
+
+  // Return full context
+  return useMemo(
+    () => ({
+      user,
+      loading,
+      error,
+      signUp,
+      signIn,
+      signOut,
+      quickTestLogin,
+      updateProfile,
+      isAuthenticated: !!user,
+      clearError,
+    }),
+    [user, loading, error, signUp, signIn, signOut, quickTestLogin, updateProfile, clearError]
+  );
 });
+
