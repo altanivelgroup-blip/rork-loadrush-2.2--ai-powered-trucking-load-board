@@ -99,7 +99,7 @@ export default function AuthScreen() {
     delayLongPress={1200} // 1.2s hold feels more natural
   >
     <Image
-      source={require('../assets/images/icon.png')}
+      source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
       style={{
         width: 170,
         height: 170,
