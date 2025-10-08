@@ -28,7 +28,7 @@ export default function DriverDashboard() {
   
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const driverState = profile?.truckInfo?.state;
-  const { dieselPrice } = useFuelPrices(driverState);
+  const { dieselPrice, loading: fuelLoading, error: fuelError, lastFetch } = useFuelPrices(driverState);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
     (load) => load.status === 'matched' || load.status === 'in_transit'
@@ -191,19 +191,47 @@ export default function DriverDashboard() {
           </View>
         </View>
 
-        {dieselPrice !== null && (
-          <View style={styles.fuelPriceCard}>
-            <View style={styles.fuelPriceHeader}>
-              <Fuel size={20} color={Colors.light.accent} />
-              <Text style={styles.fuelPriceTitle}>Live Fuel Cost</Text>
-            </View>
-            <Text style={styles.fuelPriceValue}>${dieselPrice.toFixed(2)}</Text>
-            <Text style={styles.fuelPriceSubtext}>per gallon • Diesel</Text>
-            {driverState && (
-              <Text style={styles.fuelPriceLocation}>{driverState}</Text>
-            )}
+        <View style={styles.fuelPriceCard}>
+          <View style={styles.fuelPriceHeader}>
+            <Fuel size={20} color={Colors.light.accent} />
+            <Text style={styles.fuelPriceTitle}>💧 Current Diesel Price (Auto-Updated)</Text>
           </View>
-        )}
+          {fuelLoading && dieselPrice === null ? (
+            <View style={styles.fuelPriceLoading}>
+              <ActivityIndicator size="small" color={Colors.light.accent} />
+              <Text style={styles.fuelPriceLoadingText}>Fetching live prices...</Text>
+            </View>
+          ) : fuelError ? (
+            <View style={styles.fuelPriceError}>
+              <AlertCircle size={16} color={Colors.light.danger} />
+              <Text style={styles.fuelPriceErrorText}>No fuel data found for your region.</Text>
+            </View>
+          ) : dieselPrice !== null ? (
+            <>
+              <Text style={styles.fuelPriceValue}>${dieselPrice.toFixed(2)}</Text>
+              <Text style={styles.fuelPriceSubtext}>per gallon • Diesel</Text>
+              {driverState && (
+                <View style={styles.fuelPriceLocationContainer}>
+                  <MapPin size={14} color={Colors.light.textSecondary} />
+                  <Text style={styles.fuelPriceLocation}>{driverState}</Text>
+                </View>
+              )}
+              {lastFetch && (
+                <View style={styles.fuelPriceTimestamp}>
+                  <Clock size={12} color={Colors.light.textSecondary} />
+                  <Text style={styles.fuelPriceTimestampText}>
+                    Updated {formatLastActive(lastFetch.toISOString())}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <View style={styles.fuelPriceError}>
+              <AlertCircle size={16} color={Colors.light.danger} />
+              <Text style={styles.fuelPriceErrorText}>No fuel data found for your region.</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Performance Overview</Text>
@@ -678,6 +706,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.light.text,
+    flex: 1,
   },
   fuelPriceValue: {
     fontSize: 32,
@@ -688,13 +717,50 @@ const styles = StyleSheet.create({
   fuelPriceSubtext: {
     fontSize: 13,
     color: Colors.light.textSecondary,
+    marginBottom: 8,
   },
-  fuelPriceLocation: {
-    fontSize: 12,
-    color: Colors.light.textSecondary,
-    marginTop: 8,
+  fuelPriceLocationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: Colors.light.border,
+  },
+  fuelPriceLocation: {
+    fontSize: 13,
+    color: Colors.light.text,
+    fontWeight: '600' as const,
+  },
+  fuelPriceTimestamp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  fuelPriceTimestampText: {
+    fontSize: 11,
+    color: Colors.light.textSecondary,
+  },
+  fuelPriceLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  fuelPriceLoadingText: {
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+  },
+  fuelPriceError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  fuelPriceErrorText: {
+    fontSize: 14,
+    color: Colors.light.danger,
+    flex: 1,
   },
 });
