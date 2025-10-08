@@ -67,7 +67,8 @@ export function useFuelPrices(driverState?: string) {
           console.log(`⛽ Diesel price for ${matchedState}: $${targetPrice.toFixed(2)}`);
         } else {
           console.warn(`⚠️ State "${driverState}" not found in API response`);
-          console.log(`📋 Available states: ${data.result.map(s => s.state).slice(0, 5).join(', ')}...`);
+          console.log(`📋 Available states (first 10): ${data.result.map(s => s.state).slice(0, 10).join(', ')}`);
+          console.log(`📋 Total states fetched: ${data.result.length}`);
           const allPrices = data.result
             .map((item) => parseFloat(item.diesel.replace('$', '')))
             .filter((price) => !isNaN(price));
