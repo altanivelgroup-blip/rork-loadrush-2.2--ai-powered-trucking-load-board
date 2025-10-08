@@ -465,9 +465,9 @@ export default function EditProfileScreen() {
       if (user?.id && !user.id.startsWith('test-')) {
         console.log('[EditProfile] Updating Firestore for driver:', user.id);
         
-        const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : undefined;
+        const photoUrl = truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : null;
         
-        await updateDoc(doc(db, 'drivers', user.id), {
+        const updateData: Record<string, any> = {
           'truckInfo.make': truckInfo.make,
           'truckInfo.model': truckInfo.model,
           'truckInfo.year': parseInt(truckInfo.year) || 0,
@@ -477,9 +477,14 @@ export default function EditProfileScreen() {
           'truckInfo.mpg': parseFloat(truckInfo.averageMpg) || 0,
           'truckInfo.odometer': parseInt(truckInfo.currentOdometer) || 0,
           'truckInfo.fuelType': truckInfo.fuelType,
-          'truckInfo.photoUrl': photoUrl,
           'truckInfo.updatedAt': serverTimestamp(),
-        });
+        };
+        
+        if (photoUrl) {
+          updateData['truckInfo.photoUrl'] = photoUrl;
+        }
+        
+        await updateDoc(doc(db, 'drivers', user.id), updateData);
         
         console.log('[EditProfile] ✅ Firestore update successful');
       }
