@@ -72,7 +72,7 @@ export default function ShipperDashboard() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: true }} />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingTop: 16, paddingBottom: insets.bottom + 20 }]}
