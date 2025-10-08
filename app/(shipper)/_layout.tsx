@@ -8,13 +8,8 @@ import Colors from '@/constants/colors';
 const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.headerContainer, { paddingTop: insets.top + 6 }]}>
-      <View style={styles.badgeContainer}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>SHIPPER</Text>
-        </View>
-        <Text style={styles.headerTitle}>{title}</Text>
-      </View>
+    <View style={[styles.headerContainer, { paddingTop: insets.top + 12 }]}>
+      <Text style={styles.headerTitle}>{title}</Text>
       {tagline ? (
         <Text style={styles.headerTagline}>{tagline}</Text>
       ) : (
@@ -114,40 +109,22 @@ const styles = StyleSheet.create({
   headerContainer: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingBottom: 10,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  badge: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#0A0A0A',
+    marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 13,
     color: '#6B7280',
-    marginLeft: 2,
   },
   headerTagline: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '400',
     color: '#6B7280',
-    marginTop: 4,
-    marginLeft: 2,
+    marginTop: 2,
   },
 });
