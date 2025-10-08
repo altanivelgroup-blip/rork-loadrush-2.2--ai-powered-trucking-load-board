@@ -96,6 +96,16 @@ export default function ShipperLayout() {
           tabBarLabel: 'Profile',
         }}
       />
+
+      <Tabs.Screen name="post-single-load" options={{ href: null }} />
+      <Tabs.Screen name="bulk-upload" options={{ href: null }} />
+      <Tabs.Screen name="load-templates" options={{ href: null }} />
+      <Tabs.Screen name="secure-docs-shipper" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="ai-tools" options={{ href: null }} />
+      <Tabs.Screen name="increase-revenue" options={{ href: null }} />
+      <Tabs.Screen name="advanced-security" options={{ href: null }} />
+      <Tabs.Screen name="membership" options={{ href: null }} />
     </Tabs>
   );
 }
