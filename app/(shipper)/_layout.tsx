@@ -23,17 +23,24 @@ const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) =
 export default function ShipperLayout() {
   return (
     <>
-      {/* 🚫 Removes the automatic "(shipper)" label */}
-      <Stack.Screen options={{ headerShown: false, title: '', headerTitle: '' }} />
+      {/* 🚫 Remove automatic header space */}
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          title: '',
+          headerTitle: '',
+          headerTransparent: true,
+          contentStyle: { paddingTop: 0, marginTop: 0 },
+        }}
+      />
 
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: Colors.light.primary,
           headerShown: true,
-          title: '',
-          headerTitle: () => null,
-          headerTitleStyle: { opacity: 0 },
+          headerTransparent: true,
           headerStyle: {
+            height: 64, // tightened header height
             backgroundColor: '#FFFFFF',
             elevation: 0,
             shadowOpacity: 0,
@@ -44,6 +51,7 @@ export default function ShipperLayout() {
             backgroundColor: Colors.light.cardBackground,
             borderTopColor: Colors.light.border,
           },
+          headerTitle: () => null,
         }}
       >
         <Tabs.Screen
@@ -91,71 +99,6 @@ export default function ShipperLayout() {
             tabBarLabel: 'Profile',
           }}
         />
-
-        {/* Hidden / auxiliary routes */}
-        <Tabs.Screen
-          name="ai-tools"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="AI-Powered Tools" />,
-          }}
-        />
-        <Tabs.Screen
-          name="increase-revenue"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Increase Revenue" />,
-          }}
-        />
-        <Tabs.Screen
-          name="advanced-security"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Advanced Security" />,
-          }}
-        />
-        <Tabs.Screen
-          name="membership"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Membership Plans" />,
-          }}
-        />
-        <Tabs.Screen
-          name="post-single-load"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Post Single Load" />,
-          }}
-        />
-        <Tabs.Screen
-          name="bulk-upload"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Bulk Upload Loads" />,
-          }}
-        />
-        <Tabs.Screen
-          name="load-templates"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Load Templates" />,
-          }}
-        />
-        <Tabs.Screen
-          name="secure-docs-shipper"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Secure Document Manager" />,
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            href: null,
-            header: () => <CustomHeader title="Settings" />,
-          }}
-        />
       </Tabs>
     </>
   );
@@ -166,6 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 16,
+    paddingTop: 0, // removed extra top padding
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -202,4 +146,3 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
 });
-
