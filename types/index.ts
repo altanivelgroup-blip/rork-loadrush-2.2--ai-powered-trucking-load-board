@@ -24,6 +24,7 @@ export interface DriverProfile {
     mpg: number;
     fuelType?: string;
     photoUrl?: string;
+    state?: string;
   };
   trailerInfo: {
     type: string;
