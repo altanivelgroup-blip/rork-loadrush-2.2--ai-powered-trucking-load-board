@@ -42,7 +42,7 @@ export function useDriverGPS(driverId: string | undefined): UseDriverGPSReturn {
   };
 
   const updateFirestoreLocation = useCallback(async (coords: { latitude: number; longitude: number }) => {
-    if (!driverId || driverId.startsWith('test-')) {
+    if (!driverId || driverId.startsWith('test-') || driverId.includes('_TEST_')) {
       console.log('[useDriverGPS] Test user - skipping Firestore update');
       return;
     }
