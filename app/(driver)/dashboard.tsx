@@ -91,7 +91,7 @@ export default function DriverDashboard() {
     );
   }
 
-  if (!profileLoading && !firestoreProfile && user?.id && !user.id.startsWith('test-')) {
+  if (!profileLoading && !firestoreProfile && user?.id && !user.id.startsWith('test-') && !user.id.startsWith('DRIVER_TEST_')) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
