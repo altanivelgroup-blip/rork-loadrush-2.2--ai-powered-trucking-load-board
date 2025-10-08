@@ -11,20 +11,20 @@ const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) =
     <View style={[styles.headerContainer, { paddingTop: insets.top + 4 }]}>
       <View style={styles.badgeContainer}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>SHIPPER</Text>
+          <Text style={styles.badgeText}>DRIVER</Text>
         </View>
         <Text style={styles.headerTitle}>{title}</Text>
       </View>
       {tagline ? (
         <Text style={styles.headerTagline}>{tagline}</Text>
       ) : (
-        <Text style={styles.headerSubtitle}>Shipper Portal</Text>
+        <Text style={styles.headerSubtitle}>Driver Portal</Text>
       )}
     </View>
   );
 };
 
-export default function ShipperLayout() {
+export default function DriverLayout() {
   const insets = useSafeAreaInsets();
 
   return (
@@ -53,7 +53,7 @@ export default function ShipperLayout() {
       <Tabs.Screen
         name="dashboard"
         options={{
-          header: () => <CustomHeader title="Dashboard Overview" />,
+          header: () => <CustomHeader title="Dashboard" />,
           tabBarIcon: ({ color }) => <LayoutDashboard size={24} color={color} />,
           tabBarLabel: 'Dashboard',
         }}
@@ -61,30 +61,9 @@ export default function ShipperLayout() {
       <Tabs.Screen
         name="loads"
         options={{
-          header: () => <CustomHeader title="My Loads" />,
+          header: () => <CustomHeader title="Available Loads" />,
           tabBarIcon: ({ color }) => <Package size={24} color={color} />,
-          tabBarLabel: 'My Loads',
-        }}
-      />
-      <Tabs.Screen
-        name="post-loads"
-        options={{
-          header: () => <CustomHeader title="Post & Manage Loads" />,
-          tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
-          tabBarLabel: 'Post Loads',
-        }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          header: () => (
-            <CustomHeader
-              title="Analytics Dashboard"
-              tagline="Track performance, optimize spend, and improve delivery reliability."
-            />
-          ),
-          tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
-          tabBarLabel: 'Analytics',
+          tabBarLabel: 'Loads',
         }}
       />
       <Tabs.Screen
@@ -111,7 +90,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   badge: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#10B981',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
