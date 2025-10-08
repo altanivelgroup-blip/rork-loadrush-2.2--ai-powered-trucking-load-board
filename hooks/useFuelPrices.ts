@@ -25,6 +25,13 @@ export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoli
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   const fetchFuelPrices = useCallback(async () => {
+    const parsePrice = (value?: string): number | null => {
+      if (!value) return null;
+      const cleaned = value.replace('$', '').trim();
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? null : num;
+    };
+
     try {
       console.log(`⛽ Fuel Sync Active - Fetching ${fuelType} prices from CollectAPI`);
       console.log(`🔑 Using API Key: ${FUEL_API_KEY.substring(0, 15)}...`);
@@ -52,7 +59,7 @@ export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoli
       console.log(`✅ Fuel Sync Success - Received data for ${data.result.length} states`);
       console.log(`🔍 Looking for state: "${driverState || 'N/A'}"`);
 
-      let targetPrice: number;
+      let targetPrice: number | null = null;
       let matchedState: string | null = null;
 
       if (driverState) {
@@ -62,18 +69,23 @@ export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoli
 
         if (stateData) {
           const priceString = fuelType === 'diesel' ? stateData.diesel : stateData.gasoline;
-          if (!priceString) {
-            console.warn(`⚠️ No ${fuelType} price data for state "${driverState}"`);
+          const parsedPrice = parsePrice(priceString);
+          
+          if (parsedPrice === null) {
+            console.warn(`⚠️ Invalid fuel data for state:`, driverState, stateData);
             const allPrices = data.result
               .map((item) => {
                 const priceStr = fuelType === 'diesel' ? item.diesel : item.gasoline;
-                return priceStr ? parseFloat(priceStr.replace('$', '')) : NaN;
+                return parsePrice(priceStr);
               })
-              .filter((price) => !isNaN(price));
-            targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-            console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+              .filter((price): price is number => price !== null);
+            
+            if (allPrices.length > 0) {
+              targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
+              console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+            }
           } else {
-            targetPrice = parseFloat(priceString.replace('$', ''));
+            targetPrice = parsedPrice;
             matchedState = stateData.state;
             console.log(`✅ State match found: ${matchedState}`);
             console.log(`⛽ ${fuelType.charAt(0).toUpperCase() + fuelType.slice(1)} price for ${matchedState}: $${targetPrice.toFixed(2)}`);
@@ -85,22 +97,28 @@ export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoli
           const allPrices = data.result
             .map((item) => {
               const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
-              return priceString ? parseFloat(priceString.replace('$', '')) : NaN;
+              return parsePrice(priceString);
             })
-            .filter((price) => !isNaN(price));
-          targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-          console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+            .filter((price): price is number => price !== null);
+          
+          if (allPrices.length > 0) {
+            targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
+            console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+          }
         }
       } else {
         console.log(`ℹ️ No driver state specified, calculating U.S. average`);
         const allPrices = data.result
           .map((item) => {
             const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
-            return priceString ? parseFloat(priceString.replace('$', '')) : NaN;
+            return parsePrice(priceString);
           })
-          .filter((price) => !isNaN(price));
-        targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-        console.log(`⛽ U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+          .filter((price): price is number => price !== null);
+        
+        if (allPrices.length > 0) {
+          targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
+          console.log(`⛽ U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+        }
       }
 
       setDieselPrice(targetPrice);
