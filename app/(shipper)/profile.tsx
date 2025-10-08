@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Alert, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ShipperProfile } from '@/types';
 import Colors from '@/constants/colors';
 import { 
@@ -97,6 +97,8 @@ export default function ShipperProfileScreen() {
     setIsEditing(false);
   };
 
+  console.log('Edit mode:', isEditing, 'Save handler:', handleSave, 'Cancel handler:', handleCancel);
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -119,22 +121,6 @@ export default function ShipperProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: true,
-          headerRight: isEditing ? () => (
-            <View style={styles.editActions}>
-              <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                <Text style={styles.saveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          ) : undefined,
-        }} 
-      />
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
