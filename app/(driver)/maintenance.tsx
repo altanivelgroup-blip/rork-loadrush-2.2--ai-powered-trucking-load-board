@@ -56,10 +56,10 @@ const INITIAL_VEHICLES: Vehicle[] = [
     id: 'v1',
     name: 'Truck #1',
     type: 'Truck',
-    make: 'Freightliner',
-    model: 'Cascadia',
+    make: 'Ram',
+    model: '3500 Dually',
     year: 2021,
-    vin: '1FUJGHDV8MLBR1234',
+    vin: '3C63RRJL5MG123456',
     status: 'Active',
     mileage: 145230
   },
@@ -663,7 +663,7 @@ export default function MaintenanceScreen() {
                   style={styles.formInput}
                   value={vehicleForm.make}
                   onChangeText={(text) => setVehicleForm({ ...vehicleForm, make: text })}
-                  placeholder="e.g., Freightliner"
+                  placeholder="e.g., Ram"
                   placeholderTextColor="#9CA3AF"
                 />
               </View>

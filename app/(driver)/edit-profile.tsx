@@ -170,23 +170,23 @@ export default function EditProfileScreen() {
   });
 
   const [truckInfo, setTruckInfo] = useState<TruckInfo>({
-    truckType: 'Box Truck',
-    make: 'Freightliner',
-    model: 'M2 106',
+    truckType: 'Hotshot Pickup',
+    make: 'Ram',
+    model: '3500 Dually',
     year: '2020',
-    vin: '1FVACWDT0LHBX1234',
+    vin: '3C63RRJL5MG123456',
     licensePlate: 'TX-ABC1234',
-    fuelTankSize: '100',
-    averageMpg: '8.5',
+    fuelTankSize: '52',
+    averageMpg: '12.5',
     fuelType: 'diesel',
     currentOdometer: '125000',
     photos: [],
   });
 
   const [trailerInfo, setTrailerInfo] = useState<TrailerInfo>({
-    trailerType: 'Flatbed',
-    length: '48',
-    capacity: '48000',
+    trailerType: 'Car Hauler',
+    length: '40',
+    capacity: '20000',
     vin: '1T9BE4828Y1234567',
     licensePlate: 'TX-TRL5678',
     photos: [],
@@ -695,7 +695,7 @@ export default function EditProfileScreen() {
             style={styles.input}
             value={truckInfo.make}
             onChangeText={(text) => setTruckInfo(prev => ({ ...prev, make: text }))}
-            placeholder="e.g., Freightliner"
+            placeholder="e.g., Ram"
             testID="input-truckMake"
           />
         </View>

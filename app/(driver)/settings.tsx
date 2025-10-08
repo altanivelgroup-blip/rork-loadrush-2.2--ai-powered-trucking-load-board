@@ -67,7 +67,7 @@ export default function SettingsScreen() {
           { date: '2024-01-15', category: 'Maintenance', amount: 320 },
         ],
         vehicles: [
-          { type: 'Truck', make: 'Freightliner', model: 'Cascadia', year: 2020, mileage: 125000 },
+          { type: 'Truck', make: 'Ram', model: '3500 Dually', year: 2020, mileage: 125000 },
         ],
       };
 

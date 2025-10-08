@@ -48,7 +48,7 @@ const TRUCK_TYPES = [
   'Hotshot Pickup',
   'Sprinter Van',
   'Straight Truck',
-  'Semi Truck',
+
   'Other'
 ];
 
@@ -174,7 +174,7 @@ export default function AddVehicleScreen() {
             style={styles.input}
             value={truckInfo.make}
             onChangeText={(text) => setTruckInfo(prev => ({ ...prev, make: text }))}
-            placeholder="e.g., Freightliner"
+            placeholder="e.g., Ram"
             testID="input-truckMake"
           />
         </View>
