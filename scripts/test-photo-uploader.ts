@@ -10,7 +10,7 @@
  */
 
 import { storage } from '../config/firebase';
-import { ref } from 'firebase/storage';
+import { ref, FirebaseStorage } from 'firebase/storage';
 
 console.log('\n🔍 PhotoUploader & PhotoPicker Performance Check\n');
 console.log('═'.repeat(60));
@@ -19,9 +19,10 @@ console.log('═'.repeat(60));
 console.log('\n1️⃣  Firebase Storage Initialization');
 console.log('─'.repeat(60));
 try {
-  if (storage) {
+  const storageInstance: FirebaseStorage | undefined = storage;
+  if (storageInstance) {
     console.log('✅ Firebase Storage is initialized');
-    console.log(`   Bucket: ${storage.app.options.storageBucket}`);
+    console.log(`   Bucket: ${storageInstance.app.options.storageBucket}`);
   } else {
     console.log('❌ Firebase Storage is NOT initialized');
   }
@@ -33,7 +34,8 @@ try {
 console.log('\n2️⃣  Storage Reference Creation');
 console.log('─'.repeat(60));
 try {
-  const testRef = ref(storage, 'uploads/driver/test-user/profile.jpg');
+  const storageInstance: FirebaseStorage | undefined = storage;
+  const testRef = ref(storageInstance!, 'uploads/driver/test-user/profile.jpg');
   console.log('✅ Storage reference created successfully');
   console.log(`   Path: ${testRef.fullPath}`);
   console.log(`   Bucket: ${testRef.bucket}`);
