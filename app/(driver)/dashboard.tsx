@@ -1,3 +1,9 @@
+import { useEffect } from "react";
+
+useEffect(() => {
+  console.log("FUEL API URL:", process.env.EXPO_PUBLIC_FUEL_API);
+  console.log("FUEL API KEY:", process.env.EXPO_PUBLIC_FUEL_KEY);
+}, []);
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
