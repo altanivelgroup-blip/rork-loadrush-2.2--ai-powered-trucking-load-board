@@ -22,10 +22,18 @@ export const useReverseGeocode = () => {
         const { coords } = await Location.getCurrentPositionAsync({});
         console.log("📍 GPS Coordinates:", coords.latitude, coords.longitude);
 
-        const url = `https://api.openrouteservice.org/geocode/reverse?api_key=${process.env.EXPO_PUBLIC_ORS_API}&point.lon=${coords.longitude}&point.lat=${coords.latitude}`;
+        const apiKey = process.env.EXPO_PUBLIC_ORS_API;
+        if (!apiKey) {
+          throw new Error("OpenRouteService API key not configured");
+        }
+
+        const url = `https://api.openrouteservice.org/geocode/reverse?api_key=${apiKey}&point.lon=${coords.longitude}&point.lat=${coords.latitude}`;
         
         const res = await fetch(url);
         if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("Invalid OpenRouteService API key");
+          }
           throw new Error(`ORS API error: ${res.status}`);
         }
 
