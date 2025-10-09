@@ -22,7 +22,7 @@ export const useReverseGeocode = () => {
         const { coords } = await Location.getCurrentPositionAsync({});
         console.log("📍 GPS Coordinates:", coords.latitude, coords.longitude);
 
-        const apiKey = process.env.EXPO_PUBLIC_ORS_API;
+        const apiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
         if (!apiKey) {
           throw new Error("OpenRouteService API key not configured");
         }
