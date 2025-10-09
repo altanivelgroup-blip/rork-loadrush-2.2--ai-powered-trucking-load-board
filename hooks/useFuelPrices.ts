@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import * as Location from 'expo-location';
 
 export interface FuelPriceData {
   state: string;
-  gasoline: string;
+  regular: string;
   midGrade: string;
   premium: string;
   diesel: string;
@@ -13,13 +14,32 @@ interface FuelPricesResponse {
   result: FuelPriceData[];
 }
 
-const FUEL_API_URL = process.env.EXPO_PUBLIC_COLLECTAPI_URL || 'https://api.collectapi.com/gasPrice/allUsaPrice';
-const FUEL_API_KEY_RAW = process.env.EXPO_PUBLIC_COLLECTAPI_KEY || '3h76TGQbMdx0Tsny6kjteC:1Yfg3B0w4EkadHza3kUGH6';
-const FUEL_API_KEY = FUEL_API_KEY_RAW.startsWith('apikey ') ? FUEL_API_KEY_RAW : `apikey ${FUEL_API_KEY_RAW}`;
+const FUEL_API_URL =
+  process.env.EXPO_PUBLIC_FUEL_API || 'https://api.fuelpricestracker.com/fuel-costs';
+const FUEL_API_KEY = process.env.EXPO_PUBLIC_FUEL_KEY || '';
+const ORS_API_KEY = process.env.EXPO_PUBLIC_ORS_API || '';
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 
-export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoline' = 'diesel') {
-  const [dieselPrice, setDieselPrice] = useState<number | null>(null);
+// 🧭 Reverse-Geocode GPS → State
+async function getStateFromGPS(): Promise<string | null> {
+  try {
+    const { coords } = await Location.getCurrentPositionAsync({});
+    const url = `https://api.openrouteservice.org/geocode/reverse?api_key=${ORS_API_KEY}&point.lon=${coords.longitude}&point.lat=${coords.latitude}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const state =
+      data.features?.[0]?.properties?.region ||
+      data.features?.[0]?.properties?.state ||
+      null;
+    return state;
+  } catch (err) {
+    console.warn('⚠️ Reverse-geocode failed', err);
+    return null;
+  }
+}
+
+export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
+  const [price, setPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
@@ -33,123 +53,80 @@ export function useFuelPrices(driverState?: string, fuelType: 'diesel' | 'gasoli
     };
 
     try {
-      console.log(`⛽ Fuel Sync Active - Fetching ${fuelType} prices from CollectAPI`);
-      console.log(`🔑 Using API Key: ${FUEL_API_KEY.substring(0, 15)}...`);
       setLoading(true);
       setError(null);
 
+      // 🌎 Step 1: get current state from GPS
+      const currentState = await getStateFromGPS();
+      console.log('📍 GPS detected state:', currentState);
+
+      // 🌎 Step 2: Fetch price list
       const response = await fetch(FUEL_API_URL, {
         method: 'GET',
         headers: {
-          'authorization': FUEL_API_KEY,
-          'content-type': 'application/json',
+          Authorization: `Bearer ${FUEL_API_KEY}`,
+          'Content-Type': 'application/json',
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-
+      if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
       const data: FuelPricesResponse = await response.json();
 
-      if (!data.success || !data.result || data.result.length === 0) {
-        throw new Error('Invalid API response format');
-      }
-
-      console.log(`✅ Fuel Sync Success - Received data for ${data.result.length} states`);
-      console.log(`🔍 Looking for state: "${driverState || 'N/A'}"`);
+      if (!data.success || !data.result?.length)
+        throw new Error('Invalid API response');
 
       let targetPrice: number | null = null;
-      let matchedState: string | null = null;
-
-      if (driverState) {
-        const stateData = data.result.find(
-          (item) => item.state.toLowerCase() === driverState.toLowerCase()
+      if (currentState) {
+        const match = data.result.find(
+          (item) => item.state.toLowerCase() === currentState.toLowerCase()
         );
-
-        if (stateData) {
-          const priceString = fuelType === 'diesel' ? stateData.diesel : stateData.gasoline;
-          const parsedPrice = parsePrice(priceString);
-          
-          if (parsedPrice === null) {
-            console.warn(`⚠️ Invalid fuel data for state:`, driverState, stateData);
-            const allPrices = data.result
-              .map((item) => {
-                const priceStr = fuelType === 'diesel' ? item.diesel : item.gasoline;
-                return parsePrice(priceStr);
-              })
-              .filter((price): price is number => price !== null);
-            
-            if (allPrices.length > 0) {
-              targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-              console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
-            }
-          } else {
-            targetPrice = parsedPrice;
-            matchedState = stateData.state;
-            console.log(`✅ State match found: ${matchedState}`);
-            console.log(`⛽ ${fuelType.charAt(0).toUpperCase() + fuelType.slice(1)} price for ${matchedState}: $${targetPrice.toFixed(2)}`);
-          }
+        if (match) {
+          const priceStr =
+            fuelType === 'diesel'
+              ? match.diesel
+              : match.regular || match.midGrade || match.premium;
+          targetPrice = parsePrice(priceStr);
+          console.log(
+            `✅ ${fuelType} price for ${currentState}: $${targetPrice?.toFixed(2)}`
+          );
         } else {
-          console.warn(`⚠️ State "${driverState}" not found in API response`);
-          console.log(`📋 Available states (first 10): ${data.result.map(s => s.state).slice(0, 10).join(', ')}`);
-          console.log(`📋 Total states fetched: ${data.result.length}`);
-          const allPrices = data.result
-            .map((item) => {
-              const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
-              return parsePrice(priceString);
-            })
-            .filter((price): price is number => price !== null);
-          
-          if (allPrices.length > 0) {
-            targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-            console.log(`⛽ Using U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
-          }
-        }
-      } else {
-        console.log(`ℹ️ No driver state specified, calculating U.S. average`);
-        const allPrices = data.result
-          .map((item) => {
-            const priceString = fuelType === 'diesel' ? item.diesel : item.gasoline;
-            return parsePrice(priceString);
-          })
-          .filter((price): price is number => price !== null);
-        
-        if (allPrices.length > 0) {
-          targetPrice = allPrices.reduce((sum, price) => sum + price, 0) / allPrices.length;
-          console.log(`⛽ U.S. average ${fuelType} price: $${targetPrice.toFixed(2)}`);
+          console.warn('⚠️ State not found, averaging all prices');
         }
       }
 
-      setDieselPrice(targetPrice);
+      if (targetPrice === null) {
+        const all = data.result
+          .map((i) =>
+            parsePrice(fuelType === 'diesel' ? i.diesel : i.regular)
+          )
+          .filter((n): n is number => n !== null);
+        targetPrice =
+          all.reduce((sum, val) => sum + val, 0) / (all.length || 1);
+        console.log(
+          `⛽ Using national avg ${fuelType} price: $${targetPrice.toFixed(2)}`
+        );
+      }
+
+      setPrice(targetPrice);
       setLastFetch(new Date());
       setLoading(false);
     } catch (err) {
       console.error('❌ Fuel Sync Failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch fuel prices');
+      setError(
+        err instanceof Error ? err.message : 'Failed to fetch fuel prices'
+      );
       setLoading(false);
     }
-  }, [driverState, fuelType]);
+  }, [fuelType]);
 
   useEffect(() => {
-    const shouldFetch = !lastFetch || Date.now() - lastFetch.getTime() > CACHE_DURATION;
+    const shouldFetch =
+      !lastFetch || Date.now() - lastFetch.getTime() > CACHE_DURATION;
 
-    if (shouldFetch) {
-      fetchFuelPrices();
-    }
-
-    const interval = setInterval(() => {
-      fetchFuelPrices();
-    }, CACHE_DURATION);
-
+    if (shouldFetch) fetchFuelPrices();
+    const interval = setInterval(fetchFuelPrices, CACHE_DURATION);
     return () => clearInterval(interval);
   }, [fetchFuelPrices, lastFetch]);
 
-  return {
-    dieselPrice,
-    loading,
-    error,
-    lastFetch,
-    refetch: fetchFuelPrices,
-  };
+  return { price, loading, error, lastFetch, refetch: fetchFuelPrices };
 }
