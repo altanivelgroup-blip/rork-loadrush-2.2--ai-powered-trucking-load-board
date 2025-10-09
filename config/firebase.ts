@@ -1,7 +1,7 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 
 const firebaseConfig = {
@@ -13,10 +13,10 @@ const firebaseConfig = {
   appId: "1:71906929791:web:4ece0f5394c4bb6ff4634a"
 };
 
-let app;
-let auth;
-let db;
-let storage;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

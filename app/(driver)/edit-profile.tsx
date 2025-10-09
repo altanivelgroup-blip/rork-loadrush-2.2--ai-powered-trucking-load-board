@@ -8,8 +8,7 @@ import {
   TextInput,
   Switch,
   Alert,
-  Platform,
-  ActivityIndicator
+  Platform
 } from 'react-native';
 import { db } from '@/config/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -28,12 +27,11 @@ import {
   XCircle,
   Clock,
   Camera,
-  Image as ImageIcon,
-  ImagePlus
+  Image as ImageIcon
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as ImagePicker from 'expo-image-picker';
+import PhotoUploader from '@/components/PhotoUploader';
 
 type TabKey = 'personal' | 'business' | 'truck' | 'trailer' | 'photos' | 'documents';
 
@@ -145,12 +143,6 @@ export default function EditProfileScreen() {
 
   const [activeTab, setActiveTab] = useState<TabKey>('personal');
   const [isSaving, setIsSaving] = useState(false);
-  const [truckUploadProgress, setTruckUploadProgress] = useState<number>(0);
-  const [truckIsUploading, setTruckIsUploading] = useState<boolean>(false);
-  const [truckUploadComplete, setTruckUploadComplete] = useState<boolean>(false);
-  const [trailerUploadProgress, setTrailerUploadProgress] = useState<number>(0);
-  const [trailerIsUploading, setTrailerIsUploading] = useState<boolean>(false);
-  const [trailerUploadComplete, setTrailerUploadComplete] = useState<boolean>(false);
 
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
     fullName: 'John Smith',
@@ -280,169 +272,29 @@ export default function EditProfileScreen() {
     { key: 'documents' as TabKey, label: 'Documents', icon: FileText },
   ], []);
 
-  const simulateTruckUpload = useCallback(async () => {
-    setTruckIsUploading(true);
-    setTruckUploadProgress(0);
-    setTruckUploadComplete(false);
-
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setTruckUploadProgress(i);
-    }
-
-    setTruckIsUploading(false);
-    setTruckUploadComplete(true);
-
-    setTimeout(() => {
-      setTruckUploadComplete(false);
-      setTruckUploadProgress(0);
-    }, 2000);
+  const handleTruckPhotoUploaded = useCallback((url: string) => {
+    console.log('[EditProfile] Truck photo uploaded:', url);
+    const photo = {
+      uri: url,
+      type: 'image/jpeg',
+    };
+    setTruckInfo(prev => ({
+      ...prev,
+      photos: [...prev.photos, photo],
+    }));
   }, []);
 
-  const simulateTrailerUpload = useCallback(async () => {
-    setTrailerIsUploading(true);
-    setTrailerUploadProgress(0);
-    setTrailerUploadComplete(false);
-
-    for (let i = 0; i <= 100; i += 10) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setTrailerUploadProgress(i);
-    }
-
-    setTrailerIsUploading(false);
-    setTrailerUploadComplete(true);
-
-    setTimeout(() => {
-      setTrailerUploadComplete(false);
-      setTrailerUploadProgress(0);
-    }, 2000);
+  const handleTrailerPhotoUploaded = useCallback((url: string) => {
+    console.log('[EditProfile] Trailer photo uploaded:', url);
+    const photo = {
+      uri: url,
+      type: 'image/jpeg',
+    };
+    setTrailerInfo(prev => ({
+      ...prev,
+      photos: [...prev.photos, photo],
+    }));
   }, []);
-
-  const handleTakeTruckPhoto = useCallback(async () => {
-    try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'Camera permission is required to take photos');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        await simulateTruckUpload();
-        
-        const photo = {
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-        };
-        setTruckInfo(prev => ({
-          ...prev,
-          photos: [...prev.photos, photo],
-        }));
-        console.log('[EditProfile] Added truck photo from camera');
-      }
-    } catch (error) {
-      console.error('[EditProfile] Error taking truck photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
-      setTruckIsUploading(false);
-    }
-  }, [simulateTruckUpload]);
-
-  const handleChooseTruckPhoto = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        await simulateTruckUpload();
-        
-        const photo = {
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-        };
-        setTruckInfo(prev => ({
-          ...prev,
-          photos: [...prev.photos, photo],
-        }));
-        console.log('[EditProfile] Added truck photo from gallery');
-      }
-    } catch (error) {
-      console.error('[EditProfile] Error picking truck photo:', error);
-      Alert.alert('Error', 'Failed to pick photo');
-      setTruckIsUploading(false);
-    }
-  }, [simulateTruckUpload]);
-
-  const handleTakeTrailerPhoto = useCallback(async () => {
-    try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'Camera permission is required to take photos');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        await simulateTrailerUpload();
-        
-        const photo = {
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-        };
-        setTrailerInfo(prev => ({
-          ...prev,
-          photos: [...prev.photos, photo],
-        }));
-        console.log('[EditProfile] Added trailer photo from camera');
-      }
-    } catch (error) {
-      console.error('[EditProfile] Error taking trailer photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
-      setTrailerIsUploading(false);
-    }
-  }, [simulateTrailerUpload]);
-
-  const handleChooseTrailerPhoto = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        await simulateTrailerUpload();
-        
-        const photo = {
-          uri: result.assets[0].uri,
-          type: 'image/jpeg',
-        };
-        setTrailerInfo(prev => ({
-          ...prev,
-          photos: [...prev.photos, photo],
-        }));
-        console.log('[EditProfile] Added trailer photo from gallery');
-      }
-    } catch (error) {
-      console.error('[EditProfile] Error picking trailer photo:', error);
-      Alert.alert('Error', 'Failed to pick photo');
-      setTrailerIsUploading(false);
-    }
-  }, [simulateTrailerUpload]);
 
   const handleSave = useCallback(async () => {
     console.log('[EditProfile] Saving profile data for driverId:', driverId);
@@ -831,54 +683,15 @@ export default function EditProfileScreen() {
         </View>
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={[styles.addButton, truckIsUploading && styles.buttonDisabled]}
-          onPress={handleTakeTruckPhoto}
-          activeOpacity={0.7}
-          disabled={truckIsUploading}
-          testID="button-take-truck-photo"
-        >
-          <Camera size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Take Photo</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.addPhotoButton, truckIsUploading && styles.buttonDisabled]}
-          onPress={handleChooseTruckPhoto}
-          activeOpacity={0.7}
-          disabled={truckIsUploading}
-          testID="button-choose-truck-photo"
-        >
-          <ImagePlus size={18} color="#3B82F6" />
-          <Text style={styles.addPhotoButtonText}>Choose Photo</Text>
-        </TouchableOpacity>
+      <View style={styles.photoUploaderSection}>
+        <Text style={styles.photoUploaderLabel}>Upload Truck Photo</Text>
+        <PhotoUploader
+          userId={driverId}
+          role="driver"
+          onUploaded={handleTruckPhotoUploaded}
+          currentPhotoUrl={truckInfo.photos.length > 0 ? truckInfo.photos[0].uri : undefined}
+        />
       </View>
-
-      {(truckIsUploading || truckUploadComplete) && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressHeader}>
-            {truckIsUploading ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
-            ) : (
-              <CheckCircle size={20} color="#10B981" />
-            )}
-            <Text style={styles.progressText}>
-              {truckIsUploading ? 'Uploading...' : 'Upload Complete!'}
-            </Text>
-            <Text style={styles.progressPercentage}>{truckUploadProgress}%</Text>
-          </View>
-          <View style={styles.progressBarBackground}>
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { width: `${truckUploadProgress}%` },
-                truckUploadComplete && styles.progressBarComplete
-              ]} 
-            />
-          </View>
-        </View>
-      )}
 
       {truckInfo.photos.length > 0 && (
         <View style={styles.photosSection}>
@@ -892,7 +705,7 @@ export default function EditProfileScreen() {
         </View>
       )}
     </View>
-  ), [truckInfo, truckIsUploading, truckUploadProgress, truckUploadComplete, handleTakeTruckPhoto, handleChooseTruckPhoto]);
+  ), [truckInfo, handleTruckPhotoUploaded, driverId]);
 
   const renderTrailerTab = useCallback(() => (
     <View style={styles.tabContent}>
@@ -988,54 +801,15 @@ export default function EditProfileScreen() {
         </Text>
       </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity 
-          style={[styles.addButton, trailerIsUploading && styles.buttonDisabled]}
-          onPress={handleTakeTrailerPhoto}
-          activeOpacity={0.7}
-          disabled={trailerIsUploading}
-          testID="button-take-trailer-photo"
-        >
-          <Camera size={18} color="#fff" />
-          <Text style={styles.addButtonText}>Take Photo</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.addPhotoButton, trailerIsUploading && styles.buttonDisabled]}
-          onPress={handleChooseTrailerPhoto}
-          activeOpacity={0.7}
-          disabled={trailerIsUploading}
-          testID="button-choose-trailer-photo"
-        >
-          <ImagePlus size={18} color="#3B82F6" />
-          <Text style={styles.addPhotoButtonText}>Choose Photo</Text>
-        </TouchableOpacity>
+      <View style={styles.photoUploaderSection}>
+        <Text style={styles.photoUploaderLabel}>Upload Trailer Photo</Text>
+        <PhotoUploader
+          userId={driverId}
+          role="driver"
+          onUploaded={handleTrailerPhotoUploaded}
+          currentPhotoUrl={trailerInfo.photos.length > 0 ? trailerInfo.photos[0].uri : undefined}
+        />
       </View>
-
-      {(trailerIsUploading || trailerUploadComplete) && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressHeader}>
-            {trailerIsUploading ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
-            ) : (
-              <CheckCircle size={20} color="#10B981" />
-            )}
-            <Text style={styles.progressText}>
-              {trailerIsUploading ? 'Uploading...' : 'Upload Complete!'}
-            </Text>
-            <Text style={styles.progressPercentage}>{trailerUploadProgress}%</Text>
-          </View>
-          <View style={styles.progressBarBackground}>
-            <View 
-              style={[
-                styles.progressBarFill, 
-                { width: `${trailerUploadProgress}%` },
-                trailerUploadComplete && styles.progressBarComplete
-              ]} 
-            />
-          </View>
-        </View>
-      )}
 
       {trailerInfo.photos.length > 0 && (
         <View style={styles.photosSection}>
@@ -1049,7 +823,7 @@ export default function EditProfileScreen() {
         </View>
       )}
     </View>
-  ), [trailerInfo, trailerIsUploading, trailerUploadProgress, trailerUploadComplete, handleTakeTrailerPhoto, handleChooseTrailerPhoto]);
+  ), [trailerInfo, handleTrailerPhotoUploaded, driverId]);
 
   const handlePhotoUpload = useCallback((photoKey: keyof PhotoInfo) => {
     console.log(`[EditProfile] Upload photo: ${photoKey}`);
@@ -1983,6 +1757,14 @@ const styles = StyleSheet.create({
   photoItemText: {
     fontSize: 13,
     color: '#4B5563',
+  },
+  photoUploaderSection: {
+    gap: 8,
+  },
+  photoUploaderLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#374151',
   },
   fuelTypeContainer: {
     flexDirection: 'row',
