@@ -26,6 +26,7 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
 
       const data = await response.json();
       console.log("✅ Fuel API Response:", data);
+      console.log("🧠 Raw JSON:", JSON.stringify(data, null, 2));
 
       const value = parseFloat(data?.price ?? data?.average ?? 0);
       if (!isNaN(value) && value > 0) {
