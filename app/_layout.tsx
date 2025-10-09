@@ -16,12 +16,12 @@ function RootLayoutNav() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
-    
     if (loading) {
-      console.log('⏳ Still loading auth state...');
       return;
     }
+
+    SplashScreen.hideAsync();
+    console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
 
     const inAuthGroup = segments[0] === 'auth';
 
@@ -42,7 +42,7 @@ function RootLayoutNav() {
     } else {
       console.log('✅ Navigation state is correct, no redirect needed');
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, router]);
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -55,14 +55,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    console.log('🚀 RootLayout mounted');
-    const timer = setTimeout(() => {
-      console.log('🎬 Hiding splash screen');
-      SplashScreen.hideAsync();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+  console.log('🚀 RootLayout mounted');
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
