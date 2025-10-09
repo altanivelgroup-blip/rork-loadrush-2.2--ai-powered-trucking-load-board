@@ -1,10 +1,4 @@
-import { useEffect } from "react";
-
-useEffect(() => {
-  console.log("FUEL API URL:", process.env.EXPO_PUBLIC_FUEL_API);
-  console.log("FUEL API KEY:", process.env.EXPO_PUBLIC_FUEL_KEY);
-}, []);
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +29,12 @@ export default function DriverDashboard() {
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const driverState = profile?.truckInfo?.state;
   const fuelType = (profile?.truckInfo?.fuelType === 'gasoline' ? 'gasoline' : 'diesel') as 'diesel' | 'gasoline';
-  const { dieselPrice, loading: fuelLoading, error: fuelError, lastFetch } = useFuelPrices(driverState, fuelType);
+  const { price: fuelPrice, loading: fuelLoading, error: fuelError, lastFetch } = useFuelPrices(fuelType);
+  
+  useEffect(() => {
+    console.log("FUEL API URL:", process.env.EXPO_PUBLIC_FUEL_API);
+    console.log("FUEL API KEY:", process.env.EXPO_PUBLIC_FUEL_KEY);
+  }, []);
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
     (load) => load.status === 'matched' || load.status === 'in_transit'
@@ -203,7 +202,7 @@ export default function DriverDashboard() {
             <Fuel size={20} color={Colors.light.accent} />
             <Text style={styles.fuelPriceTitle}>{fuelType === 'diesel' ? '💧' : '⛽'} Current {fuelType === 'diesel' ? 'Diesel' : 'Gasoline'} Price (Auto-Updated)</Text>
           </View>
-          {fuelLoading && dieselPrice === null ? (
+          {fuelLoading && fuelPrice === null ? (
             <View style={styles.fuelPriceLoading}>
               <ActivityIndicator size="small" color={Colors.light.accent} />
               <Text style={styles.fuelPriceLoadingText}>Fetching live prices...</Text>
@@ -213,9 +212,9 @@ export default function DriverDashboard() {
               <AlertCircle size={16} color={Colors.light.danger} />
               <Text style={styles.fuelPriceErrorText}>No fuel data found for your region.</Text>
             </View>
-          ) : dieselPrice !== null ? (
+          ) : fuelPrice !== null && fuelPrice !== undefined ? (
             <>
-              <Text style={styles.fuelPriceValue}>${dieselPrice.toFixed(2)}</Text>
+              <Text style={styles.fuelPriceValue}>${fuelPrice.toFixed(2)}</Text>
               <Text style={styles.fuelPriceSubtext}>per gallon • {fuelType === 'diesel' ? 'Diesel' : 'Gasoline'}</Text>
               {driverState && (
                 <View style={styles.fuelPriceLocationContainer}>
