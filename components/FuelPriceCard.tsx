@@ -80,14 +80,6 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
           <View style={styles.shimmerBar} />
           <Text style={styles.shimmerText}>Fetching live prices...</Text>
         </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <AlertCircle size={16} color={Colors.light.danger} />
-          <Text style={styles.errorText}>No fuel data found for your region.</Text>
-          <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
       ) : fuelPrice !== null && fuelPrice !== undefined ? (
         <>
           <Text style={styles.priceValue}>${fuelPrice.toFixed(2)}</Text>
@@ -104,6 +96,12 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
             <View style={styles.timestampContainer}>
               <Clock size={12} color={Colors.light.textSecondary} />
               <Text style={styles.timestampText}>Updated {lastUpdateText}</Text>
+            </View>
+          )}
+          {error && (
+            <View style={styles.warningBanner}>
+              <AlertCircle size={14} color={Colors.light.warning} />
+              <Text style={styles.warningText}>Using estimated price</Text>
             </View>
           )}
         </>
@@ -239,5 +237,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600' as const,
     color: Colors.light.danger,
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF3CD',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FFE69C',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#856404',
+    fontWeight: '500' as const,
   },
 });
