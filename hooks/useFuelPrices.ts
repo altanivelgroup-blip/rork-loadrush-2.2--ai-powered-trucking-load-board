@@ -16,12 +16,19 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
       setLoading(true);
       setError(null);
 
+      if (!FUEL_API_URL || !FUEL_API_KEY) {
+        throw new Error('Fuel API credentials not configured');
+      }
+
       const response = await fetch(`${FUEL_API_URL}?fuel_type=${fuelType}`, {
         headers: { Authorization: `Bearer ${FUEL_API_KEY}` },
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        if (response.status === 401) {
+          throw new Error('Invalid API key - please check your credentials');
+        }
+        throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
@@ -41,7 +48,7 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
     } finally {
       setLoading(false);
     }
-  }, [fuelType]);
+  }, [fuelType, FUEL_API_URL, FUEL_API_KEY]);
 
   useEffect(() => {
     const shouldFetch = !lastFetch || Date.now() - lastFetch.getTime() > CACHE_DURATION;
@@ -49,7 +56,7 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
 
     const interval = setInterval(fetchFuelPrice, CACHE_DURATION);
     return () => clearInterval(interval);
-  }, [fetchFuelPrice, lastFetch]);
+  }, [fetchFuelPrice, lastFetch, CACHE_DURATION]);
 
   return { price, loading, error, lastFetch, refetch: fetchFuelPrice };
 }
