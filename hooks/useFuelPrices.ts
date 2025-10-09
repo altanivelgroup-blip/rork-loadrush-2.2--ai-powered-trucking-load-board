@@ -21,7 +21,11 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
       }
 
       const response = await fetch(`${FUEL_API_URL}?fuel_type=${fuelType}`, {
-        headers: { Authorization: `Bearer ${FUEL_API_KEY}` },
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${FUEL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -44,7 +48,12 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
       }
     } catch (err) {
       console.error('❌ Fuel Sync Failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch fuel prices');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch fuel prices';
+      setError(errorMessage);
+      
+      const fallbackPrice = fuelType === 'diesel' ? 3.89 : 3.45;
+      setPrice(fallbackPrice);
+      console.log(`⚠️ Using fallback price: ${fallbackPrice}/gal`);
     } finally {
       setLoading(false);
     }

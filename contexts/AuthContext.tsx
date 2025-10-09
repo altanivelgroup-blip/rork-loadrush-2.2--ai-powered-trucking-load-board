@@ -199,11 +199,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const docRef = doc(db, collectionName, docId);
       
       const fetchPromise = getDoc(docRef);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firestore timeout')), 5000)
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Firestore timeout - using fallback')), 3000)
       );
       
-      const docSnap = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      const docSnap = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (!docSnap.exists()) {
         console.warn(`⚠️ No test document found in ${collectionName}, using fallback`);
