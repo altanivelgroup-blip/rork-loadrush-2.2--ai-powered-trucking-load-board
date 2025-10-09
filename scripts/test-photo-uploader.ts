@@ -19,7 +19,7 @@ console.log('═'.repeat(60));
 console.log('\n1️⃣  Firebase Storage Initialization');
 console.log('─'.repeat(60));
 try {
-  const storageInstance: FirebaseStorage | undefined = storage;
+  const storageInstance = storage as FirebaseStorage | undefined;
   if (storageInstance) {
     console.log('✅ Firebase Storage is initialized');
     console.log(`   Bucket: ${storageInstance.app.options.storageBucket}`);
@@ -34,7 +34,7 @@ try {
 console.log('\n2️⃣  Storage Reference Creation');
 console.log('─'.repeat(60));
 try {
-  const storageInstance: FirebaseStorage | undefined = storage;
+  const storageInstance = storage as FirebaseStorage | undefined;
   const testRef = ref(storageInstance!, 'uploads/driver/test-user/profile.jpg');
   console.log('✅ Storage reference created successfully');
   console.log(`   Path: ${testRef.fullPath}`);
