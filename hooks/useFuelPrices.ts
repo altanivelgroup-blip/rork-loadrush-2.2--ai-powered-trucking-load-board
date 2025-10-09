@@ -25,26 +25,33 @@ export function useFuelPrices(fuelType: 'diesel' | 'gasoline' = 'diesel') {
         headers: {
           'Authorization': `Bearer ${FUEL_API_KEY}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
+        mode: 'cors',
       });
+
+      console.log('📡 Response status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Invalid API key - please check your credentials');
+          throw new Error('Invalid API key');
+        }
+        if (response.status === 403) {
+          throw new Error('API access forbidden');
         }
         throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
       console.log("✅ Fuel API Response:", data);
-      console.log("🧠 Raw JSON:", JSON.stringify(data, null, 2));
 
       const value = parseFloat(data?.price ?? data?.average ?? 0);
       if (!isNaN(value) && value > 0) {
         setPrice(value);
         setLastFetch(new Date());
+        console.log(`✅ Fuel price updated: ${value}/gal`);
       } else {
-        setError('Invalid data received');
+        throw new Error('Invalid data format');
       }
     } catch (err) {
       console.error('❌ Fuel Sync Failed:', err);
