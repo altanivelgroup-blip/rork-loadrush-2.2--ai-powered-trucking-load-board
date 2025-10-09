@@ -31,39 +31,70 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   // Listen for Firebase Auth state
   useEffect(() => {
     console.log('🔥 Firebase Auth: Setting up listener');
+    let mounted = true;
 
     const timeoutId = setTimeout(() => {
-      console.log('⚠️ Auth timeout reached');
-      setLoading(false);
-    }, 3000);
-
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      clearTimeout(timeoutId);
-      if (fbUser) {
-        const storedRole = (getStorageItem(`user_role_${fbUser.uid}`) as UserRole) || 'driver';
-        let profile =
-          storedRole === 'driver'
-            ? dummyDriverProfile
-            : storedRole === 'shipper'
-            ? dummyShipperProfile
-            : { name: 'Admin User', permissions: ['all'] };
-
-        setUser({
-          id: fbUser.uid,
-          email: fbUser.email || '',
-          role: storedRole,
-          createdAt: new Date().toISOString(),
-          profile,
-        });
-      } else {
-        setUser(null);
+      if (mounted) {
+        console.log('⚠️ Auth timeout reached - proceeding without Firebase');
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    }, 2000);
+
+    let unsubscribe: (() => void) | null = null;
+
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (fbUser) => {
+          if (!mounted) return;
+          clearTimeout(timeoutId);
+          
+          if (fbUser) {
+            const storedRole = (getStorageItem(`user_role_${fbUser.uid}`) as UserRole) || 'driver';
+            let profile =
+              storedRole === 'driver'
+                ? dummyDriverProfile
+                : storedRole === 'shipper'
+                ? dummyShipperProfile
+                : { name: 'Admin User', permissions: ['all'] };
+
+            setUser({
+              id: fbUser.uid,
+              email: fbUser.email || '',
+              role: storedRole,
+              createdAt: new Date().toISOString(),
+              profile,
+            });
+          } else {
+            setUser(null);
+          }
+          setLoading(false);
+        },
+        (error) => {
+          if (!mounted) return;
+          console.error('🔥 Firebase Auth Error:', error);
+          clearTimeout(timeoutId);
+          setLoading(false);
+        }
+      );
+    } catch (error) {
+      console.error('🔥 Firebase Auth Setup Error:', error);
+      clearTimeout(timeoutId);
+      if (mounted) {
+        setLoading(false);
+      }
+    }
 
     return () => {
+      mounted = false;
       clearTimeout(timeoutId);
-      unsubscribe();
+      if (unsubscribe) {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error('🔥 Error unsubscribing from auth:', error);
+        }
+      }
     };
   }, []);
 

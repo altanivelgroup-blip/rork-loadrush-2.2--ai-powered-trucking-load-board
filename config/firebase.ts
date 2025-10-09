@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCBWrYNQFTrhVXFVPORseQfQaI44s_yYQA",
@@ -12,15 +13,26 @@ const firebaseConfig = {
   appId: "1:71906929791:web:4ece0f5394c4bb6ff4634a"
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+let app;
+let auth;
+let db;
+let storage;
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
 
-console.log('Firebase initialized successfully:', {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain
-});
+  console.log('✅ Firebase initialized successfully:', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain,
+    platform: Platform.OS
+  });
+} catch (error) {
+  console.error('❌ Firebase initialization error:', error);
+  throw error;
+}
 
+export { auth, db, storage };
 export default app;

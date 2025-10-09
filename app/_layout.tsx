@@ -14,35 +14,51 @@ function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = React.useState(false);
 
   useEffect(() => {
     if (loading) {
       return;
     }
 
-    SplashScreen.hideAsync();
-    console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
-
-    const inAuthGroup = segments[0] === 'auth';
-
-    console.log('✅ Auth loaded:', { user: user?.role, segments, inAuthGroup });
-
-    if (!user && !inAuthGroup) {
-      console.log('➡️ No user, redirecting to /auth');
-      router.replace('/auth');
-    } else if (user && inAuthGroup) {
-      console.log('➡️ User logged in, redirecting to dashboard');
-      if (user.role === 'driver') {
-        router.replace('/(driver)/dashboard');
-      } else if (user.role === 'shipper') {
-        router.replace('/(shipper)/dashboard');
-      } else if (user.role === 'admin') {
-        router.replace('/(admin)/dashboard');
+    const performNavigation = async () => {
+      if (isNavigating) return;
+      
+      try {
+        await SplashScreen.hideAsync();
+      } catch {
+        console.log('Splash screen already hidden');
       }
-    } else {
-      console.log('✅ Navigation state is correct, no redirect needed');
-    }
-  }, [user, loading, segments, router]);
+
+      console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
+
+      const inAuthGroup = segments[0] === 'auth';
+
+      console.log('✅ Auth loaded:', { user: user?.role, segments, inAuthGroup });
+
+      if (!user && !inAuthGroup) {
+        console.log('➡️ No user, redirecting to /auth');
+        setIsNavigating(true);
+        router.replace('/auth');
+        setTimeout(() => setIsNavigating(false), 500);
+      } else if (user && inAuthGroup) {
+        console.log('➡️ User logged in, redirecting to dashboard');
+        setIsNavigating(true);
+        if (user.role === 'driver') {
+          router.replace('/(driver)/dashboard');
+        } else if (user.role === 'shipper') {
+          router.replace('/(shipper)/dashboard');
+        } else if (user.role === 'admin') {
+          router.replace('/(admin)/dashboard');
+        }
+        setTimeout(() => setIsNavigating(false), 500);
+      } else {
+        console.log('✅ Navigation state is correct, no redirect needed');
+      }
+    };
+
+    performNavigation();
+  }, [user, loading, segments, isNavigating, router]);
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
