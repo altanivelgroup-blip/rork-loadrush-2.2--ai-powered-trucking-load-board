@@ -212,7 +212,9 @@ export default function PostSingleLoadWizard() {
           try {
             console.log(`[Photo Upload] Uploading image ${i + 1}/${result.assets.length}`);
             const uri = asset.uri;
-            const filename = `loads/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+            const auth = getAuth();
+            const userId = auth.currentUser?.uid ?? 'anonymous';
+            const filename = `uploads/shipper/${userId}/loads/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
             const storageRef = ref(storage, filename);
 
             console.log('[Photo Upload] Converting URI to blob:', uri);
