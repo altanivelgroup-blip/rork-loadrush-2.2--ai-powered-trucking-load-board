@@ -164,6 +164,21 @@ export default function PostSingleLoadWizard() {
     setCalendarMonth(new Date());
   }, []);
 
+  const uriToBlob = (uri: string): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        resolve(xhr.response);
+      };
+      xhr.onerror = function () {
+        reject(new Error('Failed to convert URI to blob'));
+      };
+      xhr.responseType = 'blob';
+      xhr.open('GET', uri, true);
+      xhr.send(null);
+    });
+  };
+
   const pickImages = useCallback(async () => {
     try {
       console.log('[Photo Upload] Requesting permissions...');
@@ -200,13 +215,13 @@ export default function PostSingleLoadWizard() {
             const filename = `loads/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
             const storageRef = ref(storage, filename);
 
-            console.log('[Photo Upload] Fetching blob from URI:', uri);
-            const response = await fetch(uri);
-            const blob = await response.blob();
+            console.log('[Photo Upload] Converting URI to blob:', uri);
+            const blob = await uriToBlob(uri);
             console.log('[Photo Upload] Blob created, size:', blob.size);
 
             console.log('[Photo Upload] Uploading to Firebase Storage...');
-            await uploadBytes(storageRef, blob);
+            const uploadResult = await uploadBytes(storageRef, blob);
+            console.log('[Photo Upload] Upload result:', uploadResult.metadata.fullPath);
             
             console.log('[Photo Upload] Getting download URL...');
             const downloadURL = await getDownloadURL(storageRef);
@@ -214,7 +229,7 @@ export default function PostSingleLoadWizard() {
             console.log('[Photo Upload] Uploaded successfully:', downloadURL);
           } catch (uploadError) {
             console.error('[Photo Upload] Error uploading image:', uploadError);
-            Alert.alert('Upload Error', `Failed to upload image ${i + 1}. Continuing with others...`);
+            console.error('[Photo Upload] Error details:', JSON.stringify(uploadError, null, 2));
           }
         }
 
@@ -225,11 +240,12 @@ export default function PostSingleLoadWizard() {
         if (newPhotoUrls.length > 0) {
           Alert.alert('Success', `${newPhotoUrls.length} photo(s) uploaded successfully!`);
         } else {
-          Alert.alert('Error', 'No photos were uploaded successfully.');
+          Alert.alert('Error', 'No photos were uploaded successfully. Please check console logs.');
         }
       }
     } catch (error) {
       console.error('[Photo Upload] Error in pickImages:', error);
+      console.error('[Photo Upload] Error stack:', error instanceof Error ? error.stack : 'No stack');
       setUploadingPhotos(false);
       Alert.alert('Error', `Failed to upload photos: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
