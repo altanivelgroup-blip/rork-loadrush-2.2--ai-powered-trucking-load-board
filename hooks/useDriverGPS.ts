@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as Location from 'expo-location';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
 export interface GPSLocation {
@@ -58,13 +58,13 @@ export function useDriverGPS(driverId: string | undefined): UseDriverGPSReturn {
 
     try {
       const driverRef = doc(db, 'drivers', driverId);
-      await updateDoc(driverRef, {
+      await setDoc(driverRef, {
         location: {
           latitude: coords.latitude,
           longitude: coords.longitude,
           updatedAt: serverTimestamp(),
         },
-      });
+      }, { merge: true });
       console.log('[useDriverGPS] Location updated in Firestore:', coords);
     } catch (err) {
       console.error('[useDriverGPS] Error updating Firestore:', err);
