@@ -14,22 +14,25 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "app.rork.loadrush-22-ai-powered-trucking-load-board",
-      "infoPlist": {
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": [
-          "location",
-          "audio"
-        ],
-        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
-        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone"
-      },
-      "usesIcloudStorage": true
-    },
+    "supportsTablet": true,
+    "bundleIdentifier": "app.rork.loadrush-22-ai-powered-trucking-load-board",
+    "infoPlist": {
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+    "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+    "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
+    "UIBackgroundModes": [
+      "location",
+      "audio"
+    ],
+    "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+    "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+    "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+    "NSAppTransportSecurity": {
+      "NSAllowsArbitraryLoads": true
+    }
+  },
+  "usesIcloudStorage": true
+}
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
