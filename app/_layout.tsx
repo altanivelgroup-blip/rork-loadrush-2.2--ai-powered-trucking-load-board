@@ -52,6 +52,8 @@ function RootLayoutNav() {
           router.replace('/(admin)/dashboard');
         }
         setTimeout(() => setIsNavigating(false), 500);
+      } else if (!user && inAuthGroup) {
+        console.log('✅ User on auth page, staying there');
       } else {
         console.log('✅ Navigation state is correct, no redirect needed');
       }

@@ -279,9 +279,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   // 🔹 Sign Out
   const signOut = useCallback(async () => {
     try {
+      console.log('🔥 Signing out user...');
       await firebaseSignOut(auth);
       setUser(null);
       setError(null);
+      
+      if (Platform.OS === 'web') {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('user_role_') || key.startsWith('user_profile_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+      
+      console.log('✅ Sign out successful');
     } catch (err) {
       console.error('🔥 Sign out error:', err);
       setError('Failed to sign out');
