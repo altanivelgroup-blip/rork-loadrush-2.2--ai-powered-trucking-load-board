@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from 'firebase/storage';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -61,7 +60,8 @@ export function useImageUpload() {
   const uploadImage = useCallback(async (
     uri: string,
     userId: string,
-    role: 'driver' | 'shipper'
+    role: 'driver' | 'shipper',
+    options?: { skipFirestoreUpdate?: boolean }
   ): Promise<ImageUploadResult | null> => {
     setUploading(true);
     setError(null);
@@ -70,19 +70,29 @@ export function useImageUpload() {
 
     try {
       console.log(`[ImageUpload] Starting upload for ${role}/${userId}`);
+      console.log('[ImageUpload] URI:', uri);
       
       let blob: Blob;
-      if (Platform.OS === 'web') {
+      try {
         const response = await fetch(uri);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
         blob = await response.blob();
-      } else {
-        const response = await fetch(uri);
-        blob = await response.blob();
+        console.log('[ImageUpload] Blob created:', blob.size, 'bytes');
+      } catch (fetchError) {
+        console.error('[ImageUpload] Fetch error:', fetchError);
+        throw new Error('Failed to read image file');
       }
 
-      const storagePath = `uploads/${role}/${userId}/profile.jpg`;
+      const timestamp = Date.now();
+      const storagePath = `uploads/${role}/${userId}/truck_${timestamp}.jpg`;
+      console.log('[ImageUpload] Storage path:', storagePath);
+      
       const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, blob);
+      const uploadTask = uploadBytesResumable(storageRef, blob, {
+        contentType: 'image/jpeg',
+      });
       uploadTaskRef.current = uploadTask;
 
       return new Promise((resolve, reject) => {
@@ -95,10 +105,12 @@ export function useImageUpload() {
               percentage: Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
             };
             setProgress(progressData);
-            console.log(`[ImageUpload] Progress: ${progressData.percentage}%`);
+            console.log(`[ImageUpload] Progress: ${progressData.percentage}% (${progressData.bytesTransferred}/${progressData.totalBytes})`);
           },
           (err) => {
             console.error('[ImageUpload] Upload error:', err);
+            console.error('[ImageUpload] Error code:', (err as any).code);
+            console.error('[ImageUpload] Error message:', err.message);
             setError(err as Error);
             setUploading(false);
             uploadTaskRef.current = null;
@@ -106,23 +118,32 @@ export function useImageUpload() {
           },
           async () => {
             try {
+              console.log('[ImageUpload] Upload completed, getting download URL...');
               const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
               const result: ImageUploadResult = {
                 downloadURL,
                 fullPath: uploadTask.snapshot.ref.fullPath,
               };
-              console.log('[ImageUpload] Upload completed:', result);
+              console.log('[ImageUpload] Download URL:', downloadURL);
               
-              const collectionName = role === 'driver' ? 'drivers' : 'shippers';
-              const userDocRef = doc(db, collectionName, userId);
+              if (!options?.skipFirestoreUpdate) {
+                const collectionName = role === 'driver' ? 'driver_test' : 'shippers';
+                const userDocRef = doc(db, collectionName, userId);
+                
+                console.log(`[ImageUpload] Updating Firestore: ${collectionName}/${userId}`);
+                try {
+                  await updateDoc(userDocRef, {
+                    'truckInfo.photoUrl': downloadURL,
+                    'truckInfo.updatedAt': serverTimestamp(),
+                  });
+                  console.log('[ImageUpload] Firestore updated successfully');
+                } catch (firestoreError) {
+                  console.warn('[ImageUpload] Firestore update failed (non-critical):', firestoreError);
+                }
+              } else {
+                console.log('[ImageUpload] Skipping Firestore update (skipFirestoreUpdate=true)');
+              }
               
-              console.log(`[ImageUpload] Updating Firestore: ${collectionName}/${userId}`);
-              await updateDoc(userDocRef, {
-                photoUrl: downloadURL,
-                updatedAt: serverTimestamp(),
-              });
-              
-              console.log('[ImageUpload] Firestore updated successfully');
               setSaved(true);
               setUploading(false);
               uploadTaskRef.current = null;
