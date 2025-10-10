@@ -189,9 +189,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setError(null);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
+      const userEmail = userCredential.user.email || '';
       
       let detectedRole: UserRole = 'driver';
       let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
+
+      // 🔍 Email-based role detection for known test accounts
+      if (userEmail.includes('shipper')) {
+        console.log('📧 Email contains "shipper" - setting role to shipper');
+        detectedRole = 'shipper';
+        profile = dummyShipperProfile;
+      } else if (userEmail.includes('admin')) {
+        console.log('📧 Email contains "admin" - setting role to admin');
+        detectedRole = 'admin';
+        profile = { name: 'Admin User', permissions: ['all'] };
+      } else if (userEmail.includes('driver')) {
+        console.log('📧 Email contains "driver" - setting role to driver');
+        detectedRole = 'driver';
+        profile = dummyDriverProfile;
+      }
 
       try {
         const { db } = await import('@/config/firebase');
@@ -234,9 +250,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               if (storedRole) {
                 console.log('⚠️ No Firestore profile found, using stored role:', storedRole);
                 detectedRole = storedRole;
-                profile = storedRole === 'shipper' ? dummyShipperProfile : dummyDriverProfile;
+                profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
               } else {
-                console.warn('⚠️ No profile found in Firestore or localStorage, defaulting to driver');
+                console.log('⚠️ No Firestore profile found, using email-based role:', detectedRole);
               }
             }
           }
@@ -246,7 +262,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
         if (storedRole) {
           detectedRole = storedRole;
-          profile = storedRole === 'shipper' ? dummyShipperProfile : dummyDriverProfile;
+          profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
+        } else {
+          console.log('⚠️ Firestore error, using email-based role:', detectedRole);
         }
       }
 
@@ -254,7 +272,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       const existingUser: User = {
         id: uid,
-        email: userCredential.user.email || '',
+        email: userEmail,
         role: detectedRole,
         createdAt: new Date().toISOString(),
         profile,
