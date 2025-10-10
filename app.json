@@ -14,9 +14,9 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-    "supportsTablet": true,
-    "bundleIdentifier": "app.rork.loadrush-22-ai-powered-trucking-load-board",
-    "infoPlist": {
+  "supportsTablet": true,
+  "bundleIdentifier": "app.rork.loadrush-22-ai-powered-trucking-load-board",
+  "infoPlist": {
     "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
     "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
     "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
