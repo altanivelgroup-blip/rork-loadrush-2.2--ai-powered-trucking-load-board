@@ -12,7 +12,76 @@ import { DollarSign, TrendingUp, Truck, Fuel, LogOut, Settings, LineChart, Shiel
 import { DriverProfile } from '@/types';
 import { useDriverProfile, useDriverStats, useDriverLoads, useDriverAnalytics, useAvailableLoads } from '@/hooks/useDriverData';
 import { useDriverGPS } from '@/hooks/useDriverGPS';
+// Your existing imports (from the screenshot)
+import React from 'react';
+import { StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { dummyDriverAnalytics } from 'mocks/dummyData';  // Assuming from your code
+import Colors from 'components/colors';  // Etc.
 
+// NEW: Import the fuel function (adjust path if src/api/fuelApi.ts is not exact)
+import { fetchFuelPrices } from '../../api/fuelApi';  // Example path - change to match your folder structure
+
+// Your existing component
+export default function DriverDashboard() {
+  const insets = useSafeAreaInsets();
+  const user = useAuth();  // Assuming you have this from context
+  const signOut = useSignOut();
+
+  // Your existing state (from screenshot)
+  const [driverAnalytics, setDriverAnalytics] = useState(dummyDriverAnalytics);
+
+  // NEW: State for fuel prices
+  const [fuelPrices, setFuelPrices] = useState(null);
+  const [loadingFuel, setLoadingFuel] = useState(true);  // For spinner
+
+  // NEW: useEffect to fetch fuel prices on load
+  useEffect(() => {
+    async function loadFuelPrices() {
+      try {
+        const prices = await fetchFuelPrices('diesel', 'CA');  // Defaults; can pull from user data
+        setFuelPrices(prices);
+      } catch (error) {
+        console.error('Failed to load fuel prices:', error);
+      } finally {
+        setLoadingFuel(false);
+      }
+    }
+
+    loadFuelPrices();
+  }, []);  // Empty array: Runs once on mount
+
+  // Your existing functions (e.g., const user, signOut = useSignOut();)
+
+  return (
+    // Your existing JSX
+    <ScrollView style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Your components like UserDriverProfile, etc. */}
+
+      {/* NEW: Display fuel prices with spinner */}
+      <View style={styles.fuelSection}>
+        {loadingFuel ? (
+          <ActivityIndicator size="small" color={Colors.primary} />  // Spinner while loading
+        ) : fuelPrices ? (
+          <Text style={styles.fuelText}>
+            Diesel in CA: ${fuelPrices.diesel || 'N/A'}  // Adjust based on API response structure
+          </Text>
+        ) : (
+          <Text style={styles.fuelText}>Unable to load fuel prices</Text>
+        )}
+      </View>
+
+      {/* Rest of your JSX */}
+    </ScrollView>
+  );
+}
+
+// Your styles (add this for the new section)
+const styles = StyleSheet.create({
+  // ... your existing styles ...
+  fuelSection: { margin: 16, padding: 8, backgroundColor: '#f0f0f0', borderRadius: 8 },
+  fuelText: { fontSize: 16, color: Colors.primary },
+});
 export default function DriverDashboard() {
   const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
