@@ -166,12 +166,15 @@ export default function PostSingleLoadWizard() {
 
   const pickImages = useCallback(async () => {
     try {
+      console.log('[Photo Upload] Requesting permissions...');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
+        console.log('[Photo Upload] Permission denied');
         Alert.alert('Permission Required', 'Please grant photo library access to upload images.');
         return;
       }
 
+      console.log('[Photo Upload] Launching image picker...');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
@@ -179,42 +182,56 @@ export default function PostSingleLoadWizard() {
         selectionLimit: 20 - photos.length,
       });
 
-      if (!result.canceled && result.assets) {
+      if (result.canceled) {
+        console.log('[Photo Upload] User canceled selection');
+        return;
+      }
+
+      if (result.assets && result.assets.length > 0) {
+        console.log(`[Photo Upload] Selected ${result.assets.length} images`);
         setUploadingPhotos(true);
         const newPhotoUrls: string[] = [];
 
-        for (const asset of result.assets) {
+        for (let i = 0; i < result.assets.length; i++) {
+          const asset = result.assets[i];
           try {
+            console.log(`[Photo Upload] Uploading image ${i + 1}/${result.assets.length}`);
             const uri = asset.uri;
             const filename = `loads/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
             const storageRef = ref(storage, filename);
 
-            let blob: Blob;
-            if (Platform.OS === 'web') {
-              const response = await fetch(uri);
-              blob = await response.blob();
-            } else {
-              const response = await fetch(uri);
-              blob = await response.blob();
-            }
+            console.log('[Photo Upload] Fetching blob from URI:', uri);
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            console.log('[Photo Upload] Blob created, size:', blob.size);
 
+            console.log('[Photo Upload] Uploading to Firebase Storage...');
             await uploadBytes(storageRef, blob);
+            
+            console.log('[Photo Upload] Getting download URL...');
             const downloadURL = await getDownloadURL(storageRef);
             newPhotoUrls.push(downloadURL);
-            console.log('[Photo Upload] Uploaded:', downloadURL);
+            console.log('[Photo Upload] Uploaded successfully:', downloadURL);
           } catch (uploadError) {
             console.error('[Photo Upload] Error uploading image:', uploadError);
+            Alert.alert('Upload Error', `Failed to upload image ${i + 1}. Continuing with others...`);
           }
         }
 
+        console.log(`[Photo Upload] All uploads complete. ${newPhotoUrls.length} successful.`);
         setPhotos((prev) => [...prev, ...newPhotoUrls]);
         setUploadingPhotos(false);
-        Alert.alert('Success', `${newPhotoUrls.length} photo(s) uploaded successfully!`);
+        
+        if (newPhotoUrls.length > 0) {
+          Alert.alert('Success', `${newPhotoUrls.length} photo(s) uploaded successfully!`);
+        } else {
+          Alert.alert('Error', 'No photos were uploaded successfully.');
+        }
       }
     } catch (error) {
-      console.error('[Photo Upload] Error picking images:', error);
+      console.error('[Photo Upload] Error in pickImages:', error);
       setUploadingPhotos(false);
-      Alert.alert('Error', 'Failed to upload photos. Please try again.');
+      Alert.alert('Error', `Failed to upload photos: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [photos.length]);
 
