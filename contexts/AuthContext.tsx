@@ -407,8 +407,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setStorageItem(`user_role_${testUser.id}`, testUser.role);
       console.log(`✅ ${role} test account connected successfully`, testUser);
     } catch (err: any) {
-      console.error('🔥 Firestore Quick Login Error:', err);
-      console.log('⚠️ Using fallback authentication due to:', err.message || 'Unknown error');
+      console.error('🔥 Firestore Quick Login Error -', err?.message || String(err));
+      console.log('⚠️ Using fallback authentication due to -', err?.message || 'Unknown error');
       createFallbackUser(role);
     } finally {
       setLoading(false);
