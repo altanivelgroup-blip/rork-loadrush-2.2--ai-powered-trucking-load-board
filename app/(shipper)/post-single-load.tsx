@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Image,
+  Platform,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -20,11 +22,14 @@ import {
   Send,
   MapPin,
   X,
+  Trash2,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Colors from '@/constants/colors';
-import { db } from '@/config/firebase';
+import { db, storage } from '@/config/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface Step {
   key: 'details' | 'locations' | 'schedule' | 'rate' | 'review';
@@ -70,6 +75,8 @@ export default function PostSingleLoadWizard() {
   const [specialReq, setSpecialReq] = useState<string>('');
 
   const [contact, setContact] = useState<string>('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhotos, setUploadingPhotos] = useState<boolean>(false);
 
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
   const [calendarTarget, setCalendarTarget] = useState<'pickup' | 'delivery' | null>(null);
@@ -157,6 +164,64 @@ export default function PostSingleLoadWizard() {
     setCalendarMonth(new Date());
   }, []);
 
+  const pickImages = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant photo library access to upload images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 20 - photos.length,
+      });
+
+      if (!result.canceled && result.assets) {
+        setUploadingPhotos(true);
+        const newPhotoUrls: string[] = [];
+
+        for (const asset of result.assets) {
+          try {
+            const uri = asset.uri;
+            const filename = `loads/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+            const storageRef = ref(storage, filename);
+
+            let blob: Blob;
+            if (Platform.OS === 'web') {
+              const response = await fetch(uri);
+              blob = await response.blob();
+            } else {
+              const response = await fetch(uri);
+              blob = await response.blob();
+            }
+
+            await uploadBytes(storageRef, blob);
+            const downloadURL = await getDownloadURL(storageRef);
+            newPhotoUrls.push(downloadURL);
+            console.log('[Photo Upload] Uploaded:', downloadURL);
+          } catch (uploadError) {
+            console.error('[Photo Upload] Error uploading image:', uploadError);
+          }
+        }
+
+        setPhotos((prev) => [...prev, ...newPhotoUrls]);
+        setUploadingPhotos(false);
+        Alert.alert('Success', `${newPhotoUrls.length} photo(s) uploaded successfully!`);
+      }
+    } catch (error) {
+      console.error('[Photo Upload] Error picking images:', error);
+      setUploadingPhotos(false);
+      Alert.alert('Error', 'Failed to upload photos. Please try again.');
+    }
+  }, [photos.length]);
+
+  const removePhoto = useCallback((index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   const next = useCallback(() => {
     setStepIndex((i) => Math.min(i + 1, steps.length - 1));
   }, []);
@@ -222,6 +287,7 @@ export default function PostSingleLoadWizard() {
         notes: specialReq,
         status: 'Available',
         shipperId: uid,
+        photos: photos,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         expiresAt: calculateExpiresAt(deliveryDate),
@@ -238,7 +304,7 @@ export default function PostSingleLoadWizard() {
     } finally {
       setLoading(false);
     }
-  }, [title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, router, formatDate]);
+  }, [title, description, vehicleType, pickupLocation, deliveryLocation, weight, dimensions, pickupDate, deliveryDate, deliveryTime, timezone, rateType, rateAmount, specialReq, photos, router, formatDate]);
 
   const renderStepIndicator = (
     <View style={styles.stepper}>
@@ -536,12 +602,43 @@ export default function PostSingleLoadWizard() {
             />
 
             <Text style={[styles.label, { marginTop: 16 }]}>Photos</Text>
-            <Text style={styles.photoHint}>Photos ready: 0 (showing up to 12)</Text>
-            <Text style={[styles.label, { marginTop: 8 }]}>Photos</Text>
-            <Text style={styles.photoCount}>0/20</Text>
-            <TouchableOpacity testID="add-photos" style={styles.primaryBtn} activeOpacity={0.8}>
-              <Upload size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Add Photos</Text>
+            <Text style={styles.photoHint}>Photos ready: {photos.length} (showing up to 12)</Text>
+            <Text style={styles.photoCount}>{photos.length}/20</Text>
+            
+            {photos.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoPreviewContainer}>
+                {photos.slice(0, 12).map((photoUrl, index) => (
+                  <View key={index} style={styles.photoPreviewWrapper}>
+                    <Image source={{ uri: photoUrl }} style={styles.photoPreview} />
+                    <TouchableOpacity
+                      style={styles.photoRemoveBtn}
+                      onPress={() => removePhoto(index)}
+                      activeOpacity={0.7}
+                    >
+                      <Trash2 size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            
+            <TouchableOpacity
+              testID="add-photos"
+              style={[styles.primaryBtn, uploadingPhotos && styles.primaryBtnDisabled]}
+              onPress={pickImages}
+              disabled={uploadingPhotos || photos.length >= 20}
+              activeOpacity={0.8}
+            >
+              {uploadingPhotos ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Upload size={18} color="#fff" />
+                  <Text style={styles.primaryBtnText}>
+                    {photos.length >= 20 ? 'Max Photos Reached' : 'Add Photos'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
 
             <View style={styles.summaryBox}>
@@ -829,6 +926,33 @@ const styles = StyleSheet.create({
   nextBtn: { backgroundColor: Colors.light.primary },
   nextBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   nextBtnDisabled: { opacity: 0.5 },
+  primaryBtnDisabled: { opacity: 0.5 },
+  photoPreviewContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  photoPreviewWrapper: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  photoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
