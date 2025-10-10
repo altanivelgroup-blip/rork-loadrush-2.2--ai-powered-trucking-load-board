@@ -1,50 +1,52 @@
-/**
- * Test script for CollectAPI Fuel Feed Connection
- * Run with: bun run scripts/test-fuel-api.ts
- */
+// src/api/fuelApi.ts
+import { db, auth } from '../config/firebase';  // Adjust path to your firebase.ts
+import { doc, getDoc } from 'firebase/firestore';
 
-async function testFuelAPI() {
-  console.log('🔄 Testing CollectAPI Fuel Feed Connection...\n');
-
+export async function fetchFuelPrices(fuelType = 'diesel', state = 'CA') {  // Defaults for testing (e.g., California for western states)
   try {
-    const response = await fetch('https://api.collectapi.com/gasPrice/allUsaPrice', {
+    const apiUrl = process.env.EXPO_PUBLIC_FUEL_API;
+    const apiKey = process.env.EXPO_PUBLIC_FUEL_KEY;
+
+    if (!apiUrl || !apiKey) throw new Error('Missing Fuel API config in .env');
+
+    console.log('User UID:', auth.currentUser?.uid);
+    console.log('Fetching from:', apiUrl);
+
+    // Optional: Get user data from Firestore (e.g., fuelType, state) using real UID
+    const userRef = doc(db, 'users', auth.currentUser.uid);  // Assumes 'users' collection
+    const userDoc = await getDoc(userRef);
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      fuelType = userData.fuelType || fuelType;  // e.g., 'diesel' from your driver doc
+      state = userData.state || state;  // e.g., 'California'
+      console.log('User fuelType:', fuelType, 'State:', state);
+    } else {
+      console.log('User doc not found - using defaults');
+    }
+
+    // Build the full URL with params (adjust based on API docs; assuming it supports fuel_type and state)
+    const fullUrl = `${apiUrl}?fuel_type=${fuelType}&state=${state}`;
+    console.log('Full request URL:', fullUrl);
+
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
-        'authorization': 'apikey 3h76TGQbMdx0Tsny6kjteC:1Yfg3B0w4EkadHza3kUGH6',
-        'content-type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,  // From your script - adjust if it's not Bearer (e.g., 'apikey ${apiKey}')
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
     });
 
-    console.log('📡 Response Status:', response.status, response.statusText);
-
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    
-    console.log('\n✅ Connection Successful!\n');
-    console.log('📊 Full Response:', JSON.stringify(data, null, 2));
-
-    if (data.result && Array.isArray(data.result)) {
-      console.log('\n🔍 Sample State Data:');
-      const sampleState = data.result[0];
-      if (sampleState) {
-        console.log(`\nState: ${sampleState.state || 'N/A'}`);
-        console.log(`Gasoline: $${sampleState.gasoline || 'N/A'}`);
-        console.log(`Midgrade: $${sampleState.midGrade || 'N/A'}`);
-        console.log(`Premium: $${sampleState.premium || 'N/A'}`);
-        console.log(`Diesel: $${sampleState.diesel || 'N/A'}`);
-      }
-      console.log(`\n📈 Total States: ${data.result.length}`);
-    }
-
+    console.log('Fuel API success:', JSON.stringify(data, null, 2));  // Log full response for debug
+    return data;
   } catch (error) {
-    console.error('❌ Error testing fuel API:', error);
-    if (error instanceof Error) {
-      console.error('Error message:', error.message);
-    }
+    console.error('Fuel API error:', error.message, error.stack);
+    return { diesel: 3.89, gasoline: 3.49 };  // Your fallback prices
   }
 }
-
-testFuelAPI();
