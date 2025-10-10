@@ -1,6 +1,6 @@
-export async function fetchFuelPrices(fuelType = 'diesel', state = 'California') {  // Default to full state name from doc
+export async function fetchFuelPrices(fuelType = 'diesel', state = 'California') {
   try {
-    const apiUrl = process.env.EXPO_PUBLIC_FUEL_API;
+    const apiUrl = 'https://zylalabs.com/api/7700/fuel+prices+tracker+api/12475/fuel+costs';  // Exact from doc (override .env for test)
     const apiKey = process.env.EXPO_PUBLIC_FUEL_KEY;
 
     console.log('[DEBUG] Starting fetchFuelPrices');
@@ -8,24 +8,12 @@ export async function fetchFuelPrices(fuelType = 'diesel', state = 'California')
     console.log('[DEBUG] API Key (first 10 + last 5 chars):', apiKey?.substring(0, 10) + '...' + apiKey?.slice(-5));
     console.log('[DEBUG] Params - fuelType:', fuelType, 'state:', state);
 
-    if (!apiUrl || !apiKey) throw new Error('Missing Fuel API config in .env');
+    if (!apiUrl || !apiKey) throw new Error('Missing Fuel API config');
 
-    console.log('[DEBUG] User UID:', auth.currentUser?.uid);
+    // Skipping Firestore for this test to isolate issue
+    console.log('[DEBUG] Skipping Firestore pull for test - using defaults');
 
-    // Optional Firestore pull (for dynamic state/fuelType)
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    const userDoc = await getDoc(userRef);
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      fuelType = userData.fuelType || fuelType;
-      state = userData.state || state;  // e.g., 'California' from your driver doc
-      console.log('[DEBUG] User data loaded - fuelType:', fuelType, 'state:', state);
-    } else {
-      console.log('[DEBUG] No user doc found - using defaults');
-    }
-
-    // Note: API doesn't seem to use query params from doc; it's a simple GET. If needed, add ?fuel_type=${fuelType}
-    const fullUrl = apiUrl;  // Or `${apiUrl}?fuel_type=${fuelType}` if API supports it
+    const fullUrl = apiUrl;  // No params, as per doc/curl
     console.log('[DEBUG] Full request URL:', fullUrl);
 
     const headers = {
@@ -59,7 +47,7 @@ export async function fetchFuelPrices(fuelType = 'diesel', state = 'California')
       throw new Error('Invalid JSON response');
     }
 
-    // Parse the array to find matching state (e.g., for 'California')
+    // Find matching state in array
     if (data.success && Array.isArray(data.result)) {
       const stateData = data.result.find(item => item.name === state);
       if (stateData) {
@@ -67,7 +55,7 @@ export async function fetchFuelPrices(fuelType = 'diesel', state = 'California')
         return {
           diesel: stateData.diesel,
           gasoline: stateData.gasoline,
-          // Add more if needed
+          // Add more as needed
         };
       } else {
         console.log('[DEBUG] No matching state found for:', state);
@@ -80,5 +68,17 @@ export async function fetchFuelPrices(fuelType = 'diesel', state = 'California')
   } catch (error) {
     console.error('[DEBUG] Fuel API error:', error.message, error.stack);
     return { diesel: 3.89, gasoline: 3.49 };  // Fallback
+  }
+}
+If This Doesn't Work or You See Specific Errors
+Test Outside the App: In your computer terminal, run this curl (copy-paste):
+curl --location --request GET 'https://zylalabs.com/api/7700/fuel+prices+tracker+api/12475/fuel+costs' --header 'Authorization: Bearer 10482|0Vh5MCrSC1OphlOuderbaNyQQWhTI7lpnpjpghTU'
+Share the output (should be JSON like your sample; if error, the key/URL is wrong).
+iPad-Specific Fix: Add this to your app.json (under "ios"):
+"ios": {
+  "infoPlist": {
+    "NSAppTransportSecurity": {
+      "NSAllowsArbitraryLoads": true
+    }
   }
 }
