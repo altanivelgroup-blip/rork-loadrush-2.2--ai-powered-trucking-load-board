@@ -322,20 +322,20 @@ export default function PostSingleLoadWizard() {
               />
 
               <Text style={[styles.label, { marginTop: 16 }]}>Vehicle Type Required</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              <View style={styles.vehicleGrid}>
                 {['Cargo Van', 'Box Truck', 'Car Hauler', 'Flatbed', 'Reefer'].map((t) => (
                   <TouchableOpacity
                     key={t}
                     testID={`veh-${t}`}
-                    style={[styles.pill, vehicleType === t && styles.pillActive]}
+                    style={[styles.vehicleOption, vehicleType === t && styles.vehicleOptionActive]}
                     onPress={() => setVehicleType(t)}
                     activeOpacity={0.7}
                   >
                     <Package size={16} color={vehicleType === t ? '#fff' : Colors.light.primary} />
-                    <Text style={[styles.pillText, vehicleType === t && styles.pillTextActive]}>{t}</Text>
+                    <Text style={[styles.vehicleOptionText, vehicleType === t && styles.vehicleOptionTextActive]}>{t}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
           </>
         )}
@@ -757,7 +757,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   outlineBtnText: { color: Colors.light.primary, fontSize: 15, fontWeight: '700' },
-  pill: {
+  vehicleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 8,
+  },
+  vehicleOption: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -767,11 +773,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    marginRight: 10,
+    width: '48%',
   },
-  pillActive: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
-  pillText: { fontSize: 14, fontWeight: '700', color: Colors.light.primary },
-  pillTextActive: { color: '#fff' },
+  vehicleOptionActive: { backgroundColor: Colors.light.primary, borderColor: Colors.light.primary },
+  vehicleOptionText: { fontSize: 14, fontWeight: '700', color: Colors.light.primary },
+  vehicleOptionTextActive: { color: '#fff' },
   dateInput: {
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
