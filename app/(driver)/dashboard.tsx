@@ -21,7 +21,7 @@ import Colors from 'components/colors';  // Etc.
 
 // NEW: Import the fuel function (adjust path if src/api/fuelApi.ts is not exact)
 import { fetchFuelPrices } from '../../api/fuelApi';  // Example path - change to match your folder structure
-
+import { fetchFuelPrices } from '../../api/fuelApi';  // Adjust path if needed
 // Your existing component
 export default function DriverDashboard() {
   const insets = useSafeAreaInsets();
@@ -30,27 +30,27 @@ export default function DriverDashboard() {
 
   // Your existing state (from screenshot)
   const [driverAnalytics, setDriverAnalytics] = useState(dummyDriverAnalytics);
-
-  // NEW: State for fuel prices
   const [fuelPrices, setFuelPrices] = useState(null);
-  const [loadingFuel, setLoadingFuel] = useState(true);  // For spinner
+  const [loadingFuel, setLoadingFuel] = useState(true);
+  // NEW: State for fuel prices
+   // Empty array: Runs once on mount
+const [fuelPrices, setFuelPrices] = useState(null);
+const [loadingFuel, setLoadingFuel] = useState(true);
 
-  // NEW: useEffect to fetch fuel prices on load
-  useEffect(() => {
-    async function loadFuelPrices() {
-      try {
-        const prices = await fetchFuelPrices('diesel', 'CA');  // Defaults; can pull from user data
-        setFuelPrices(prices);
-      } catch (error) {
-        console.error('Failed to load fuel prices:', error);
-      } finally {
-        setLoadingFuel(false);
-      }
+useEffect(() => {
+  async function loadFuelPrices() {
+    try {
+      const prices = await fetchFuelPrices('diesel', 'CA');
+      setFuelPrices(prices);
+    } catch (error) {
+      console.error('Failed to load fuel prices:', error);
+    } finally {
+      setLoadingFuel(false);
     }
+  }
 
-    loadFuelPrices();
-  }, []);  // Empty array: Runs once on mount
-
+  loadFuelPrices();
+}, []);
   // Your existing functions (e.g., const user, signOut = useSignOut();)
 
   return (
