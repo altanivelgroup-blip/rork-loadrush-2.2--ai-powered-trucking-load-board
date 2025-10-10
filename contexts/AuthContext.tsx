@@ -339,8 +339,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const { db } = await import('@/config/firebase');
       const { doc, getDoc } = await import('firebase/firestore');
 
-      const collectionName = role === 'driver' ? 'driver_test' : role === 'shipper' ? 'shipper_test' : 'admin_test';
-      const docId = role === 'driver' ? 'DRIVER_TEST_001' : role === 'shipper' ? 'SHIPPER_TEST_001' : 'ADMIN_TEST_001';
+      let collectionName: string;
+      let docId: string;
+      
+      if (role === 'driver') {
+        collectionName = 'driver_test';
+        docId = 'DRIVER_TEST_001';
+      } else if (role === 'shipper') {
+        collectionName = 'shipper_test';
+        docId = 'SHIPPER_TEST_001';
+      } else {
+        collectionName = 'admin_test';
+        docId = 'ADMIN_TEST_001';
+      }
       
       console.log(`🔍 Attempting to fetch: ${collectionName}/${docId}`);
       
