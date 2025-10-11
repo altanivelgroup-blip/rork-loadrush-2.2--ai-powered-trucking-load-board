@@ -25,7 +25,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [adminAccessEnabled, setAdminAccessEnabled] = useState(false);
+
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -39,7 +39,6 @@ export default function AuthScreen() {
       if (isSignUp) {
         await signUp(email, password, selectedRole);
       } else {
-        console.log('🔐 [AuthScreen] Signing in with admin access enabled:', adminAccessEnabled);
         await signIn(email, password);
       }
     } catch (error: any) {
@@ -85,9 +84,15 @@ export default function AuthScreen() {
     >
       <View style={styles.header}>
         <Pressable
-          onLongPress={() => {
-            setAdminAccessEnabled(true);
-            Alert.alert('Admin Access', 'Admin login enabled');
+          onLongPress={async () => {
+            setIsSubmitting(true);
+            try {
+              await quickTestLogin('admin');
+            } catch (err) {
+              console.error('Quick admin login failed:', err);
+            } finally {
+              setIsSubmitting(false);
+            }
           }}
           delayLongPress={2000}
         >
@@ -133,43 +138,7 @@ export default function AuthScreen() {
                 );
               })}
             </View>
-            {adminAccessEnabled && (
-              <TouchableOpacity
-                style={[styles.roleCard, styles.adminRoleCard, selectedRole === 'admin' && styles.roleCardSelected]}
-                onPress={() => setSelectedRole('admin')}
-              >
-                <Text style={[styles.roleLabel, selectedRole === 'admin' && styles.roleLabelSelected]}>
-                  🔐 Admin
-                </Text>
-                <Text style={styles.roleDescription}>Platform administration</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
 
-        {adminAccessEnabled && !isSignUp && (
-          <View>
-            <View style={styles.adminBanner}>
-              <Text style={styles.adminBannerText}>🔐 Admin Access Enabled</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.quickAdminButton}
-              onPress={async () => {
-                setIsSubmitting(true);
-                try {
-                  await quickTestLogin('admin');
-                } catch (err) {
-                  console.error('Quick admin login failed:', err);
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.quickAdminButtonText}>
-                🚀 Quick Admin Login
-              </Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -336,36 +305,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
   },
-  adminBanner: {
-    backgroundColor: '#DBEAFE',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.light.primary,
-  },
-  adminBannerText: {
-    color: Colors.light.primary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    textAlign: 'center',
-  },
-  adminRoleCard: {
-    marginTop: 12,
-    width: '100%',
-  },
-  quickAdminButton: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  quickAdminButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
+
 });
 
 
