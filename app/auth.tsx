@@ -15,12 +15,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import Colors from '@/constants/colors';
 import { Truck, Package } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, loading, quickTestLogin, error, clearError } = useAuth();
+  const { signIn, signUp, loading, error, clearError } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,10 +47,7 @@ export default function AuthScreen() {
     }
   };
 
-  const handleQuickLogin = (role: UserRole) => {
-    console.log('Quick test login as:', role);
-    quickTestLogin(role);
-  };
+
 
   if (loading) {
     return (
@@ -85,31 +80,18 @@ export default function AuthScreen() {
         { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 },
       ]}
     >
-      {/* 🔒 Hidden Admin Access on Logo */}
-       <View style={styles.header}>
-       <TouchableOpacity
-       activeOpacity={0.8}
-       onLongPress={() => {
-      // subtle haptic + secret entry
-      if (Platform.OS === 'ios' || Platform.OS === 'android') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-      handleQuickLogin('admin');
-    }}
-    delayLongPress={1200} // 1.2s hold feels more natural
-  >
-    <Image
-      source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
-      style={{
-        width: 170,
-        height: 170,
-        alignSelf: 'center',
-        resizeMode: 'contain',
-        opacity: 0.98,
-      }}
-    />
-  </TouchableOpacity>
-</View>
+      <View style={styles.header}>
+        <Image
+          source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
+          style={{
+            width: 170,
+            height: 170,
+            alignSelf: 'center',
+            resizeMode: 'contain',
+            opacity: 0.98,
+          }}
+        />
+      </View>
 
 
       <View style={styles.formContainer}>
@@ -195,30 +177,6 @@ export default function AuthScreen() {
               : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
-
-        {/* Quick Testing Access */}
-        <View style={styles.testingSection}>
-          <Text style={styles.testingLabel}>Quick Testing Access</Text>
-          <View style={styles.testingTabs}>
-            <TouchableOpacity
-              style={styles.testingTab}
-              onPress={() => handleQuickLogin('driver')}
-              disabled={isSubmitting}
-            >
-              <Truck size={28} color={Colors.light.primary} strokeWidth={2.5} />
-              <Text style={styles.testingTabLabel}>Driver</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testingTab}
-              onPress={() => handleQuickLogin('shipper')}
-              disabled={isSubmitting}
-            >
-              <Package size={28} color={Colors.light.primary} strokeWidth={2.5} />
-              <Text style={styles.testingTabLabel}>Shipper</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
     </ScrollView>
   );
@@ -316,47 +274,6 @@ const styles = StyleSheet.create({
     color: Colors.light.primary,
     fontSize: 14,
     fontWeight: '500' as const,
-  },
-  testingSection: {
-    marginTop: 32,
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.border,
-  },
-  testingLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
-  },
-  testingTabs: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 12,
-  },
-  testingTab: {
-    flex: 1,
-    backgroundColor: Colors.light.background,
-    borderRadius: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.light.primary,
-    shadowColor: Colors.light.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  testingTabLabel: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: Colors.light.primary,
-    marginTop: 8,
   },
   errorContainer: {
     backgroundColor: '#FEE2E2',
