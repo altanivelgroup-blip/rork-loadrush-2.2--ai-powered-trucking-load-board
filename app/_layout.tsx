@@ -5,8 +5,18 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { FUEL_API_URL, FUEL_API_KEY } from '@env';
 
 SplashScreen.preventAutoHideAsync();
+
+console.log('🔧 Initial Environment Variables Check:');
+try {
+  const { FUEL_API_URL: url, FUEL_API_KEY: key } = require('@env');
+  console.log('  FUEL_API_URL:', url);
+  console.log('  FUEL_API_KEY:', key ? `${key.substring(0, 10)}...` : 'NOT SET');
+} catch (error) {
+  console.error('  ❌ Error loading @env:', error);
+}
 
 const queryClient = new QueryClient();
 
@@ -74,6 +84,9 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   console.log('🚀 RootLayout mounted');
+  console.log('🔧 Environment Variables Check:');
+  console.log('  FUEL_API_URL:', FUEL_API_URL);
+  console.log('  FUEL_API_KEY:', FUEL_API_KEY ? `${FUEL_API_KEY.substring(0, 10)}...` : 'NOT SET');
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
