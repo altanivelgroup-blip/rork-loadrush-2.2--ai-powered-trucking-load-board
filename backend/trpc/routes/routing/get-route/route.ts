@@ -40,6 +40,7 @@ export const getRouteProcedure = publicProcedure
           'Accept': 'application/json',
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(25000),
       });
 
       if (!res.ok) {

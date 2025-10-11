@@ -22,7 +22,7 @@ export interface UseDriverRouteParams {
 }
 
 const UPDATE_INTERVAL = 30000;
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 28000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -103,7 +103,11 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       }
       console.error('[useDriverRoute] Error fetching route:', err);
       const message = err instanceof Error ? err.message : 'Failed to fetch route';
-      setError(message);
+      if (message.includes('timeout') || message.includes('timed out')) {
+        setError('Route calculation timed out. Please try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       setIsLoading(false);

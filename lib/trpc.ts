@@ -22,7 +22,7 @@ export const trpcClient = trpc.createClient({
       fetch: (url, options) => {
         return fetch(url, {
           ...options,
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(30000),
         }).catch((error) => {
           console.error('❌ tRPC fetch error:', error.message);
           throw error;
