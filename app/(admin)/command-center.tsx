@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Play, Pause, RotateCcw, Film } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -24,6 +24,7 @@ const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
 
 // Platform-specific map import handled via .native.tsx extension
+import { MapView, Marker, PROVIDER_GOOGLE } from '@/components/MapComponents';
 
 export default function CommandCenter() {
   const { drivers, isLoading } = useCommandCenterDrivers();
@@ -38,10 +39,10 @@ export default function CommandCenter() {
   const cycleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const projectorOverlayAnim = useRef(new Animated.Value(0)).current;
   const isWindowFocused = useRef(true);
-  const [playbackMode, setPlaybackMode] = useState(false);
-  const [selectedPlaybackDriver, setSelectedPlaybackDriver] = useState<string | null>(null);
-  const [playbackSpeed, setPlaybackSpeedState] = useState(1);
-  const playbackToolbarAnim = useRef(new Animated.Value(0)).current;
+  const [viewMode, setViewMode] = useState<'dark' | 'map'>('dark');
+  const mapRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState(false);
+  
 
   const filteredDrivers = useMemo(() => {
     const list = activeFilter === 'all' ? drivers : drivers.filter((d) => d.status === activeFilter);
@@ -73,21 +74,6 @@ export default function CommandCenter() {
   };
 
   const driversWithHistory = useMemo(() => filteredDrivers.filter((d) => getMockLocationHistory(d.id).length > 0), [filteredDrivers]);
-  const selectedPlaybackDriverData = drivers.find((d) => d.id === selectedPlaybackDriver);
-  const playbackLocations = selectedPlaybackDriver ? getMockLocationHistory(selectedPlaybackDriver) : [];
-
-  const playback = useDriverPlayback({
-    driverId: selectedPlaybackDriver,
-    locations: playbackLocations,
-    speed: playbackSpeed,
-    autoPlay: true,
-  });
-
-  useEffect(() => {
-    if (playbackMode && !selectedPlaybackDriver && driversWithHistory.length > 0) {
-      setSelectedPlaybackDriver(driversWithHistory[0]?.id ?? null);
-    }
-  }, [playbackMode, selectedPlaybackDriver, driversWithHistory]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -96,22 +82,6 @@ export default function CommandCenter() {
       useNativeDriver: true,
     }).start();
   }, [fadeAnim]);
-
-  useEffect(() => {
-    if (playbackMode) {
-      Animated.timing(playbackToolbarAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(playbackToolbarAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [playbackMode, playbackToolbarAnim]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -268,21 +238,18 @@ export default function CommandCenter() {
           <TouchableOpacity
             style={[
               styles.modeToggle,
-              playbackMode && styles.modeToggleActive,
+              viewMode === 'map' && styles.modeToggleActive,
             ]}
             onPress={() => {
+              console.log('[ViewToggle] Toggling view mode');
               if (projectorMode) setProjectorMode(false);
-              setPlaybackMode(!playbackMode);
-              if (playbackMode) {
-                setSelectedPlaybackDriver(null);
-                playback.pause();
-              }
+              setViewMode((prev) => (prev === 'dark' ? 'map' : 'dark'));
             }}
             activeOpacity={0.7}
           >
-            <Film size={18} color={playbackMode ? '#60A5FA' : '#94A3B8'} />
-            <Text style={[styles.modeLabel, playbackMode && styles.modeLabelActive]}>
-              Playback
+            <Map size={18} color={viewMode === 'map' ? '#60A5FA' : '#94A3B8'} />
+            <Text style={[styles.modeLabel, viewMode === 'map' && styles.modeLabelActive]}>
+              View: {viewMode === 'dark' ? 'Dark' : 'Map'}
             </Text>
           </TouchableOpacity>
           <View style={styles.projectorToggle}>
@@ -291,7 +258,7 @@ export default function CommandCenter() {
             <Switch
               value={projectorMode}
               onValueChange={(value) => {
-                if (value && playbackMode) setPlaybackMode(false);
+                if (value) setViewMode('map');
                 setProjectorMode(value);
               }}
               trackColor={{ false: '#334155', true: '#2563EB' }}
@@ -306,7 +273,7 @@ export default function CommandCenter() {
         </View>
       </Animated.View>
 
-      {!projectorMode && !playbackMode && (
+      {!projectorMode && (
         <Animated.View style={[styles.filterBar, { opacity: fadeAnim }]}>
         <FilterButton
           label="All"
@@ -346,7 +313,7 @@ export default function CommandCenter() {
       )}
 
       <View style={styles.content}>
-        {!projectorMode && !playbackMode && (
+        {!projectorMode && (
           <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
           <View style={styles.sidebarHeader}>
             <Text style={styles.sidebarTitle}>Active Drivers</Text>
@@ -378,28 +345,78 @@ export default function CommandCenter() {
           </Animated.View>
         )}
 
-        <Animated.View style={[styles.mapContainer, (projectorMode || playbackMode) && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
-          <View style={styles.darkMapPlaceholder}>
-            <View style={styles.mapGrid}>
-              {!playbackMode && filteredDrivers.map((driver) => (
-                <AnimatedMarker
+        <Animated.View style={[styles.mapContainer, (projectorMode || viewMode === 'map') && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
+          {viewMode === 'map' && MapView ? (
+            <MapView
+              ref={mapRef}
+              style={{ flex: 1 }}
+              provider={PROVIDER_GOOGLE}
+              initialRegion={{
+                latitude: filteredDrivers[0]?.location.lat ?? 39.8283,
+                longitude: filteredDrivers[0]?.location.lng ?? -98.5795,
+                latitudeDelta: 25,
+                longitudeDelta: 25,
+              }}
+              onMapReady={() => {
+                console.log('[Map] Ready');
+                setMapReady(true);
+              }}
+              showsTraffic
+              showsUserLocation={false}
+              showsBuildings
+              showsCompass
+              toolbarEnabled={false}
+              mapType={'standard'}
+              testID="commandCenterMap"
+            >
+              {filteredDrivers.map((driver) => (
+                <Marker
                   key={driver.id}
-                  driver={driver}
-                  onPress={() => openPopup(driver.id)}
-                  isSelected={popupDriver === driver.id}
-                />
+                  coordinate={{ latitude: driver.location.lat, longitude: driver.location.lng }}
+                  title={`${driver.driverId} • ${driver.name}`}
+                  description={getStatusLabel(driver.status)}
+                  onPress={() => {
+                    console.log(`[Map] Pin pressed: ${driver.driverId}`);
+                    openPopup(driver.id);
+                    if (mapRef.current) {
+                      mapRef.current.animateCamera({
+                        center: { latitude: driver.location.lat, longitude: driver.location.lng },
+                        zoom: 12,
+                        heading: 0,
+                        pitch: 45,
+                      }, { duration: 800 });
+                    }
+                  }}
+                >
+                  <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                    <PulsingDot color={getStatusColor(driver.status)} size={14} />
+                  </View>
+                </Marker>
               ))}
+            </MapView>
+          ) : (
+            <View style={styles.darkMapPlaceholder}>
+              <View style={styles.mapGrid}>
+                {filteredDrivers.map((driver) => (
+                  <AnimatedMarker
+                    key={driver.id}
+                    driver={driver}
+                    onPress={() => openPopup(driver.id)}
+                    isSelected={popupDriver === driver.id}
+                  />
+                ))}
+              </View>
+              <View style={styles.mapOverlay}>
+                <MapPin size={64} color="rgba(37, 99, 235, 0.3)" />
+                <Text style={styles.mapOverlayText}>
+                  {filteredDrivers.length} Active Drivers
+                </Text>
+                <Text style={styles.mapOverlaySubtext}>
+                  Live tracking across continental U.S.
+                </Text>
+              </View>
             </View>
-            <View style={styles.mapOverlay}>
-              <MapPin size={64} color="rgba(37, 99, 235, 0.3)" />
-              <Text style={styles.mapOverlayText}>
-                {filteredDrivers.length} Active Drivers
-              </Text>
-              <Text style={styles.mapOverlaySubtext}>
-                Live tracking across continental U.S.
-              </Text>
-            </View>
-          </View>
+          )}
         </Animated.View>
       </View>
 
@@ -418,21 +435,11 @@ export default function CommandCenter() {
         />
       )}
 
-      {popupDriver && popupDriverData && !projectorMode && !playbackMode && (
+      {popupDriver && popupDriverData && !projectorMode && (
         <DriverPopup
           driver={popupDriverData}
           animation={popupAnimation}
           onClose={closePopup}
-        />
-      )}
-
-      {playbackMode && null}
-
-      {playbackMode && selectedPlaybackDriverData && playback.currentLocation && (
-        <PlaybackGhostMarker
-          driver={selectedPlaybackDriverData}
-          location={playback.currentLocation}
-          progress={playback.progress}
         />
       )}
     </View>
