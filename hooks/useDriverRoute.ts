@@ -24,6 +24,12 @@ export interface UseDriverRouteParams {
 const UPDATE_INTERVAL = 30000;
 const REQUEST_TIMEOUT_MS = 15000;
 
+function isAbortError(err: unknown): boolean {
+  if (!err) return false;
+  const anyErr = err as { name?: string; message?: string };
+  return anyErr?.name === 'AbortError' || /aborted|AbortError/i.test(anyErr?.message ?? '');
+}
+
 async function fetchOpenRouteService(params: {
   origin: { latitude: number; longitude: number };
   destination: { latitude: number; longitude: number };
@@ -84,7 +90,9 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
     lastFetchRef.current = now;
 
     if (abortRef.current) {
-      abortRef.current.abort();
+      try {
+        abortRef.current.abort('superseded');
+      } catch {}
       abortRef.current = null;
     }
     const controller = new AbortController();
@@ -93,14 +101,18 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
     setIsLoading(true);
     setError(null);
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       const orsApiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
       if (!orsApiKey) {
         throw new Error('ORS API key not configured');
       }
 
-      const timeoutId = setTimeout(() => {
-        controller.abort();
+      timeoutId = setTimeout(() => {
+        try {
+          controller.abort('timeout');
+        } catch {}
       }, REQUEST_TIMEOUT_MS);
 
       const data = await fetchOpenRouteService({
@@ -109,8 +121,6 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         apiKey: orsApiKey,
         signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
 
       const features = (data as any)?.features ?? [];
       if (features.length === 0) {
@@ -152,11 +162,16 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
 
       setRouteData(routeResult);
     } catch (err) {
+      if (isAbortError(err)) {
+        console.warn('[useDriverRoute] Request aborted');
+        return;
+      }
       console.error('[useDriverRoute] Error fetching route:', err);
       const message = err instanceof Error ? err.message : 'Failed to fetch route';
       const webHint = Platform.OS === 'web' ? ' Possible CORS/network issue on web. Consider routing through backend proxy.' : '';
       setError(message + webHint);
     } finally {
+      if (timeoutId) clearTimeout(timeoutId);
       setIsLoading(false);
     }
   }, [origin, destination, enabled]);
@@ -167,7 +182,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       return undefined;
     }
 
-    doFetch();
+    void doFetch();
 
     intervalRef.current = setInterval(() => {
       void doFetch();
@@ -179,7 +194,9 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         intervalRef.current = null;
       }
       if (abortRef.current) {
-        abortRef.current.abort();
+        try {
+          abortRef.current.abort('effect-cleanup');
+        } catch {}
         abortRef.current = null;
       }
     };
