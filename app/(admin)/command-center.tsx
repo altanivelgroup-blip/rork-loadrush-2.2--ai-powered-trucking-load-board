@@ -349,8 +349,8 @@ export default function CommandCenter() {
           {viewMode === 'map' && MapView ? (
             <MapView
               ref={mapRef}
-              style={{ flex: 1 }}
-              provider={PROVIDER_GOOGLE}
+              style={{ flex: 1, minHeight: 300, backgroundColor: '#0F172A' }}
+              provider={Platform.OS === 'web' ? undefined : PROVIDER_GOOGLE}
               initialRegion={{
                 latitude: filteredDrivers[0]?.location.lat ?? 39.8283,
                 longitude: filteredDrivers[0]?.location.lng ?? -98.5795,
