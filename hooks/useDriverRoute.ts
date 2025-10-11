@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Platform } from 'react-native';
+import { trpcClient } from '@/lib/trpc';
 
 export interface RouteCoordinate {
   latitude: number;
@@ -33,41 +33,12 @@ function isAbortError(err: unknown): boolean {
   return anyErr?.name === 'AbortError' || /aborted|AbortError|effect-cleanup|timeout|superseded/i.test(anyErr?.message ?? '');
 }
 
-async function fetchOpenRouteService(params: {
+async function fetchRouteViaBackend(params: {
   origin: { latitude: number; longitude: number };
   destination: { latitude: number; longitude: number };
-  apiKey: string;
-  signal?: AbortSignal;
 }) {
-  const { origin, destination, apiKey, signal } = params;
-
-  const body = {
-    coordinates: [
-      [origin.longitude, origin.latitude],
-      [destination.longitude, destination.latitude],
-    ],
-  } as const;
-
-  const url = 'https://api.openrouteservice.org/v2/directions/driving-car';
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`ORS API error: ${res.status} ${text}`);
-  }
-
-  const data = await res.json();
-  return data as any;
+  const { origin, destination } = params;
+  return await trpcClient.routing.getRoute.query({ origin, destination });
 }
 
 export function useDriverRoute({ origin, destination, enabled = true }: UseDriverRouteParams) {
@@ -107,60 +78,21 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     try {
-      const orsApiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
-      if (!orsApiKey) {
-        throw new Error('ORS API key not configured');
-      }
-
       timeoutId = setTimeout(() => {
         try {
           controller.abort('timeout');
         } catch {}
       }, REQUEST_TIMEOUT_MS);
 
-      const data = await fetchOpenRouteService({
+      const routeResult = await fetchRouteViaBackend({
         origin,
         destination,
-        apiKey: orsApiKey,
-        signal: controller.signal,
       });
 
-      const features = (data as any)?.features ?? [];
-      if (features.length === 0) {
-        throw new Error('No route found');
-      }
-
-      const route = features[0];
-      const geometry = route.geometry;
-      const summary = route.properties?.summary;
-      const distanceMeters: number = summary?.distance ?? 0;
-      const durationSeconds: number = summary?.duration ?? 0;
-
-      const routeCoords: RouteCoordinate[] = (geometry?.coordinates ?? []).map((coord: [number, number]) => ({
-        latitude: coord[1],
-        longitude: coord[0],
-      }));
-
-      const distanceKm = distanceMeters / 1000;
-      const distanceMiles = distanceKm * 0.621371;
-      const durationMin = Math.round(durationSeconds / 60);
-
-      const hours = Math.floor(durationMin / 60);
-      const minutes = durationMin % 60;
-      const durationFormatted = hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`;
-
-      const routeResult: RouteData = {
-        routeCoords,
-        distanceKm,
-        distanceMiles,
-        durationMin,
-        durationFormatted,
-      };
-
       console.log('[useDriverRoute] Route fetched successfully', {
-        points: routeCoords.length,
-        distance: `${distanceMiles.toFixed(1)} mi`,
-        duration: durationFormatted,
+        points: routeResult.routeCoords.length,
+        distance: `${routeResult.distanceMiles.toFixed(1)} mi`,
+        duration: routeResult.durationFormatted,
       });
 
       setRouteData(routeResult);
@@ -171,8 +103,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       }
       console.error('[useDriverRoute] Error fetching route:', err);
       const message = err instanceof Error ? err.message : 'Failed to fetch route';
-      const webHint = Platform.OS === 'web' ? ' Possible CORS/network issue on web. Consider routing through backend proxy.' : '';
-      setError(message + webHint);
+      setError(message);
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
       setIsLoading(false);
