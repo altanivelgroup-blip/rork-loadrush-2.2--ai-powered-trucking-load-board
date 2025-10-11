@@ -1,8 +1,12 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { z } from "zod";
 
-const FUEL_API_URL = process.env.EXPO_PUBLIC_FUEL_API || "https://api.fuelpricestracker.com/v1/prices";
-const FUEL_API_KEY = process.env.EXPO_PUBLIC_FUEL_KEY || "10482|0Vh5MCrSC1OphlOuderbaNyQQWhTI7lpnpjpghTU";
+const FUEL_API_URL = process.env.FUEL_API_URL || "https://zylalabs.com/api/7700/fuel+prices+tracker+api/12475/fuel+costs";
+const FUEL_API_KEY = process.env.FUEL_API_KEY || "";
+
+if (!FUEL_API_KEY) {
+  console.warn("⚠️ FUEL_API_KEY not set in environment variables");
+}
 
 export const getFuelPricesRoute = publicProcedure
   .input(
@@ -12,7 +16,9 @@ export const getFuelPricesRoute = publicProcedure
   )
   .query(async ({ input }) => {
     try {
-      console.log(`⛽ Fetching ${input.fuelType} prices from FuelPricesTracker API`);
+      console.log(`⛽ Fetching ${input.fuelType} prices from Zyla Fuel API`);
+      console.log(`🔗 API URL: ${FUEL_API_URL}`);
+      console.log(`🔑 API Key present: ${FUEL_API_KEY ? 'Yes' : 'No'}`);
 
       const response = await fetch(FUEL_API_URL, {
         method: "GET",
