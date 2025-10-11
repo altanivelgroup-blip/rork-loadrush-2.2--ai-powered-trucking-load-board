@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { FUEL_API_URL, FUEL_API_KEY } from '@env';
+import { initFuelServiceTest } from '@/services/testFuelService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -87,6 +88,10 @@ export default function RootLayout() {
   console.log('🔧 Environment Variables Check:');
   console.log('  FUEL_API_URL:', FUEL_API_URL);
   console.log('  FUEL_API_KEY:', FUEL_API_KEY ? `${FUEL_API_KEY.substring(0, 10)}...` : 'NOT SET');
+
+  useEffect(() => {
+    initFuelServiceTest();
+  }, []);
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>

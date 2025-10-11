@@ -1,8 +1,8 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { z } from "zod";
 
-const FUEL_API_URL = "https://api.fuelpricestracker.com/v1/prices";
-const FUEL_API_KEY = "10482|0Vh5MCrSC1OphlOuderbaNyQQWhTI7lpnpjpghTU";
+const FUEL_API_URL = process.env.EXPO_PUBLIC_FUEL_API || "https://api.fuelpricestracker.com/v1/prices";
+const FUEL_API_KEY = process.env.EXPO_PUBLIC_FUEL_KEY || "10482|0Vh5MCrSC1OphlOuderbaNyQQWhTI7lpnpjpghTU";
 
 export const getFuelPricesRoute = publicProcedure
   .input(
