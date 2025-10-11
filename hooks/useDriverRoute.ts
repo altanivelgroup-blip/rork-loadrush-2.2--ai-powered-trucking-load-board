@@ -26,8 +26,11 @@ const REQUEST_TIMEOUT_MS = 15000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
+  if (typeof err === 'string') {
+    return err === 'effect-cleanup' || err === 'timeout' || err === 'superseded' || /aborted|AbortError/i.test(err);
+  }
   const anyErr = err as { name?: string; message?: string };
-  return anyErr?.name === 'AbortError' || /aborted|AbortError/i.test(anyErr?.message ?? '');
+  return anyErr?.name === 'AbortError' || /aborted|AbortError|effect-cleanup|timeout|superseded/i.test(anyErr?.message ?? '');
 }
 
 async function fetchOpenRouteService(params: {

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map, RotateCcw, Pause, Play } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -377,7 +377,7 @@ export default function CommandCenter() {
             <MapView
               ref={mapRef}
               style={{ flex: 1, minHeight: 300, backgroundColor: '#0F172A' }}
-              provider={Platform.select({ ios: PROVIDER_GOOGLE, android: PROVIDER_GOOGLE, web: undefined })}
+              provider={Platform.select({ ios: undefined, android: PROVIDER_GOOGLE, web: undefined })}
               initialRegion={{
                 latitude: USA_REGION.latitude,
                 longitude: USA_REGION.longitude,
@@ -388,22 +388,29 @@ export default function CommandCenter() {
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
+                  if (!mapReady) return;
                   const correctingRef = (mapRef as React.MutableRefObject<any>) as any;
                   if (!correctingRef.current) return;
                   correctingRef.current.__isCorrecting = correctingRef.current.__isCorrecting ?? false;
+                  correctingRef.current.__lastCorrectionTs = correctingRef.current.__lastCorrectionTs ?? 0;
 
                   const outOfBounds =
-                    region.latitude > USA_BOUNDS.north + 5 ||
-                    region.latitude < USA_BOUNDS.south - 5 ||
-                    region.longitude < USA_BOUNDS.west - 20 ||
-                    region.longitude > USA_BOUNDS.east + 20;
+                    region.latitude > USA_BOUNDS.north + 2 ||
+                    region.latitude < USA_BOUNDS.south - 2 ||
+                    region.longitude < USA_BOUNDS.west - 5 ||
+                    region.longitude > USA_BOUNDS.east + 5;
 
-                  if (outOfBounds && mapRef.current?.animateToRegion && !correctingRef.current.__isCorrecting) {
+                  const tooZoomedOut = (region.latitudeDelta ?? 0) > 60 || (region.longitudeDelta ?? 0) > 80;
+                  const now = Date.now();
+                  const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 800;
+
+                  if ((outOfBounds || tooZoomedOut) && mapRef.current?.animateToRegion && !correctingRef.current.__isCorrecting && cooldownPassed) {
                     correctingRef.current.__isCorrecting = true;
+                    correctingRef.current.__lastCorrectionTs = now;
                     mapRef.current.animateToRegion(USA_REGION, 300);
                     setTimeout(() => {
                       if (mapRef.current) mapRef.current.__isCorrecting = false;
-                    }, 400);
+                    }, 350);
                   }
                 } catch (e) {
                   // no-op
