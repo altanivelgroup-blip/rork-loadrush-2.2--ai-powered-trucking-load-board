@@ -1134,10 +1134,6 @@ function DriverDetailPanel({ driver, animation, onClose }: DriverDetailPanelProp
           styles.panelOverlay,
           {
             opacity,
-            display: animation.interpolate({
-              inputRange: [0, 0.01],
-              outputRange: ['none' as const, 'flex' as const],
-            }) as any,
           },
         ]}
       >
