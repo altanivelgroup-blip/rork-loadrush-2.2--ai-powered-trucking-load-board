@@ -435,7 +435,7 @@ export default function CommandCenter() {
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
-              minZoomLevel={Platform.OS === 'web' ? 2.5 : 3}
+              minZoomLevel={Platform.OS === 'web' ? 2.0 : 3}
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {

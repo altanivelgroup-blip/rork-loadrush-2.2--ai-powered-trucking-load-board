@@ -110,13 +110,13 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const defaultZoom = 3.2;
+        const defaultZoom = 3.0;
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
           center,
           zoom,
-          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2.5,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2.0,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
@@ -136,8 +136,11 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
 
         if (!initialRegion) {
           isProgrammaticRef.current = true;
-          map.setCenter({ lat: USA_CENTER.latitude, lng: USA_CENTER.longitude });
-          map.setZoom(3.2);
+          const usaBounds = new gmaps.LatLngBounds(
+            new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
+            new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east)
+          );
+          map.fitBounds(usaBounds, 0);
         }
 
         if (showsTraffic) {
