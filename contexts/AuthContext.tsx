@@ -97,7 +97,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
                 }
               }
             } catch (firestoreError) {
-              console.error('🔥 Firestore role lookup error:', firestoreError);
+              const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
+              console.error('🔥 Firestore role lookup error:', errorMsg);
               const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
               if (storedRole) {
                 detectedRole = storedRole;
@@ -258,7 +259,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
         }
       } catch (firestoreError) {
-        console.error('🔥 Firestore role lookup error:', firestoreError);
+        const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
+        console.error('🔥 Firestore role lookup error:', errorMsg);
         const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
         if (storedRole) {
           detectedRole = storedRole;
