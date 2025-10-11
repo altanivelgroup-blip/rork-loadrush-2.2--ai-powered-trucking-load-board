@@ -42,6 +42,34 @@ export default function CommandCenter() {
   const [viewMode, setViewMode] = useState<'dark' | 'map'>('dark');
   const mapRef = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
+  const USA_REGION = useMemo(() => ({
+    latitude: 39.8283,
+    longitude: -98.5795,
+    latitudeDelta: 25,
+    longitudeDelta: 45,
+  }), []);
+  const USA_BOUNDS = useMemo(() => ({
+    north: 49.384358,
+    south: 24.396308,
+    west: -124.848974,
+    east: -66.885444,
+  }), []);
+  const fitAllDrivers = useCallback(() => {
+    if (!mapRef.current) return;
+    try {
+      if (filteredDrivers.length > 0 && mapRef.current.fitToCoordinates) {
+        const coords = filteredDrivers.map(d => ({ latitude: d.location.lat, longitude: d.location.lng }));
+        mapRef.current.fitToCoordinates(coords, {
+          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
+          animated: true,
+        });
+      } else if (mapRef.current.animateToRegion) {
+        mapRef.current.animateToRegion(USA_REGION, 600);
+      }
+    } catch (e) {
+      console.log('[Map] fitAllDrivers error', e);
+    }
+  }, [filteredDrivers, USA_REGION]);
   
 
   const filteredDrivers = useMemo(() => {
@@ -350,16 +378,35 @@ export default function CommandCenter() {
             <MapView
               ref={mapRef}
               style={{ flex: 1, minHeight: 300, backgroundColor: '#0F172A' }}
-              provider={Platform.OS === 'web' ? undefined : PROVIDER_GOOGLE}
+              provider={Platform.select({ ios: undefined, android: PROVIDER_GOOGLE, web: undefined })}
               initialRegion={{
-                latitude: filteredDrivers[0]?.location.lat ?? 39.8283,
-                longitude: filteredDrivers[0]?.location.lng ?? -98.5795,
-                latitudeDelta: 25,
-                longitudeDelta: 25,
+                latitude: filteredDrivers[0]?.location.lat ?? USA_REGION.latitude,
+                longitude: filteredDrivers[0]?.location.lng ?? USA_REGION.longitude,
+                latitudeDelta: USA_REGION.latitudeDelta,
+                longitudeDelta: USA_REGION.longitudeDelta,
+              }}
+              minZoomLevel={3}
+              maxZoomLevel={18}
+              onRegionChangeComplete={(region: any) => {
+                try {
+                  const outOfBounds =
+                    region.latitude > USA_BOUNDS.north + 5 ||
+                    region.latitude < USA_BOUNDS.south - 5 ||
+                    region.longitude < USA_BOUNDS.west - 20 ||
+                    region.longitude > USA_BOUNDS.east + 20;
+                  if (outOfBounds && mapRef.current?.animateToRegion) {
+                    mapRef.current.animateToRegion(USA_REGION, 300);
+                  }
+                } catch (e) {
+                  // no-op
+                }
               }}
               onMapReady={() => {
                 console.log('[Map] Ready');
                 setMapReady(true);
+                setTimeout(() => {
+                  fitAllDrivers();
+                }, 100);
               }}
               showsTraffic
               showsUserLocation={false}
