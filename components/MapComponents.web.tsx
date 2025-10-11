@@ -1,5 +1,5 @@
-import React, { useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { View, StyleSheet, Platform, Text, Pressable } from 'react-native';
 
 export type LatLng = { latitude: number; longitude: number };
 
@@ -88,10 +88,12 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
   const googleMapRef = useRef<any>(null);
   const isProgrammaticRef = useRef(false);
   const trafficLayerRef = useRef<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     let mounted = true;
+    setLoadError(null);
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
@@ -144,6 +146,13 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
       })
       .catch((e) => {
         console.error('[WebMap] Failed to load Google Maps JS', e);
+        const msg = String((e && (e.message || e.status || (e.toString && e.toString()))) ?? 'Unknown error');
+        if (msg.includes('RefererNotAllowedMapError')) {
+          const href = typeof window !== 'undefined' ? window.location.origin + '/*' : '';
+          setLoadError(`Google Maps API key HTTP referrer is not allowed for this origin. Add this origin to your key restrictions: ${href}`);
+        } else {
+          setLoadError('Failed to load map. Check your Google Maps API key and referrer restrictions.');
+        }
         if (onMapReady) onMapReady();
       });
 
@@ -195,6 +204,26 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     <View style={[styles.container, style]} testID={testID ?? 'webGoogleMap'}>
       <View style={styles.mapHost} ref={(el) => (containerRef.current = el as unknown as HTMLDivElement)} />
       {children}
+      {loadError ? (
+        <View style={styles.errorOverlay} testID="webGoogleMapError">
+          <Text style={styles.errorTitle}>Map failed to load</Text>
+          <Text style={styles.errorText}>{loadError}</Text>
+          <Text style={styles.errorText}>Env var: EXPO_PUBLIC_GOOGLE_MAPS_API_KEY must be set and allow these referrers:</Text>
+          <Text style={styles.errorList}>- http://localhost:8081/*</Text>
+          <Text style={styles.errorList}>- http://localhost:8080/*</Text>
+          <Text style={styles.errorList}>- https://*.exp.direct/*</Text>
+          <Text style={styles.errorList}>- https://*.expo.dev/*</Text>
+          <Text style={styles.errorList}>- https://*.ngrok-free.app/* (if used)</Text>
+          <Pressable onPress={() => {
+            setLoadError(null);
+            const s = document.getElementById('google-maps-js');
+            if (s && s.parentNode) s.parentNode.removeChild(s);
+            (window as any).google = undefined;
+          }} style={styles.retryBtn} testID="retryMapLoad">
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 });
@@ -339,6 +368,45 @@ const styles = StyleSheet.create({
   },
   mapHost: {
     ...StyleSheet.absoluteFillObject,
+  },
+  errorOverlay: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+    backgroundColor: 'rgba(15,23,42,0.96)',
+    borderRadius: 12,
+    padding: 16,
+    borderColor: 'rgba(148,163,184,0.25)',
+    borderWidth: 1,
+  },
+  errorTitle: {
+    color: '#F87171',
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 8,
+  },
+  errorText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  errorList: {
+    color: '#94A3B8',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  retryBtn: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: '#1D4ED8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: '600' as const,
   },
 });
 
