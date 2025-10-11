@@ -80,6 +80,8 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     onRegionChangeComplete,
     showsTraffic = true,
     mapType = 'standard',
+    minZoomLevel,
+    maxZoomLevel,
     testID,
   }: MapViewProps,
   ref,
@@ -108,11 +110,14 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : 4;
+        const defaultZoom = 3.5;
+        const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
           center,
           zoom,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 3,
+          maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
           streetViewControl: false,
@@ -128,6 +133,21 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         googleMapRef.current = map;
         (window as any).__lastGoogleMapInstance = map;
         injectPulseCSS();
+
+        if (!initialRegion) {
+          const bounds = new gmaps.LatLngBounds(
+            new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
+            new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
+          );
+          isProgrammaticRef.current = true;
+          map.fitBounds(bounds, 0);
+          gmaps.event.addListenerOnce(map, 'idle', () => {
+            isProgrammaticRef.current = true;
+            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 3;
+            const current = map.getZoom?.() ?? defaultZoom;
+            map.setZoom(Math.max(current - 0.5, minZ));
+          });
+        }
 
         if (showsTraffic) {
           trafficLayerRef.current = new gmaps.TrafficLayer();
