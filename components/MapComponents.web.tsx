@@ -110,13 +110,13 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const defaultZoom = 3.5;
+        const defaultZoom = 3.2;
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
           center,
           zoom,
-          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2.5,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
@@ -135,20 +135,9 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         injectPulseCSS();
 
         if (!initialRegion) {
-          const bounds = new gmaps.LatLngBounds(
-            new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
-            new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
-          );
           isProgrammaticRef.current = true;
-          map.fitBounds(bounds, 220);
-          gmaps.event.addListenerOnce(map, 'idle', () => {
-            isProgrammaticRef.current = true;
-            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
-            const current = map.getZoom?.() ?? defaultZoom;
-            const reduced = (current ?? defaultZoom) * 0.8;
-            const targetZoom = Math.max(Math.min(reduced, 2.3), minZ);
-            map.setZoom(targetZoom);
-          });
+          map.setCenter({ lat: USA_CENTER.latitude, lng: USA_CENTER.longitude });
+          map.setZoom(3.2);
         }
 
         if (showsTraffic) {
