@@ -90,6 +90,17 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
   const trafficLayerRef = useRef<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const onMapReadyRef = useRef<(() => void) | undefined>(undefined);
+  const onRegionChangeCompleteRef = useRef<((region: Region) => void) | undefined>(undefined);
+
+  useEffect(() => {
+    onMapReadyRef.current = onMapReady;
+  }, [onMapReady]);
+
+  useEffect(() => {
+    onRegionChangeCompleteRef.current = onRegionChangeComplete;
+  }, [onRegionChangeComplete]);
+
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     let mounted = true;
@@ -129,20 +140,18 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
             isProgrammaticRef.current = false;
             return;
           }
-          if (onRegionChangeComplete) {
-            const c = map.getCenter();
-            const z = map.getZoom();
-            const region: Region = {
-              latitude: c.lat(),
-              longitude: c.lng(),
-              latitudeDelta: zoomToLatDelta(z ?? 4),
-              longitudeDelta: zoomToLngDelta(z ?? 4),
-            };
-            onRegionChangeComplete(region);
-          }
+          const c = map.getCenter();
+          const z = map.getZoom();
+          const region: Region = {
+            latitude: c.lat(),
+            longitude: c.lng(),
+            latitudeDelta: zoomToLatDelta(z ?? 4),
+            longitudeDelta: zoomToLngDelta(z ?? 4),
+          };
+          onRegionChangeCompleteRef.current?.(region);
         });
 
-        if (onMapReady) onMapReady();
+        onMapReadyRef.current?.();
       })
       .catch((e) => {
         console.error('[WebMap] Failed to load Google Maps JS', e);
@@ -153,7 +162,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         } else {
           setLoadError('Failed to load map. Check your Google Maps API key and referrer restrictions.');
         }
-        if (onMapReady) onMapReady();
+        onMapReadyRef.current?.();
       });
 
     return () => {
@@ -166,7 +175,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         googleMapRef.current = null;
       } catch {}
     };
-  }, [initialRegion?.latitude, initialRegion?.longitude, initialRegion?.latitudeDelta, initialRegion?.longitudeDelta, showsTraffic, mapType, onMapReady, onRegionChangeComplete]);
+  }, [initialRegion?.latitude, initialRegion?.longitude, initialRegion?.latitudeDelta, initialRegion?.longitudeDelta, showsTraffic, mapType]);
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region: Region, _duration?: number) => {
