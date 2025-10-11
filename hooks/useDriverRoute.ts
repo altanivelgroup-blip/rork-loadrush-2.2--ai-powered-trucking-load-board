@@ -29,6 +29,9 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFetchRef = useRef<number>(0);
 
+  const originKey = origin ? `${origin.latitude},${origin.longitude}` : null;
+  const destinationKey = destination ? `${destination.latitude},${destination.longitude}` : null;
+
   useEffect(() => {
     if (!origin || !destination || !enabled) {
       setRouteData(null);
@@ -123,7 +126,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         intervalRef.current = null;
       }
     };
-  }, [origin?.latitude, origin?.longitude, destination?.latitude, destination?.longitude, enabled]);
+  }, [originKey, destinationKey, enabled]);
 
   const refetch = useCallback(async () => {
     if (!origin || !destination || !enabled) {
