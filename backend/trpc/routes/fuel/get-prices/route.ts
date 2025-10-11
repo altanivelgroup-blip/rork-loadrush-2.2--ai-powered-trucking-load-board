@@ -39,11 +39,11 @@ export const getFuelPricesRoute = publicProcedure
       const data = await response.json();
       console.log("✅ Fuel API Data received:", JSON.stringify(data).substring(0, 200));
 
-      const dieselPrice = parseFloat(data?.diesel ?? data?.average_diesel ?? 3.89);
+      const dieselPrice = parseFloat(data?.diesel ?? data?.average_diesel ?? 3.59);
       const gasolinePrice = parseFloat(data?.gasoline ?? data?.average_gasoline ?? 3.45);
 
       return {
-        diesel: !isNaN(dieselPrice) && dieselPrice > 0 ? dieselPrice : 3.89,
+        diesel: !isNaN(dieselPrice) && dieselPrice > 0 ? dieselPrice : 3.59,
         gasoline: !isNaN(gasolinePrice) && gasolinePrice > 0 ? gasolinePrice : 3.45,
         updatedAt: new Date().toISOString(),
       };
@@ -51,7 +51,7 @@ export const getFuelPricesRoute = publicProcedure
       console.error("❌ Fuel price fetch failed:", error);
       
       return {
-        diesel: 3.89,
+        diesel: 3.59,
         gasoline: 3.45,
         updatedAt: new Date().toISOString(),
       };
