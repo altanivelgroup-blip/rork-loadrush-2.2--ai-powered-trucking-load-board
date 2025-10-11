@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Play, Pause, RotateCcw, FastForward, Film, ChevronDown } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Play, Pause, RotateCcw, Film } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -82,6 +82,12 @@ export default function CommandCenter() {
     speed: playbackSpeed,
     autoPlay: false,
   });
+
+  useEffect(() => {
+    if (playbackMode && !selectedPlaybackDriver && driversWithHistory.length > 0) {
+      setSelectedPlaybackDriver(driversWithHistory[0]?.id ?? null);
+    }
+  }, [playbackMode, selectedPlaybackDriver, driversWithHistory]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -1314,7 +1320,6 @@ function PlaybackToolbar({
   onClose,
   animation,
 }: PlaybackToolbarProps) {
-  const [showDriverSelect, setShowDriverSelect] = useState(false);
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
@@ -1353,57 +1358,11 @@ function PlaybackToolbar({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.playbackDriverSelect}
-        onPress={() => setShowDriverSelect(!showDriverSelect)}
-        activeOpacity={0.8}
-      >
-        <View
-          style={[
-            styles.playbackDriverOption,
-            styles.playbackDriverOptionLast,
-          ]}
-        >
-          <View>
-            <Text style={styles.playbackDriverName}>
-              {selectedDriverData ? selectedDriverData.name : 'Select Driver'}
-            </Text>
-            {selectedDriverData && (
-              <Text style={styles.playbackDriverId}>
-                {selectedDriverData.driverId}
-              </Text>
-            )}
-          </View>
-          <ChevronDown size={20} color="#94A3B8" />
+      {selectedDriverData && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={styles.playbackDriverName}>{selectedDriverData.name}</Text>
+          <Text style={styles.playbackDriverId}>{selectedDriverData.driverId}</Text>
         </View>
-      </TouchableOpacity>
-
-      {showDriverSelect && (
-        <ScrollView
-          style={{ maxHeight: 200, marginBottom: 16 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {drivers.map((driver, index) => (
-            <TouchableOpacity
-              key={driver.id}
-              style={[
-                styles.playbackDriverOption,
-                index === drivers.length - 1 && styles.playbackDriverOptionLast,
-                selectedDriver === driver.id && styles.playbackDriverOptionSelected,
-              ]}
-              onPress={() => {
-                onSelectDriver(driver.id);
-                setShowDriverSelect(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <View>
-                <Text style={styles.playbackDriverName}>{driver.name}</Text>
-                <Text style={styles.playbackDriverId}>{driver.driverId}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       )}
 
       {selectedDriver && (
