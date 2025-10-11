@@ -301,13 +301,17 @@ function DriverProfileScreenInner() {
             <ChevronRight size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItemLast} onPress={onSignOut} testID="menu-sign-out" accessibilityRole="button">
-            <View style={[styles.menuIconContainer, { backgroundColor: '#FFEBEE' }]}>
-              <LogOut size={20} color="#F44336" />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: '#F44336' }]}>Sign Out</Text>
-            </View>
+        </View>
+
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.signOutButtonBottom}
+            onPress={onSignOut}
+            testID="menu-sign-out"
+            activeOpacity={0.7}
+          >
+            <LogOut size={20} color="#fff" />
+            <Text style={styles.signOutButtonBottomText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
 
@@ -468,11 +472,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  menuItemLast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
+
   menuIconContainer: {
     width: 40,
     height: 40,
@@ -508,5 +508,27 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#6B7280',
+  },
+  section: {
+    marginBottom: 20,
+  },
+  signOutButtonBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  signOutButtonBottomText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#fff',
   },
 });
