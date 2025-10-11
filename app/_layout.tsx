@@ -30,11 +30,9 @@ function RootLayoutNav() {
         console.log('Splash screen already hidden');
       }
 
-      console.log('🔄 Navigation check:', { loading, user: user?.role, segments });
+      console.log('🔄 Navigation check:', { loading, userRole: user?.role, segments });
 
       const inAuthGroup = segments[0] === 'auth';
-
-      console.log('✅ Auth loaded:', { user: user?.role, segments, inAuthGroup });
 
       if (!user && !inAuthGroup) {
         console.log('➡️ No user, redirecting to /auth');
@@ -42,15 +40,23 @@ function RootLayoutNav() {
         router.replace('/auth');
         setTimeout(() => setIsNavigating(false), 500);
       } else if (user && inAuthGroup) {
-        console.log('➡️ User logged in, redirecting to dashboard');
+        console.log('➡️ User logged in with role:', user.role, '- redirecting to dashboard');
         setIsNavigating(true);
-        if (user.role === 'driver') {
-          router.replace('/(driver)/dashboard');
-        } else if (user.role === 'shipper') {
-          router.replace('/(shipper)/dashboard');
+        
+        let targetRoute = '/(driver)/dashboard';
+        
+        if (user.role === 'shipper') {
+          targetRoute = '/(shipper)/dashboard';
+          console.log('🚚 Shipper detected - navigating to:', targetRoute);
         } else if (user.role === 'admin') {
-          router.replace('/(admin)/dashboard');
+          targetRoute = '/(admin)/dashboard';
+          console.log('👑 Admin detected - navigating to:', targetRoute);
+        } else if (user.role === 'driver') {
+          targetRoute = '/(driver)/dashboard';
+          console.log('🚛 Driver detected - navigating to:', targetRoute);
         }
+        
+        router.replace(targetRoute);
         setTimeout(() => setIsNavigating(false), 500);
       } else if (!user && inAuthGroup) {
         console.log('✅ User on auth page, staying there');

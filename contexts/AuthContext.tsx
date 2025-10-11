@@ -396,9 +396,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         profile,
       };
 
+      console.log(`✅ Creating ${role} fallback user:`, fallbackUser);
       setUser(fallbackUser);
       setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
-      console.log(`✅ ${role} fallback test account created successfully`);
+      console.log(`✅ ${role} fallback test account created successfully with role:`, fallbackUser.role);
       setLoading(false);
     };
 
@@ -470,9 +471,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         profile,
       };
 
+      console.log(`✅ Creating ${role} test user from Firestore:`, testUser);
       setUser(testUser);
       setStorageItem(`user_role_${testUser.id}`, testUser.role);
-      console.log(`✅ ${role} test account connected successfully`, testUser);
+      console.log(`✅ ${role} test account connected successfully with role:`, testUser.role);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('🔥 Firestore Quick Login Error -', errorMessage);
