@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +25,7 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adminAccessEnabled, setAdminAccessEnabled] = useState(false);
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -81,16 +83,24 @@ export default function AuthScreen() {
       ]}
     >
       <View style={styles.header}>
-        <Image
-          source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
-          style={{
-            width: 170,
-            height: 170,
-            alignSelf: 'center',
-            resizeMode: 'contain',
-            opacity: 0.98,
+        <Pressable
+          onLongPress={() => {
+            setAdminAccessEnabled(true);
+            Alert.alert('Admin Access', 'Admin login enabled');
           }}
-        />
+          delayLongPress={2000}
+        >
+          <Image
+            source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
+            style={{
+              width: 170,
+              height: 170,
+              alignSelf: 'center',
+              resizeMode: 'contain',
+              opacity: 0.98,
+            }}
+          />
+        </Pressable>
       </View>
 
 
@@ -122,6 +132,12 @@ export default function AuthScreen() {
                 );
               })}
             </View>
+          </View>
+        )}
+
+        {adminAccessEnabled && !isSignUp && (
+          <View style={styles.adminBanner}>
+            <Text style={styles.adminBannerText}>🔐 Admin Access Enabled</Text>
           </View>
         )}
 
@@ -287,6 +303,20 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 14,
     fontWeight: '500' as const,
+  },
+  adminBanner: {
+    backgroundColor: '#DBEAFE',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.light.primary,
+  },
+  adminBannerText: {
+    color: Colors.light.primary,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    textAlign: 'center',
   },
 });
 
