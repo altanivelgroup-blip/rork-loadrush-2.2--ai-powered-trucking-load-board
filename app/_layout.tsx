@@ -35,41 +35,64 @@ function RootLayoutNav() {
         hasUser: !!user, 
         userRole: user?.role, 
         userId: user?.id,
-        segments 
+        segments,
+        currentPath: segments.join('/')
       });
 
       const inAuthGroup = segments[0] === 'auth';
+      const inDriverGroup = segments[0] === '(driver)';
+      const inShipperGroup = segments[0] === '(shipper)';
+      const inAdminGroup = segments[0] === '(admin)';
 
       if (!user && !inAuthGroup) {
         console.log('➡️ No user detected, redirecting to /auth');
         setIsNavigating(true);
         router.replace('/auth');
         setTimeout(() => setIsNavigating(false), 500);
-      } else if (user && inAuthGroup) {
+        return;
+      }
+
+      if (user && inAuthGroup) {
         console.log('➡️ User authenticated with role:', user.role, '- redirecting to dashboard');
         setIsNavigating(true);
         
-        let targetRoute = '/(driver)/dashboard';
+        const targetRoute = user.role === 'shipper' 
+          ? '/(shipper)/dashboard'
+          : user.role === 'admin'
+          ? '/(admin)/dashboard'
+          : '/(driver)/dashboard';
         
-        if (user.role === 'shipper') {
-          targetRoute = '/(shipper)/dashboard';
-          console.log('🚚 Shipper role confirmed - navigating to:', targetRoute);
-        } else if (user.role === 'admin') {
-          targetRoute = '/(admin)/dashboard';
-          console.log('👑 Admin role confirmed - navigating to:', targetRoute);
-        } else if (user.role === 'driver') {
-          targetRoute = '/(driver)/dashboard';
-          console.log('🚛 Driver role confirmed - navigating to:', targetRoute);
-        }
-        
-        console.log('🎯 Final navigation target:', targetRoute);
+        console.log('🎯 Redirecting from auth to:', targetRoute);
         router.replace(targetRoute);
         setTimeout(() => setIsNavigating(false), 500);
-      } else if (!user && inAuthGroup) {
-        console.log('✅ No user, staying on auth page');
-      } else {
-        console.log('✅ User authenticated, staying on current page:', segments.join('/'));
+        return;
       }
+
+      if (user && !inAuthGroup) {
+        const correctGroup = user.role === 'shipper' 
+          ? inShipperGroup
+          : user.role === 'admin'
+          ? inAdminGroup
+          : inDriverGroup;
+
+        if (!correctGroup) {
+          console.log('⚠️ User in wrong group! Role:', user.role, 'Current group:', segments[0]);
+          setIsNavigating(true);
+          
+          const targetRoute = user.role === 'shipper' 
+            ? '/(shipper)/dashboard'
+            : user.role === 'admin'
+            ? '/(admin)/dashboard'
+            : '/(driver)/dashboard';
+          
+          console.log('🔄 Correcting navigation to:', targetRoute);
+          router.replace(targetRoute);
+          setTimeout(() => setIsNavigating(false), 500);
+          return;
+        }
+      }
+
+      console.log('✅ Navigation state correct');
     };
 
     performNavigation();
