@@ -45,8 +45,8 @@ export default function CommandCenter() {
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
-    latitudeDelta: 25,
-    longitudeDelta: 45,
+    latitudeDelta: 28,
+    longitudeDelta: 50,
   }), []);
   const USA_BOUNDS = useMemo(() => ({
     north: 49.384358,
@@ -62,19 +62,13 @@ export default function CommandCenter() {
   const fitAllDrivers = useCallback(() => {
     if (!mapRef.current) return;
     try {
-      if (filteredDrivers.length > 0 && mapRef.current.fitToCoordinates) {
-        const coords = filteredDrivers.map(d => ({ latitude: d.location.lat, longitude: d.location.lng }));
-        mapRef.current.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-          animated: true,
-        });
-      } else if (mapRef.current.animateToRegion) {
+      if (mapRef.current.animateToRegion) {
         mapRef.current.animateToRegion(USA_REGION, 600);
       }
     } catch (e) {
       console.log('[Map] fitAllDrivers error', e);
     }
-  }, [filteredDrivers, USA_REGION]);
+  }, [USA_REGION]);
 
   const getMockLocationHistory = (driverId: string): PlaybackLocation[] => {
     const baseLocations: { [key: string]: PlaybackLocation[] } = {
@@ -420,8 +414,10 @@ export default function CommandCenter() {
                 console.log('[Map] Ready');
                 setMapReady(true);
                 setTimeout(() => {
-                  fitAllDrivers();
-                }, 150);
+                  if (mapRef.current?.animateToRegion) {
+                    mapRef.current.animateToRegion(USA_REGION, 800);
+                  }
+                }, 200);
               }}
               showsTraffic
               showsUserLocation={false}

@@ -177,7 +177,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       if (timeoutId) clearTimeout(timeoutId);
       setIsLoading(false);
     }
-  }, [origin, destination, enabled]);
+  }, [originKey, destinationKey, enabled]);
 
   useEffect(() => {
     if (!origin || !destination || !enabled) {
@@ -203,7 +203,6 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         abortRef.current = null;
       }
     };
-    // Only re-run when coordinates or enabled change (string keys avoid re-renders on object identity changes)
   }, [originKey, destinationKey, enabled, doFetch]);
 
   const refetch = useCallback(async () => {
