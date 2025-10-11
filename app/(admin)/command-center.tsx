@@ -377,10 +377,10 @@ export default function CommandCenter() {
             <MapView
               ref={mapRef}
               style={{ flex: 1, minHeight: 300, backgroundColor: '#0F172A' }}
-              provider={Platform.select({ ios: undefined, android: PROVIDER_GOOGLE, web: undefined })}
+              provider={Platform.select({ ios: PROVIDER_GOOGLE, android: PROVIDER_GOOGLE, web: undefined })}
               initialRegion={{
-                latitude: filteredDrivers[0]?.location.lat ?? USA_REGION.latitude,
-                longitude: filteredDrivers[0]?.location.lng ?? USA_REGION.longitude,
+                latitude: USA_REGION.latitude,
+                longitude: USA_REGION.longitude,
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
@@ -414,7 +414,7 @@ export default function CommandCenter() {
                 setMapReady(true);
                 setTimeout(() => {
                   fitAllDrivers();
-                }, 100);
+                }, 150);
               }}
               showsTraffic
               showsUserLocation={false}

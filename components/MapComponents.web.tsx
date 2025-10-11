@@ -1,21 +1,32 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, forwardRef, useImperativeHandle } from 'react';
 import { View, ImageBackground, StyleSheet } from 'react-native';
 
 export type LatLng = { latitude: number; longitude: number };
 
-// Very lightweight web fallback: renders a static map background and positions markers by US lat/lng bounds
-// Not interactive, but good for sandbox verification without native maps on web
+type Region = {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+};
+
+// Web fallback map: USA-only static background with interstate overlay; non-interactive but supports imperative no-ops
 
 type MapViewProps = {
   style?: any;
   children?: React.ReactNode;
-  initialRegion?: {
-    latitude: number;
-    longitude: number;
-    latitudeDelta: number;
-    longitudeDelta: number;
-  };
+  initialRegion?: Region;
   onMapReady?: () => void;
+  onRegionChangeComplete?: (region: Region) => void;
+  provider?: any;
+  minZoomLevel?: number;
+  maxZoomLevel?: number;
+  showsTraffic?: boolean;
+  showsUserLocation?: boolean;
+  showsBuildings?: boolean;
+  showsCompass?: boolean;
+  toolbarEnabled?: boolean;
+  mapType?: 'standard' | 'satellite' | 'terrain' | 'hybrid' | string;
   testID?: string;
 };
 
@@ -26,16 +37,32 @@ const US_BOUNDS = {
   maxLng: -66.885444,
 };
 
-export function MapView({ style, children, onMapReady, testID }: MapViewProps) {
+export const MapView = forwardRef<any, MapViewProps>(function MapView(
+  { style, children, onMapReady, testID }: MapViewProps,
+  ref,
+) {
   useEffect(() => {
     onMapReady?.();
   }, [onMapReady]);
+
+  useImperativeHandle(ref, () => ({
+    animateToRegion: (_region: Region, _duration?: number) => {
+      console.log('[WebMap] animateToRegion noop');
+    },
+    fitToCoordinates: (_coords: LatLng[], _opts?: any) => {
+      console.log('[WebMap] fitToCoordinates noop');
+    },
+    animateCamera: (_cam: any, _opts?: any) => {
+      console.log('[WebMap] animateCamera noop');
+    },
+  }));
 
   return (
     <ImageBackground
       testID={testID ?? 'webMapFallback'}
       source={{
-        uri: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=1920&auto=format&fit=crop',
+        uri:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Interstate_Highway_plan.svg/1920px-Interstate_Highway_plan.svg.png',
       }}
       resizeMode="cover"
       style={[styles.mapBackground, style]}
@@ -43,7 +70,7 @@ export function MapView({ style, children, onMapReady, testID }: MapViewProps) {
       <View style={styles.overlay}>{children}</View>
     </ImageBackground>
   );
-}
+});
 
 export type MarkerProps = {
   coordinate: LatLng;
@@ -54,8 +81,10 @@ export type MarkerProps = {
 };
 
 export function Marker({ coordinate, children, onPress }: MarkerProps) {
-  const leftPct = ((coordinate.longitude - US_BOUNDS.minLng) / (US_BOUNDS.maxLng - US_BOUNDS.minLng)) * 100;
-  const topPct = ((US_BOUNDS.maxLat - coordinate.latitude) / (US_BOUNDS.maxLat - US_BOUNDS.minLat)) * 100;
+  const lat = Math.min(Math.max(coordinate.latitude, US_BOUNDS.minLat), US_BOUNDS.maxLat);
+  const lng = Math.min(Math.max(coordinate.longitude, US_BOUNDS.minLng), US_BOUNDS.maxLng);
+  const leftPct = ((lng - US_BOUNDS.minLng) / (US_BOUNDS.maxLng - US_BOUNDS.minLng)) * 100;
+  const topPct = ((US_BOUNDS.maxLat - lat) / (US_BOUNDS.maxLat - US_BOUNDS.minLat)) * 100;
 
   return (
     <View
