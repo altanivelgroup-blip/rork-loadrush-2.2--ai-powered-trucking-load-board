@@ -80,7 +80,7 @@ export default function CommandCenter() {
     driverId: selectedPlaybackDriver,
     locations: playbackLocations,
     speed: playbackSpeed,
-    autoPlay: false,
+    autoPlay: true,
   });
 
   useEffect(() => {
@@ -426,32 +426,7 @@ export default function CommandCenter() {
         />
       )}
 
-      {playbackMode && (
-        <PlaybackToolbar
-          drivers={driversWithHistory}
-          selectedDriver={selectedPlaybackDriver}
-          onSelectDriver={(driverId) => {
-            setSelectedPlaybackDriver(driverId);
-            playback.restart();
-          }}
-          isPlaying={playback.isPlaying}
-          progress={playback.progress}
-          speed={playbackSpeed}
-          onPlay={playback.play}
-          onPause={playback.pause}
-          onRestart={playback.restart}
-          onSpeedChange={(newSpeed) => {
-            setPlaybackSpeedState(newSpeed);
-            playback.setSpeed(newSpeed);
-          }}
-          onClose={() => {
-            setPlaybackMode(false);
-            setSelectedPlaybackDriver(null);
-            playback.pause();
-          }}
-          animation={playbackToolbarAnim}
-        />
-      )}
+      {playbackMode && null}
 
       {playbackMode && selectedPlaybackDriverData && playback.currentLocation && (
         <PlaybackGhostMarker
