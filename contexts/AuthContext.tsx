@@ -25,6 +25,8 @@ async function resolveUserRole(
   uid: string,
   email: string | null | undefined,
 ): Promise<{ role: UserRole; profile: ShipperProfile | DriverProfile | AdminProfile }> {
+  console.log('🔍 [resolveUserRole] Starting role resolution for:', { uid, email });
+  
   let detectedRole: UserRole = 'driver';
   let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
 
@@ -36,13 +38,16 @@ async function resolveUserRole(
     ? 'driver'
     : null;
 
+  console.log('📧 [resolveUserRole] Email hint detected:', emailHint);
+
   try {
     const { db } = await import('@/config/firebase');
     const { doc, getDoc } = await import('firebase/firestore');
 
+    console.log('🔍 [resolveUserRole] Checking shippers collection...');
     const shipperDoc = await getDoc(doc(db, 'shippers', uid));
     if (shipperDoc.exists()) {
-      console.log('✅ Found shipper profile in Firestore');
+      console.log('✅ [resolveUserRole] SHIPPER FOUND in Firestore!');
       detectedRole = 'shipper';
       const data = shipperDoc.data() as any;
       profile = {
@@ -50,68 +55,80 @@ async function resolveUserRole(
         ...data,
         companyName: data?.companyName || data?.name || 'Company',
       };
-    } else {
-      const driverDoc = await getDoc(doc(db, 'drivers', uid));
-      if (driverDoc.exists()) {
-        console.log('✅ Found driver profile in Firestore');
-        detectedRole = 'driver';
-        const data = driverDoc.data() as any;
-        profile = {
-          ...dummyDriverProfile,
-          ...data,
-          firstName: data?.firstName || data?.name || 'Driver',
-          lastName: data?.lastName || '',
-        };
-      } else {
-        const adminDoc = await getDoc(doc(db, 'admins', uid));
-        if (adminDoc.exists()) {
-          console.log('✅ Found admin profile in Firestore');
-          detectedRole = 'admin';
-          const data = adminDoc.data() as any;
-          profile = {
-            name: data?.name || 'Admin User',
-            permissions: data?.permissions || ['all'],
-          };
-        } else {
-          const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-          if (emailHint && storedRole && storedRole !== emailHint) {
-            console.log('⚠️ Stored role conflicts with email hint. Using email hint', { storedRole, emailHint });
-            detectedRole = emailHint;
-          } else if (storedRole) {
-            console.log('⚠️ No Firestore profile found, using stored role:', storedRole);
-            detectedRole = storedRole;
-          } else if (emailHint) {
-            console.log('📧 Using email-based role:', emailHint);
-            detectedRole = emailHint;
-          } else {
-            console.log('⚠️ No source for role. Falling back to driver');
-            detectedRole = 'driver';
-          }
-
-          profile =
-            detectedRole === 'shipper'
-              ? dummyShipperProfile
-              : detectedRole === 'admin'
-              ? { name: 'Admin User', permissions: ['all'] }
-              : dummyDriverProfile;
-        }
-      }
+      console.log('✅ [resolveUserRole] Final role: SHIPPER');
+      setStorageItem(`user_role_${uid}`, detectedRole);
+      return { role: detectedRole, profile };
     }
-  } catch (firestoreError) {
-    const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
-    console.error('🔥 Firestore role lookup error:', errorMsg);
+
+    console.log('🔍 [resolveUserRole] Checking drivers collection...');
+    const driverDoc = await getDoc(doc(db, 'drivers', uid));
+    if (driverDoc.exists()) {
+      console.log('✅ [resolveUserRole] DRIVER FOUND in Firestore!');
+      detectedRole = 'driver';
+      const data = driverDoc.data() as any;
+      profile = {
+        ...dummyDriverProfile,
+        ...data,
+        firstName: data?.firstName || data?.name || 'Driver',
+        lastName: data?.lastName || '',
+      };
+      console.log('✅ [resolveUserRole] Final role: DRIVER');
+      setStorageItem(`user_role_${uid}`, detectedRole);
+      return { role: detectedRole, profile };
+    }
+
+    console.log('🔍 [resolveUserRole] Checking admins collection...');
+    const adminDoc = await getDoc(doc(db, 'admins', uid));
+    if (adminDoc.exists()) {
+      console.log('✅ [resolveUserRole] ADMIN FOUND in Firestore!');
+      detectedRole = 'admin';
+      const data = adminDoc.data() as any;
+      profile = {
+        name: data?.name || 'Admin User',
+        permissions: data?.permissions || ['all'],
+      };
+      console.log('✅ [resolveUserRole] Final role: ADMIN');
+      setStorageItem(`user_role_${uid}`, detectedRole);
+      return { role: detectedRole, profile };
+    }
+
+    console.log('⚠️ [resolveUserRole] No Firestore document found, checking fallbacks...');
     const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-    if (emailHint && storedRole && storedRole !== emailHint) {
-      console.log('⚠️ Firestore error: stored role conflicts with email hint. Using email hint', { storedRole, emailHint });
+    console.log('📦 [resolveUserRole] Stored role:', storedRole);
+    
+    if (emailHint) {
+      console.log('✅ [resolveUserRole] Using email hint as primary source:', emailHint);
       detectedRole = emailHint;
     } else if (storedRole) {
-      console.log('⚠️ Firestore error, using stored role:', storedRole);
+      console.log('✅ [resolveUserRole] Using stored role:', storedRole);
       detectedRole = storedRole;
-    } else if (emailHint) {
-      console.log('📧 Firestore error, using email-based role:', emailHint);
-      detectedRole = emailHint;
     } else {
-      console.log('⚠️ Firestore error, falling back to driver');
+      console.log('⚠️ [resolveUserRole] No source for role. Falling back to driver');
+      detectedRole = 'driver';
+    }
+
+    profile =
+      detectedRole === 'shipper'
+        ? dummyShipperProfile
+        : detectedRole === 'admin'
+        ? { name: 'Admin User', permissions: ['all'] }
+        : dummyDriverProfile;
+
+  } catch (firestoreError) {
+    const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
+    console.error('🔥 [resolveUserRole] Firestore error:', errorMsg);
+    
+    const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
+    console.log('📦 [resolveUserRole] Stored role after error:', storedRole);
+    
+    if (emailHint) {
+      console.log('✅ [resolveUserRole] Using email hint after error:', emailHint);
+      detectedRole = emailHint;
+    } else if (storedRole) {
+      console.log('✅ [resolveUserRole] Using stored role after error:', storedRole);
+      detectedRole = storedRole;
+    } else {
+      console.log('⚠️ [resolveUserRole] Falling back to driver after error');
       detectedRole = 'driver';
     }
 
@@ -123,6 +140,7 @@ async function resolveUserRole(
         : dummyDriverProfile;
   }
 
+  console.log('✅ [resolveUserRole] Final resolved role:', detectedRole);
   setStorageItem(`user_role_${uid}`, detectedRole);
   return { role: detectedRole, profile };
 }
@@ -153,9 +171,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           clearTimeout(timeoutId);
 
           if (fbUser) {
+            console.log('🔥 [onAuthStateChanged] User detected, resolving role...');
             const uid = fbUser.uid;
             const { role, profile } = await resolveUserRole(uid, fbUser.email);
-            console.log('✅ onAuthStateChanged: Setting user with role:', role);
+            console.log('✅ [onAuthStateChanged] Setting user with role:', role);
             setUser({
               id: uid,
               email: fbUser.email || '',
@@ -164,6 +183,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               profile,
             });
           } else {
+            console.log('🔥 [onAuthStateChanged] No user detected');
             setUser(null);
           }
           setLoading(false);
@@ -233,11 +253,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
+      console.log('🔐 [signIn] Starting sign in for:', email);
       setError(null);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       const userEmail = userCredential.user.email || '';
 
+      console.log('🔐 [signIn] Firebase auth successful, resolving role...');
       const { role, profile } = await resolveUserRole(uid, userEmail);
 
       const existingUser: User = {
@@ -248,12 +270,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         profile,
       };
 
+      console.log('🔐 [signIn] Setting user with role:', role);
       setUser(existingUser);
-      console.log('✅ Sign in successful as:', role);
+      console.log('✅ [signIn] Sign in successful as:', role);
       return existingUser;
     } catch (err) {
       const authError = err as AuthError;
-      console.error('🔥 Sign in error:', authError.code, authError.message);
+      console.error('🔥 [signIn] Sign in error:', authError.code, authError.message);
       let msg = 'Failed to sign in';
       if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password')
         msg = 'Invalid email or password';
