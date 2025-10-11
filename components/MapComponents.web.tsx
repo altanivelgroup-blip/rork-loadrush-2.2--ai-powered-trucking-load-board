@@ -110,7 +110,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const defaultZoom = 3.5;
+        const defaultZoom = 3.0;
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
