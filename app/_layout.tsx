@@ -30,38 +30,45 @@ function RootLayoutNav() {
         console.log('Splash screen already hidden');
       }
 
-      console.log('🔄 Navigation check:', { loading, userRole: user?.role, segments });
+      console.log('🔄 Navigation check:', { 
+        loading, 
+        hasUser: !!user, 
+        userRole: user?.role, 
+        userId: user?.id,
+        segments 
+      });
 
       const inAuthGroup = segments[0] === 'auth';
 
       if (!user && !inAuthGroup) {
-        console.log('➡️ No user, redirecting to /auth');
+        console.log('➡️ No user detected, redirecting to /auth');
         setIsNavigating(true);
         router.replace('/auth');
         setTimeout(() => setIsNavigating(false), 500);
       } else if (user && inAuthGroup) {
-        console.log('➡️ User logged in with role:', user.role, '- redirecting to dashboard');
+        console.log('➡️ User authenticated with role:', user.role, '- redirecting to dashboard');
         setIsNavigating(true);
         
         let targetRoute = '/(driver)/dashboard';
         
         if (user.role === 'shipper') {
           targetRoute = '/(shipper)/dashboard';
-          console.log('🚚 Shipper detected - navigating to:', targetRoute);
+          console.log('🚚 Shipper role confirmed - navigating to:', targetRoute);
         } else if (user.role === 'admin') {
           targetRoute = '/(admin)/dashboard';
-          console.log('👑 Admin detected - navigating to:', targetRoute);
+          console.log('👑 Admin role confirmed - navigating to:', targetRoute);
         } else if (user.role === 'driver') {
           targetRoute = '/(driver)/dashboard';
-          console.log('🚛 Driver detected - navigating to:', targetRoute);
+          console.log('🚛 Driver role confirmed - navigating to:', targetRoute);
         }
         
+        console.log('🎯 Final navigation target:', targetRoute);
         router.replace(targetRoute);
         setTimeout(() => setIsNavigating(false), 500);
       } else if (!user && inAuthGroup) {
-        console.log('✅ User on auth page, staying there');
+        console.log('✅ No user, staying on auth page');
       } else {
-        console.log('✅ Navigation state is correct, no redirect needed');
+        console.log('✅ User authenticated, staying on current page:', segments.join('/'));
       }
     };
 
