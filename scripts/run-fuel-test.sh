@@ -1,10 +1,18 @@
 #!/bin/bash
 
-echo "🚀 Running Fuel Price API Validation Test..."
+echo "🚀 Starting Fuel API Integration Test..."
 echo ""
 
-# Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
+# Load environment variables from .env file
+if [ -f .env ]; then
+    echo "📄 Loading .env file..."
+    export $(cat .env | grep -v '^#' | xargs)
+else
+    echo "⚠️  No .env file found"
+fi
 
-# Run the test script with bun
-bun run scripts/test-fuel-api-validation.ts
+# Run the test
+node scripts/fuel-api-test.js
+
+echo ""
+echo "✅ Test script completed!"
