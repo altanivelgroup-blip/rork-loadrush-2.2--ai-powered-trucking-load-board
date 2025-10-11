@@ -27,9 +27,6 @@ async function resolveUserRole(
 ): Promise<{ role: UserRole; profile: ShipperProfile | DriverProfile | AdminProfile }> {
   console.log('🔍 [resolveUserRole] Starting role resolution for:', { uid, email });
   
-  let detectedRole: UserRole = 'driver';
-  let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
-
   const emailHint: UserRole | null = email?.includes('shipper')
     ? 'shipper'
     : email?.includes('admin')
@@ -40,104 +37,117 @@ async function resolveUserRole(
 
   console.log('📧 [resolveUserRole] Email hint detected:', emailHint);
 
+  let detectedRole: UserRole = emailHint || 'driver';
+  let profile: ShipperProfile | DriverProfile | AdminProfile = 
+    detectedRole === 'shipper' ? dummyShipperProfile :
+    detectedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } :
+    dummyDriverProfile;
+
   try {
     const { db } = await import('@/config/firebase');
     const { doc, getDoc } = await import('firebase/firestore');
 
-    console.log('🔍 [resolveUserRole] Checking shippers collection...');
-    const shipperDoc = await getDoc(doc(db, 'shippers', uid));
-    if (shipperDoc.exists()) {
-      console.log('✅ [resolveUserRole] SHIPPER FOUND in Firestore!');
-      detectedRole = 'shipper';
-      const data = shipperDoc.data() as any;
-      profile = {
-        ...dummyShipperProfile,
-        ...data,
-        companyName: data?.companyName || data?.name || 'Company',
-      };
-      console.log('✅ [resolveUserRole] Final role: SHIPPER');
-      setStorageItem(`user_role_${uid}`, detectedRole);
-      return { role: detectedRole, profile };
+    if (emailHint === 'shipper' || !emailHint) {
+      console.log('🔍 [resolveUserRole] Checking shippers collection...');
+      const shipperDoc = await getDoc(doc(db, 'shippers', uid));
+      if (shipperDoc.exists()) {
+        console.log('✅ [resolveUserRole] SHIPPER FOUND in Firestore!');
+        detectedRole = 'shipper';
+        const data = shipperDoc.data() as any;
+        profile = {
+          ...dummyShipperProfile,
+          ...data,
+          companyName: data?.companyName || data?.name || 'Company',
+        };
+        console.log('✅ [resolveUserRole] Final role: SHIPPER');
+        setStorageItem(`user_role_${uid}`, detectedRole);
+        return { role: detectedRole, profile };
+      }
     }
 
-    console.log('🔍 [resolveUserRole] Checking drivers collection...');
-    const driverDoc = await getDoc(doc(db, 'drivers', uid));
-    if (driverDoc.exists()) {
-      console.log('✅ [resolveUserRole] DRIVER FOUND in Firestore!');
-      detectedRole = 'driver';
-      const data = driverDoc.data() as any;
-      profile = {
-        ...dummyDriverProfile,
-        ...data,
-        firstName: data?.firstName || data?.name || 'Driver',
-        lastName: data?.lastName || '',
-      };
-      console.log('✅ [resolveUserRole] Final role: DRIVER');
-      setStorageItem(`user_role_${uid}`, detectedRole);
-      return { role: detectedRole, profile };
+    if (emailHint === 'driver' || !emailHint) {
+      console.log('🔍 [resolveUserRole] Checking drivers collection...');
+      const driverDoc = await getDoc(doc(db, 'drivers', uid));
+      if (driverDoc.exists()) {
+        console.log('✅ [resolveUserRole] DRIVER FOUND in Firestore!');
+        detectedRole = 'driver';
+        const data = driverDoc.data() as any;
+        profile = {
+          ...dummyDriverProfile,
+          ...data,
+          firstName: data?.firstName || data?.name || 'Driver',
+          lastName: data?.lastName || '',
+        };
+        console.log('✅ [resolveUserRole] Final role: DRIVER');
+        setStorageItem(`user_role_${uid}`, detectedRole);
+        return { role: detectedRole, profile };
+      }
     }
 
-    console.log('🔍 [resolveUserRole] Checking admins collection...');
-    const adminDoc = await getDoc(doc(db, 'admins', uid));
-    if (adminDoc.exists()) {
-      console.log('✅ [resolveUserRole] ADMIN FOUND in Firestore!');
-      detectedRole = 'admin';
-      const data = adminDoc.data() as any;
-      profile = {
-        name: data?.name || 'Admin User',
-        permissions: data?.permissions || ['all'],
-      };
-      console.log('✅ [resolveUserRole] Final role: ADMIN');
-      setStorageItem(`user_role_${uid}`, detectedRole);
-      return { role: detectedRole, profile };
+    if (emailHint === 'admin' || !emailHint) {
+      console.log('🔍 [resolveUserRole] Checking admins collection...');
+      const adminDoc = await getDoc(doc(db, 'admins', uid));
+      if (adminDoc.exists()) {
+        console.log('✅ [resolveUserRole] ADMIN FOUND in Firestore!');
+        detectedRole = 'admin';
+        const data = adminDoc.data() as any;
+        profile = {
+          name: data?.name || 'Admin User',
+          permissions: data?.permissions || ['all'],
+        };
+        console.log('✅ [resolveUserRole] Final role: ADMIN');
+        setStorageItem(`user_role_${uid}`, detectedRole);
+        return { role: detectedRole, profile };
+      }
     }
 
-    console.log('⚠️ [resolveUserRole] No Firestore document found, checking fallbacks...');
-    const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-    console.log('📦 [resolveUserRole] Stored role:', storedRole);
+    console.log('⚠️ [resolveUserRole] No Firestore document found');
     
     if (emailHint) {
-      console.log('✅ [resolveUserRole] Using email hint as primary source:', emailHint);
+      console.log('✅ [resolveUserRole] Using email hint as PRIMARY source:', emailHint);
       detectedRole = emailHint;
-    } else if (storedRole) {
-      console.log('✅ [resolveUserRole] Using stored role:', storedRole);
-      detectedRole = storedRole;
+      profile = detectedRole === 'shipper' ? dummyShipperProfile :
+               detectedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } :
+               dummyDriverProfile;
     } else {
-      console.log('⚠️ [resolveUserRole] No source for role. Falling back to driver');
-      detectedRole = 'driver';
+      const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
+      if (storedRole) {
+        console.log('✅ [resolveUserRole] Using stored role:', storedRole);
+        detectedRole = storedRole;
+        profile = detectedRole === 'shipper' ? dummyShipperProfile :
+                 detectedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } :
+                 dummyDriverProfile;
+      } else {
+        console.log('⚠️ [resolveUserRole] No source for role. Falling back to driver');
+        detectedRole = 'driver';
+        profile = dummyDriverProfile;
+      }
     }
-
-    profile =
-      detectedRole === 'shipper'
-        ? dummyShipperProfile
-        : detectedRole === 'admin'
-        ? { name: 'Admin User', permissions: ['all'] }
-        : dummyDriverProfile;
 
   } catch (firestoreError) {
     const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
     console.error('🔥 [resolveUserRole] Firestore error:', errorMsg);
     
-    const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-    console.log('📦 [resolveUserRole] Stored role after error:', storedRole);
-    
     if (emailHint) {
       console.log('✅ [resolveUserRole] Using email hint after error:', emailHint);
       detectedRole = emailHint;
-    } else if (storedRole) {
-      console.log('✅ [resolveUserRole] Using stored role after error:', storedRole);
-      detectedRole = storedRole;
+      profile = detectedRole === 'shipper' ? dummyShipperProfile :
+               detectedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } :
+               dummyDriverProfile;
     } else {
-      console.log('⚠️ [resolveUserRole] Falling back to driver after error');
-      detectedRole = 'driver';
+      const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
+      if (storedRole) {
+        console.log('✅ [resolveUserRole] Using stored role after error:', storedRole);
+        detectedRole = storedRole;
+        profile = detectedRole === 'shipper' ? dummyShipperProfile :
+                 detectedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } :
+                 dummyDriverProfile;
+      } else {
+        console.log('⚠️ [resolveUserRole] Falling back to driver after error');
+        detectedRole = 'driver';
+        profile = dummyDriverProfile;
+      }
     }
-
-    profile =
-      detectedRole === 'shipper'
-        ? dummyShipperProfile
-        : detectedRole === 'admin'
-        ? { name: 'Admin User', permissions: ['all'] }
-        : dummyDriverProfile;
   }
 
   console.log('✅ [resolveUserRole] Final resolved role:', detectedRole);
