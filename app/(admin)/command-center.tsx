@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map, RotateCcw, Pause, Play } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map, RotateCcw, Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -42,6 +42,8 @@ export default function CommandCenter() {
   const [viewMode, setViewMode] = useState<'dark' | 'map'>('dark');
   const mapRef = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarAnimation = useRef(new Animated.Value(1)).current;
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
@@ -69,6 +71,24 @@ export default function CommandCenter() {
       console.log('[Map] fitAllDrivers error', e);
     }
   }, [USA_REGION]);
+
+  const toggleSidebar = useCallback(() => {
+    const toValue = sidebarCollapsed ? 1 : 0;
+    setSidebarCollapsed(!sidebarCollapsed);
+    
+    Animated.spring(sidebarAnimation, {
+      toValue,
+      useNativeDriver: false,
+      tension: 80,
+      friction: 12,
+    }).start(() => {
+      if (toValue === 0 && Platform.OS === 'web' && viewMode === 'map') {
+        setTimeout(() => {
+          fitAllDrivers();
+        }, 100);
+      }
+    });
+  }, [sidebarCollapsed, sidebarAnimation, viewMode, fitAllDrivers]);
 
   const getMockLocationHistory = (driverId: string): PlaybackLocation[] => {
     const baseLocations: { [key: string]: PlaybackLocation[] } = {
@@ -334,8 +354,45 @@ export default function CommandCenter() {
       )}
 
       <View style={styles.content}>
+        {!projectorMode && Platform.OS === 'web' && (
+          <TouchableOpacity
+            style={[
+              styles.sidebarToggleButton,
+              sidebarCollapsed && styles.sidebarToggleButtonCollapsed,
+            ]}
+            onPress={toggleSidebar}
+            activeOpacity={0.8}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight size={20} color="#60A5FA" />
+            ) : (
+              <ChevronLeft size={20} color="#60A5FA" />
+            )}
+          </TouchableOpacity>
+        )}
         {!projectorMode && (
-          <Animated.View style={[styles.sidebar, isSmallScreen && styles.sidebarSmall, { opacity: fadeAnim }]}>
+          <Animated.View
+            style={[
+              styles.sidebar,
+              isSmallScreen && styles.sidebarSmall,
+              { opacity: fadeAnim },
+              Platform.OS === 'web' && {
+                width: sidebarAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, isSmallScreen ? width * 0.35 : 400],
+                }),
+                minWidth: sidebarAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, isSmallScreen ? 280 : 400],
+                }),
+                opacity: sidebarAnimation.interpolate({
+                  inputRange: [0, 0.3, 1],
+                  outputRange: [0, 0, 1],
+                }),
+                overflow: 'hidden',
+              },
+            ]}
+          >
           <View style={styles.sidebarHeader}>
             <Text style={styles.sidebarTitle}>Active Drivers</Text>
             <View style={styles.driverCount}>
@@ -1792,6 +1849,33 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' && {
       backdropFilter: 'blur(12px)',
     }),
+  },
+  sidebarToggleButton: {
+    position: 'absolute',
+    left: isSmallScreen ? 280 : 400,
+    top: '50%',
+    zIndex: 1001,
+    width: 36,
+    height: 80,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    borderWidth: 1,
+    borderLeftWidth: 0,
+    borderColor: 'rgba(37, 99, 235, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    ...(Platform.OS === 'web' && {
+      backdropFilter: 'blur(8px)',
+      transform: [{ translateY: '-50%' }],
+    }),
+  },
+  sidebarToggleButtonCollapsed: {
+    left: 0,
   },
   sidebarSmall: {
     width: '35%',
