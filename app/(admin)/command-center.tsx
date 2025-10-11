@@ -45,8 +45,8 @@ export default function CommandCenter() {
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
-    latitudeDelta: 28,
-    longitudeDelta: 50,
+    latitudeDelta: Platform.OS === 'web' ? 35 : 28,
+    longitudeDelta: Platform.OS === 'web' ? 60 : 50,
   }), []);
   const USA_BOUNDS = useMemo(() => ({
     north: 49.384358,
@@ -378,7 +378,7 @@ export default function CommandCenter() {
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
-              minZoomLevel={3}
+              minZoomLevel={Platform.OS === 'web' ? 2.5 : 3}
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
@@ -394,7 +394,7 @@ export default function CommandCenter() {
                     region.longitude < USA_BOUNDS.west - 5 ||
                     region.longitude > USA_BOUNDS.east + 5;
 
-                  const tooZoomedOut = (region.latitudeDelta ?? 0) > 60 || (region.longitudeDelta ?? 0) > 80;
+                  const tooZoomedOut = (region.latitudeDelta ?? 0) > 70 || (region.longitudeDelta ?? 0) > 90;
                   const now = Date.now();
                   const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 800;
 
@@ -413,11 +413,25 @@ export default function CommandCenter() {
               onMapReady={() => {
                 console.log('[Map] Ready');
                 setMapReady(true);
-                setTimeout(() => {
-                  if (mapRef.current?.animateToRegion) {
-                    mapRef.current.animateToRegion(USA_REGION, 800);
-                  }
-                }, 200);
+                if (Platform.OS === 'web') {
+                  setTimeout(() => {
+                    if (mapRef.current?.animateToRegion) {
+                      console.log('[Map] Auto-fitting to USA region on web');
+                      mapRef.current.animateToRegion({
+                        latitude: 39.8283,
+                        longitude: -98.5795,
+                        latitudeDelta: 35,
+                        longitudeDelta: 60,
+                      }, 1000);
+                    }
+                  }, 300);
+                } else {
+                  setTimeout(() => {
+                    if (mapRef.current?.animateToRegion) {
+                      mapRef.current.animateToRegion(USA_REGION, 800);
+                    }
+                  }, 200);
+                }
               }}
               showsTraffic
               showsUserLocation={false}
