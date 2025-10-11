@@ -116,7 +116,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         const map = new gmaps.Map(containerRef.current, {
           center,
           zoom,
-          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 3,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
@@ -140,12 +140,13 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
             new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
           );
           isProgrammaticRef.current = true;
-          map.fitBounds(bounds, 0);
+          map.fitBounds(bounds, 220);
           gmaps.event.addListenerOnce(map, 'idle', () => {
             isProgrammaticRef.current = true;
-            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 3;
+            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
             const current = map.getZoom?.() ?? defaultZoom;
-            map.setZoom(Math.max(current - 0.5, minZ));
+            const targetZoom = Math.max(Math.min(current, 2.6), minZ);
+            map.setZoom(targetZoom);
           });
         }
 
