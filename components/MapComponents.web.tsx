@@ -110,13 +110,13 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const defaultZoom = 3.0;
+        const defaultZoom = 3.5;
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
           center,
           zoom,
-          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2.0,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
@@ -388,9 +388,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     position: 'relative',
+    width: '100%',
+    height: '100%',
   },
   mapHost: {
     ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
   errorOverlay: {
     position: 'absolute',
