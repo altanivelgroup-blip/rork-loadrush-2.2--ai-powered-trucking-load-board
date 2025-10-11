@@ -54,6 +54,11 @@ export default function CommandCenter() {
     west: -124.848974,
     east: -66.885444,
   }), []);
+  const filteredDrivers = useMemo(() => {
+    const list = activeFilter === 'all' ? drivers : drivers.filter((d) => d.status === activeFilter);
+    return list;
+  }, [drivers, activeFilter]);
+
   const fitAllDrivers = useCallback(() => {
     if (!mapRef.current) return;
     try {
@@ -70,12 +75,6 @@ export default function CommandCenter() {
       console.log('[Map] fitAllDrivers error', e);
     }
   }, [filteredDrivers, USA_REGION]);
-  
-
-  const filteredDrivers = useMemo(() => {
-    const list = activeFilter === 'all' ? drivers : drivers.filter((d) => d.status === activeFilter);
-    return list;
-  }, [drivers, activeFilter]);
 
   const getMockLocationHistory = (driverId: string): PlaybackLocation[] => {
     const baseLocations: { [key: string]: PlaybackLocation[] } = {
@@ -389,13 +388,22 @@ export default function CommandCenter() {
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
+                  const correctingRef = (mapRef as React.MutableRefObject<any>) as any;
+                  if (!correctingRef.current) return;
+                  correctingRef.current.__isCorrecting = correctingRef.current.__isCorrecting ?? false;
+
                   const outOfBounds =
                     region.latitude > USA_BOUNDS.north + 5 ||
                     region.latitude < USA_BOUNDS.south - 5 ||
                     region.longitude < USA_BOUNDS.west - 20 ||
                     region.longitude > USA_BOUNDS.east + 20;
-                  if (outOfBounds && mapRef.current?.animateToRegion) {
+
+                  if (outOfBounds && mapRef.current?.animateToRegion && !correctingRef.current.__isCorrecting) {
+                    correctingRef.current.__isCorrecting = true;
                     mapRef.current.animateToRegion(USA_REGION, 300);
+                    setTimeout(() => {
+                      if (mapRef.current) mapRef.current.__isCorrecting = false;
+                    }, 400);
                   }
                 } catch (e) {
                   // no-op
