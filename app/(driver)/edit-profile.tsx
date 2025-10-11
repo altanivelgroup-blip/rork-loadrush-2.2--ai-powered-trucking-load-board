@@ -11,7 +11,7 @@ import {
   Platform
 } from 'react-native';
 import { db } from '@/config/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
@@ -338,7 +338,7 @@ export default function EditProfileScreen() {
         console.log(`[EditProfile] Updating ${collectionName}/${docId}`);
         
         try {
-          await updateDoc(doc(db, collectionName, docId), truckData);
+          await setDoc(doc(db, collectionName, docId), truckData, { merge: true });
           console.log('[EditProfile] ✅ Firestore update successful');
         } catch (firestoreError: any) {
           console.error('[EditProfile] Firestore update failed:', firestoreError.message);
