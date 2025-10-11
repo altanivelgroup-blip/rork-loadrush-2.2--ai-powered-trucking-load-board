@@ -441,6 +441,21 @@ export default function CommandCenter() {
               mapType={'standard'}
               testID="commandCenterMap"
             >
+              {Platform.OS === 'web' && (
+                <AutoFitOnToggle
+                  viewMode={viewMode}
+                  mapReady={mapReady}
+                  onFit={() => {
+                    try {
+                      if (mapRef.current?.animateToRegion) {
+                        mapRef.current.animateToRegion(USA_REGION, 600);
+                      }
+                    } catch (e) {
+                      console.log('[Map] AutoFitOnToggle error', e);
+                    }
+                  }}
+                />
+              )}
               {filteredDrivers.map((driver) => (
                 <Marker
                   key={driver.id}
@@ -516,6 +531,18 @@ export default function CommandCenter() {
       )}
     </View>
   );
+}
+
+function AutoFitOnToggle({ viewMode, mapReady, onFit }: { viewMode: 'dark' | 'map'; mapReady: boolean; onFit: () => void }) {
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (!mapReady) return;
+    if (viewMode === 'map') {
+      const t = setTimeout(onFit, 150);
+      return () => clearTimeout(t);
+    }
+  }, [viewMode, mapReady, onFit]);
+  return null;
 }
 
 interface DriverCardProps {
