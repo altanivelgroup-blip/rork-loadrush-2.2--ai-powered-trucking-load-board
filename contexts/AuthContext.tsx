@@ -195,46 +195,31 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       let detectedRole: UserRole = 'driver';
       let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
 
-      // 🔍 Email-based role detection for known test accounts
-      if (userEmail.includes('shipper')) {
-        console.log('📧 Email contains "shipper" - setting role to shipper');
-        detectedRole = 'shipper';
-        profile = dummyShipperProfile;
-      } else if (userEmail.includes('admin')) {
-        console.log('📧 Email contains "admin" - setting role to admin');
-        detectedRole = 'admin';
-        profile = { name: 'Admin User', permissions: ['all'] };
-      } else if (userEmail.includes('driver')) {
-        console.log('📧 Email contains "driver" - setting role to driver');
-        detectedRole = 'driver';
-        profile = dummyDriverProfile;
-      }
-
       try {
         const { db } = await import('@/config/firebase');
         const { doc, getDoc } = await import('firebase/firestore');
 
-        const driverDoc = await getDoc(doc(db, 'drivers', uid));
-        if (driverDoc.exists()) {
-          console.log('✅ Found driver profile in Firestore');
-          detectedRole = 'driver';
-          const data = driverDoc.data();
+        const shipperDoc = await getDoc(doc(db, 'shippers', uid));
+        if (shipperDoc.exists()) {
+          console.log('✅ Found shipper profile in Firestore');
+          detectedRole = 'shipper';
+          const data = shipperDoc.data();
           profile = {
-            ...dummyDriverProfile,
+            ...dummyShipperProfile,
             ...data,
-            firstName: data.firstName || data.name || 'Driver',
-            lastName: data.lastName || '',
+            companyName: data.companyName || data.name || 'Company',
           };
         } else {
-          const shipperDoc = await getDoc(doc(db, 'shippers', uid));
-          if (shipperDoc.exists()) {
-            console.log('✅ Found shipper profile in Firestore');
-            detectedRole = 'shipper';
-            const data = shipperDoc.data();
+          const driverDoc = await getDoc(doc(db, 'drivers', uid));
+          if (driverDoc.exists()) {
+            console.log('✅ Found driver profile in Firestore');
+            detectedRole = 'driver';
+            const data = driverDoc.data();
             profile = {
-              ...dummyShipperProfile,
+              ...dummyDriverProfile,
               ...data,
-              companyName: data.companyName || data.name || 'Company',
+              firstName: data.firstName || data.name || 'Driver',
+              lastName: data.lastName || '',
             };
           } else {
             const adminDoc = await getDoc(doc(db, 'admins', uid));
@@ -253,6 +238,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
                 detectedRole = storedRole;
                 profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
               } else {
+                if (userEmail.includes('shipper')) {
+                  console.log('📧 Email contains "shipper" - setting role to shipper');
+                  detectedRole = 'shipper';
+                  profile = dummyShipperProfile;
+                } else if (userEmail.includes('admin')) {
+                  console.log('📧 Email contains "admin" - setting role to admin');
+                  detectedRole = 'admin';
+                  profile = { name: 'Admin User', permissions: ['all'] };
+                } else if (userEmail.includes('driver')) {
+                  console.log('📧 Email contains "driver" - setting role to driver');
+                  detectedRole = 'driver';
+                  profile = dummyDriverProfile;
+                }
                 console.log('⚠️ No Firestore profile found, using email-based role:', detectedRole);
               }
             }
@@ -266,6 +264,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           detectedRole = storedRole;
           profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
         } else {
+          if (userEmail.includes('shipper')) {
+            console.log('📧 Email contains "shipper" - setting role to shipper');
+            detectedRole = 'shipper';
+            profile = dummyShipperProfile;
+          } else if (userEmail.includes('admin')) {
+            console.log('📧 Email contains "admin" - setting role to admin');
+            detectedRole = 'admin';
+            profile = { name: 'Admin User', permissions: ['all'] };
+          } else if (userEmail.includes('driver')) {
+            console.log('📧 Email contains "driver" - setting role to driver');
+            detectedRole = 'driver';
+            profile = dummyDriverProfile;
+          }
           console.log('⚠️ Firestore error, using email-based role:', detectedRole);
         }
       }
