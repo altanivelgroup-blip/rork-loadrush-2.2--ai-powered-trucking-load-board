@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -43,9 +43,10 @@ export default function CommandCenter() {
   const [playbackSpeed, setPlaybackSpeedState] = useState(1);
   const playbackToolbarAnim = useRef(new Animated.Value(0)).current;
 
-  const filteredDrivers = activeFilter === 'all' 
-    ? drivers 
-    : drivers.filter((d) => d.status === activeFilter);
+  const filteredDrivers = useMemo(() => {
+    const list = activeFilter === 'all' ? drivers : drivers.filter((d) => d.status === activeFilter);
+    return list;
+  }, [drivers, activeFilter]);
 
   const getMockLocationHistory = (driverId: string): PlaybackLocation[] => {
     const baseLocations: { [key: string]: PlaybackLocation[] } = {
@@ -71,7 +72,7 @@ export default function CommandCenter() {
     return baseLocations[driverId] || [];
   };
 
-  const driversWithHistory = filteredDrivers.filter((d) => getMockLocationHistory(d.id).length > 0);
+  const driversWithHistory = useMemo(() => filteredDrivers.filter((d) => getMockLocationHistory(d.id).length > 0), [filteredDrivers]);
   const selectedPlaybackDriverData = drivers.find((d) => d.id === selectedPlaybackDriver);
   const playbackLocations = selectedPlaybackDriver ? getMockLocationHistory(selectedPlaybackDriver) : [];
 
@@ -158,15 +159,30 @@ export default function CommandCenter() {
       if (cycleTimerRef.current) {
         clearInterval(cycleTimerRef.current);
       }
+      setCurrentCycleIndex(0);
     }
   }, [projectorMode, filteredDrivers.length, projectorOverlayAnim]);
 
   useEffect(() => {
     if (projectorMode && filteredDrivers.length > 0) {
-      const currentDriver = filteredDrivers[currentCycleIndex];
-      console.log(`[Projector Mode] Cycling to driver: ${currentDriver.name} (${currentDriver.driverId})`);
+      const safeIndex = currentCycleIndex % filteredDrivers.length;
+      const currentDriver = filteredDrivers[safeIndex];
+      if (currentDriver) {
+        console.log(`[Projector Mode] Cycling to driver: ${currentDriver.name} (${currentDriver.driverId})`);
+      }
     }
-  }, [currentCycleIndex, projectorMode, filteredDrivers]);
+  }, [currentCycleIndex, projectorMode, filteredDrivers.length]);
+
+  useEffect(() => {
+    if (filteredDrivers.length === 0) {
+      setCurrentCycleIndex(0);
+      if (cycleTimerRef.current) {
+        clearInterval(cycleTimerRef.current);
+      }
+    } else if (currentCycleIndex >= filteredDrivers.length) {
+      setCurrentCycleIndex(0);
+    }
+  }, [filteredDrivers.length]);
 
   const openPanel = (driverId: string) => {
     setSelectedDriver(driverId);
