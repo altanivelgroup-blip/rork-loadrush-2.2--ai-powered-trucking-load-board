@@ -12,7 +12,6 @@ import {
 import { User, UserRole, ShipperProfile, DriverProfile, AdminProfile } from '@/types';
 import { dummyDriverProfile, dummyShipperProfile } from '@/mocks/dummyData';
 
-// 🔧 Local storage helpers (web only)
 const getStorageItem = (key: string): string | null => {
   if (Platform.OS === 'web') return localStorage.getItem(key);
   return null;
@@ -22,13 +21,117 @@ const setStorageItem = (key: string, value: string): void => {
   if (Platform.OS === 'web') localStorage.setItem(key, value);
 };
 
-// 🔥 Auth Context Provider
+async function resolveUserRole(
+  uid: string,
+  email: string | null | undefined,
+): Promise<{ role: UserRole; profile: ShipperProfile | DriverProfile | AdminProfile }> {
+  let detectedRole: UserRole = 'driver';
+  let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
+
+  const emailHint: UserRole | null = email?.includes('shipper')
+    ? 'shipper'
+    : email?.includes('admin')
+    ? 'admin'
+    : email?.includes('driver')
+    ? 'driver'
+    : null;
+
+  try {
+    const { db } = await import('@/config/firebase');
+    const { doc, getDoc } = await import('firebase/firestore');
+
+    const shipperDoc = await getDoc(doc(db, 'shippers', uid));
+    if (shipperDoc.exists()) {
+      console.log('✅ Found shipper profile in Firestore');
+      detectedRole = 'shipper';
+      const data = shipperDoc.data() as any;
+      profile = {
+        ...dummyShipperProfile,
+        ...data,
+        companyName: data?.companyName || data?.name || 'Company',
+      };
+    } else {
+      const driverDoc = await getDoc(doc(db, 'drivers', uid));
+      if (driverDoc.exists()) {
+        console.log('✅ Found driver profile in Firestore');
+        detectedRole = 'driver';
+        const data = driverDoc.data() as any;
+        profile = {
+          ...dummyDriverProfile,
+          ...data,
+          firstName: data?.firstName || data?.name || 'Driver',
+          lastName: data?.lastName || '',
+        };
+      } else {
+        const adminDoc = await getDoc(doc(db, 'admins', uid));
+        if (adminDoc.exists()) {
+          console.log('✅ Found admin profile in Firestore');
+          detectedRole = 'admin';
+          const data = adminDoc.data() as any;
+          profile = {
+            name: data?.name || 'Admin User',
+            permissions: data?.permissions || ['all'],
+          };
+        } else {
+          const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
+          if (emailHint && storedRole && storedRole !== emailHint) {
+            console.log('⚠️ Stored role conflicts with email hint. Using email hint', { storedRole, emailHint });
+            detectedRole = emailHint;
+          } else if (storedRole) {
+            console.log('⚠️ No Firestore profile found, using stored role:', storedRole);
+            detectedRole = storedRole;
+          } else if (emailHint) {
+            console.log('📧 Using email-based role:', emailHint);
+            detectedRole = emailHint;
+          } else {
+            console.log('⚠️ No source for role. Falling back to driver');
+            detectedRole = 'driver';
+          }
+
+          profile =
+            detectedRole === 'shipper'
+              ? dummyShipperProfile
+              : detectedRole === 'admin'
+              ? { name: 'Admin User', permissions: ['all'] }
+              : dummyDriverProfile;
+        }
+      }
+    }
+  } catch (firestoreError) {
+    const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
+    console.error('🔥 Firestore role lookup error:', errorMsg);
+    const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
+    if (emailHint && storedRole && storedRole !== emailHint) {
+      console.log('⚠️ Firestore error: stored role conflicts with email hint. Using email hint', { storedRole, emailHint });
+      detectedRole = emailHint;
+    } else if (storedRole) {
+      console.log('⚠️ Firestore error, using stored role:', storedRole);
+      detectedRole = storedRole;
+    } else if (emailHint) {
+      console.log('📧 Firestore error, using email-based role:', emailHint);
+      detectedRole = emailHint;
+    } else {
+      console.log('⚠️ Firestore error, falling back to driver');
+      detectedRole = 'driver';
+    }
+
+    profile =
+      detectedRole === 'shipper'
+        ? dummyShipperProfile
+        : detectedRole === 'admin'
+        ? { name: 'Admin User', permissions: ['all'] }
+        : dummyDriverProfile;
+  }
+
+  setStorageItem(`user_role_${uid}`, detectedRole);
+  return { role: detectedRole, profile };
+}
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Listen for Firebase Auth state
   useEffect(() => {
     console.log('🔥 Firebase Auth: Setting up listener');
     let mounted = true;
@@ -48,106 +151,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         async (fbUser) => {
           if (!mounted) return;
           clearTimeout(timeoutId);
-          
+
           if (fbUser) {
             const uid = fbUser.uid;
-            let detectedRole: UserRole = 'driver';
-            let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
-
-            try {
-              const { db } = await import('@/config/firebase');
-              const { doc, getDoc } = await import('firebase/firestore');
-
-              const shipperDoc = await getDoc(doc(db, 'shippers', uid));
-              if (shipperDoc.exists()) {
-                console.log('✅ Found shipper profile in Firestore (onAuthStateChanged)');
-                detectedRole = 'shipper';
-                const data = shipperDoc.data();
-                profile = {
-                  ...dummyShipperProfile,
-                  ...data,
-                  companyName: data.companyName || data.name || 'Company',
-                };
-              } else {
-                const driverDoc = await getDoc(doc(db, 'drivers', uid));
-                if (driverDoc.exists()) {
-                  console.log('✅ Found driver profile in Firestore (onAuthStateChanged)');
-                  detectedRole = 'driver';
-                  const data = driverDoc.data();
-                  profile = {
-                    ...dummyDriverProfile,
-                    ...data,
-                    firstName: data.firstName || data.name || 'Driver',
-                    lastName: data.lastName || '',
-                  };
-                } else {
-                  const adminDoc = await getDoc(doc(db, 'admins', uid));
-                  if (adminDoc.exists()) {
-                    console.log('✅ Found admin profile in Firestore (onAuthStateChanged)');
-                    detectedRole = 'admin';
-                    const data = adminDoc.data();
-                    profile = {
-                      name: data.name || 'Admin User',
-                      permissions: data.permissions || ['all'],
-                    };
-                  } else {
-                    const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-                    if (storedRole) {
-                      console.log('⚠️ No Firestore profile found (onAuthStateChanged), using stored role:', storedRole);
-                      detectedRole = storedRole;
-                      profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
-                    } else {
-                      if (fbUser.email?.includes('shipper')) {
-                        console.log('📧 Email contains "shipper" (onAuthStateChanged) - setting role to shipper');
-                        detectedRole = 'shipper';
-                        profile = dummyShipperProfile;
-                      } else if (fbUser.email?.includes('admin')) {
-                        console.log('📧 Email contains "admin" (onAuthStateChanged) - setting role to admin');
-                        detectedRole = 'admin';
-                        profile = { name: 'Admin User', permissions: ['all'] };
-                      } else if (fbUser.email?.includes('driver')) {
-                        console.log('📧 Email contains "driver" (onAuthStateChanged) - setting role to driver');
-                        detectedRole = 'driver';
-                        profile = dummyDriverProfile;
-                      }
-                      console.log('⚠️ No Firestore profile found (onAuthStateChanged), using email-based role:', detectedRole);
-                    }
-                  }
-                }
-              }
-            } catch (firestoreError) {
-              const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
-              console.error('🔥 Firestore role lookup error (onAuthStateChanged):', errorMsg);
-              const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-              if (storedRole) {
-                console.log('⚠️ Firestore error (onAuthStateChanged), using stored role:', storedRole);
-                detectedRole = storedRole;
-                profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
-              } else {
-                if (fbUser.email?.includes('shipper')) {
-                  console.log('📧 Email contains "shipper" (onAuthStateChanged error fallback) - setting role to shipper');
-                  detectedRole = 'shipper';
-                  profile = dummyShipperProfile;
-                } else if (fbUser.email?.includes('admin')) {
-                  console.log('📧 Email contains "admin" (onAuthStateChanged error fallback) - setting role to admin');
-                  detectedRole = 'admin';
-                  profile = { name: 'Admin User', permissions: ['all'] };
-                } else if (fbUser.email?.includes('driver')) {
-                  console.log('📧 Email contains "driver" (onAuthStateChanged error fallback) - setting role to driver');
-                  detectedRole = 'driver';
-                  profile = dummyDriverProfile;
-                }
-                console.log('⚠️ Firestore error (onAuthStateChanged), using email-based role:', detectedRole);
-              }
-            }
-
-            setStorageItem(`user_role_${uid}`, detectedRole);
-            console.log('✅ onAuthStateChanged: Setting user with role:', detectedRole);
-
+            const { role, profile } = await resolveUserRole(uid, fbUser.email);
+            console.log('✅ onAuthStateChanged: Setting user with role:', role);
             setUser({
               id: uid,
               email: fbUser.email || '',
-              role: detectedRole,
+              role,
               createdAt: new Date().toISOString(),
               profile,
             });
@@ -156,15 +168,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           }
           setLoading(false);
         },
-        (error) => {
+        (err) => {
           if (!mounted) return;
-          console.error('🔥 Firebase Auth Error:', error);
+          console.error('🔥 Firebase Auth Error:', err);
           clearTimeout(timeoutId);
           setLoading(false);
         }
       );
-    } catch (error) {
-      console.error('🔥 Firebase Auth Setup Error:', error);
+    } catch (err) {
+      console.error('🔥 Firebase Auth Setup Error:', err);
       clearTimeout(timeoutId);
       if (mounted) {
         setLoading(false);
@@ -177,14 +189,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       if (unsubscribe) {
         try {
           unsubscribe();
-        } catch (error) {
-          console.error('🔥 Error unsubscribing from auth:', error);
+        } catch (err) {
+          console.error('🔥 Error unsubscribing from auth:', err);
         }
       }
     };
   }, []);
 
-  // 🔹 Sign Up
   const signUp = useCallback(async (email: string, password: string, role: UserRole) => {
     try {
       setError(null);
@@ -220,115 +231,25 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  // 🔹 Sign In
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       setError(null);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       const userEmail = userCredential.user.email || '';
-      
-      let detectedRole: UserRole = 'driver';
-      let profile: ShipperProfile | DriverProfile | AdminProfile = dummyDriverProfile;
 
-      try {
-        const { db } = await import('@/config/firebase');
-        const { doc, getDoc } = await import('firebase/firestore');
-
-        const shipperDoc = await getDoc(doc(db, 'shippers', uid));
-        if (shipperDoc.exists()) {
-          console.log('✅ Found shipper profile in Firestore');
-          detectedRole = 'shipper';
-          const data = shipperDoc.data();
-          profile = {
-            ...dummyShipperProfile,
-            ...data,
-            companyName: data.companyName || data.name || 'Company',
-          };
-        } else {
-          const driverDoc = await getDoc(doc(db, 'drivers', uid));
-          if (driverDoc.exists()) {
-            console.log('✅ Found driver profile in Firestore');
-            detectedRole = 'driver';
-            const data = driverDoc.data();
-            profile = {
-              ...dummyDriverProfile,
-              ...data,
-              firstName: data.firstName || data.name || 'Driver',
-              lastName: data.lastName || '',
-            };
-          } else {
-            const adminDoc = await getDoc(doc(db, 'admins', uid));
-            if (adminDoc.exists()) {
-              console.log('✅ Found admin profile in Firestore');
-              detectedRole = 'admin';
-              const data = adminDoc.data();
-              profile = {
-                name: data.name || 'Admin User',
-                permissions: data.permissions || ['all'],
-              };
-            } else {
-              const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-              if (storedRole) {
-                console.log('⚠️ No Firestore profile found, using stored role:', storedRole);
-                detectedRole = storedRole;
-                profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
-              } else {
-                if (userEmail.includes('shipper')) {
-                  console.log('📧 Email contains "shipper" - setting role to shipper');
-                  detectedRole = 'shipper';
-                  profile = dummyShipperProfile;
-                } else if (userEmail.includes('admin')) {
-                  console.log('📧 Email contains "admin" - setting role to admin');
-                  detectedRole = 'admin';
-                  profile = { name: 'Admin User', permissions: ['all'] };
-                } else if (userEmail.includes('driver')) {
-                  console.log('📧 Email contains "driver" - setting role to driver');
-                  detectedRole = 'driver';
-                  profile = dummyDriverProfile;
-                }
-                console.log('⚠️ No Firestore profile found, using email-based role:', detectedRole);
-              }
-            }
-          }
-        }
-      } catch (firestoreError) {
-        const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
-        console.error('🔥 Firestore role lookup error:', errorMsg);
-        const storedRole = getStorageItem(`user_role_${uid}`) as UserRole;
-        if (storedRole) {
-          detectedRole = storedRole;
-          profile = storedRole === 'shipper' ? dummyShipperProfile : storedRole === 'admin' ? { name: 'Admin User', permissions: ['all'] } : dummyDriverProfile;
-        } else {
-          if (userEmail.includes('shipper')) {
-            console.log('📧 Email contains "shipper" - setting role to shipper');
-            detectedRole = 'shipper';
-            profile = dummyShipperProfile;
-          } else if (userEmail.includes('admin')) {
-            console.log('📧 Email contains "admin" - setting role to admin');
-            detectedRole = 'admin';
-            profile = { name: 'Admin User', permissions: ['all'] };
-          } else if (userEmail.includes('driver')) {
-            console.log('📧 Email contains "driver" - setting role to driver');
-            detectedRole = 'driver';
-            profile = dummyDriverProfile;
-          }
-          console.log('⚠️ Firestore error, using email-based role:', detectedRole);
-        }
-      }
-
-      setStorageItem(`user_role_${uid}`, detectedRole);
+      const { role, profile } = await resolveUserRole(uid, userEmail);
 
       const existingUser: User = {
         id: uid,
         email: userEmail,
-        role: detectedRole,
+        role,
         createdAt: new Date().toISOString(),
         profile,
       };
 
       setUser(existingUser);
-      console.log('✅ Sign in successful as:', detectedRole);
+      console.log('✅ Sign in successful as:', role);
       return existingUser;
     } catch (err) {
       const authError = err as AuthError;
@@ -343,23 +264,22 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  // 🔹 Sign Out
   const signOut = useCallback(async () => {
     try {
       console.log('🔥 Signing out user...');
       await firebaseSignOut(auth);
       setUser(null);
       setError(null);
-      
+
       if (Platform.OS === 'web') {
         const keys = Object.keys(localStorage);
-        keys.forEach(key => {
+        keys.forEach((key) => {
           if (key.startsWith('user_role_') || key.startsWith('user_profile_')) {
             localStorage.removeItem(key);
           }
         });
       }
-      
+
       console.log('✅ Sign out successful');
     } catch (err) {
       console.error('🔥 Sign out error:', err);
@@ -368,18 +288,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  // 🔹 Quick Test Login (Firestore connected with fallback)
   const quickTestLogin = useCallback(async (role: UserRole) => {
     console.log('🔥 Firestore Quick Test Login -', role);
     setError(null);
     setLoading(true);
 
-    const createFallbackUser = (role: UserRole) => {
+    const createFallbackUser = (r: UserRole) => {
       let profile: ShipperProfile | DriverProfile | AdminProfile;
-      
-      if (role === 'driver') {
+
+      if (r === 'driver') {
         profile = dummyDriverProfile;
-      } else if (role === 'shipper') {
+      } else if (r === 'shipper') {
         profile = dummyShipperProfile;
       } else {
         profile = {
@@ -389,17 +308,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
 
       const fallbackUser: User = {
-        id: `test-${role}-${Date.now()}`,
-        email: `${role}_test@loadrush.ai`,
-        role: role,
+        id: `test-${r}-${Date.now()}`,
+        email: `${r}_test@loadrush.ai`,
+        role: r,
         createdAt: new Date().toISOString(),
         profile,
       };
 
-      console.log(`✅ Creating ${role} fallback user:`, fallbackUser);
+      console.log(`✅ Creating ${r} fallback user:`, fallbackUser);
       setUser(fallbackUser);
       setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
-      console.log(`✅ ${role} fallback test account created successfully with role:`, fallbackUser.role);
+      console.log(`✅ ${r} fallback test account created successfully with role:`, fallbackUser.role);
       setLoading(false);
     };
 
@@ -409,7 +328,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       let collectionName: string;
       let docId: string;
-      
+
       if (role === 'driver') {
         collectionName = 'driver_test';
         docId = 'DRIVER_TEST_001';
@@ -420,54 +339,54 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         collectionName = 'admin_test';
         docId = 'ADMIN_TEST_001';
       }
-      
-      console.log(`🔍 Attempting to fetch: ${collectionName}/${docId}`);
-      
-      const docRef = doc(db, collectionName, docId);
-      
-      const fetchPromise = getDoc(docRef);
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Firestore timeout - using fallback')), 3000)
-      );
-      
-      const docSnap = await Promise.race([fetchPromise, timeoutPromise]);
 
-      if (!docSnap.exists()) {
+      console.log(`🔍 Attempting to fetch: ${collectionName}/${docId}`);
+
+      const docRef = doc(db, collectionName, docId);
+
+      const fetchPromise = getDoc(docRef);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore timeout - using fallback')), 3000),
+      );
+
+      const docSnap = await Promise.race([fetchPromise, timeoutPromise] as const);
+
+      if (!(docSnap as any).exists()) {
         console.warn(`⚠️ No test document found in ${collectionName}, using fallback`);
         createFallbackUser(role);
         return;
       }
 
-      const data = docSnap.data();
+      const data: any = (docSnap as any).data();
       console.log('✅ Firestore Test Account Loaded:', data);
 
       let profile: ShipperProfile | DriverProfile | AdminProfile;
-      
+
       if (role === 'driver') {
         profile = {
           ...dummyDriverProfile,
           ...data,
-          firstName: data.firstName || data.name || 'Demo',
-          lastName: data.lastName || 'Driver',
+          firstName: data?.firstName || data?.name || 'Demo',
+          lastName: data?.lastName || 'Driver',
         };
       } else if (role === 'shipper') {
         profile = {
           ...dummyShipperProfile,
           ...data,
-          companyName: data.companyName || data.name || 'Demo Company',
+          companyName: data?.companyName || data?.name || 'Demo Company',
         };
       } else {
         profile = {
-          name: data.name || 'Admin User',
-          permissions: data.permissions || ['all'],
+          name: data?.name || 'Admin User',
+          permissions: data?.permissions || ['all'],
         };
       }
 
       const testUser: User = {
-        id: data.uid || docId,
-        email: data.email || `${role}_test@loadrush.ai`,
+        id: data?.uid || docId,
+        email: data?.email || `${role}_test@loadrush.ai`,
         role: role,
-        createdAt: data.createdAt || new Date().toISOString(),
+        createdAt: data?.createdAt || new Date().toISOString(),
         profile,
       };
 
@@ -485,7 +404,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  // 🔹 Update Profile
   const updateProfile = useCallback(
     async (updatedProfile: ShipperProfile | DriverProfile) => {
       if (!user) throw new Error('No user logged in');
@@ -500,12 +418,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         console.log('🔥 Profile updated in local storage');
       }
     },
-    [user]
+    [user],
   );
 
   const clearError = useCallback(() => setError(null), []);
 
-  // Return full context
   return useMemo(
     () => ({
       user,
@@ -519,7 +436,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isAuthenticated: !!user,
       clearError,
     }),
-    [user, loading, error, signUp, signIn, signOut, quickTestLogin, updateProfile, clearError]
+    [user, loading, error, signUp, signIn, signOut, quickTestLogin, updateProfile, clearError],
   );
 });
-
