@@ -475,6 +475,17 @@ export default function ShipperProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.signOutButtonBottom}
+            onPress={signOut}
+            activeOpacity={0.7}
+          >
+            <LogOut size={20} color="#fff" />
+            <Text style={styles.signOutButtonBottomText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -949,5 +960,24 @@ const styles = StyleSheet.create({
     borderColor: '#2563EB',
     fontSize: 14,
     color: Colors.light.text,
+  },
+  signOutButtonBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  signOutButtonBottomText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#fff',
   },
 });
