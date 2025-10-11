@@ -145,7 +145,8 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
             isProgrammaticRef.current = true;
             const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
             const current = map.getZoom?.() ?? defaultZoom;
-            const targetZoom = Math.max(Math.min(current, 2.6), minZ);
+            const reduced = (current ?? defaultZoom) * 0.8;
+            const targetZoom = Math.max(Math.min(reduced, 2.3), minZ);
             map.setZoom(targetZoom);
           });
         }
