@@ -19,7 +19,7 @@ import { Truck, Package } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, loading, error, clearError } = useAuth();
+  const { signIn, signUp, loading, error, clearError, quickTestLogin } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +39,7 @@ export default function AuthScreen() {
       if (isSignUp) {
         await signUp(email, password, selectedRole);
       } else {
+        console.log('🔐 [AuthScreen] Signing in with admin access enabled:', adminAccessEnabled);
         await signIn(email, password);
       }
     } catch (error: any) {
@@ -132,12 +133,43 @@ export default function AuthScreen() {
                 );
               })}
             </View>
+            {adminAccessEnabled && (
+              <TouchableOpacity
+                style={[styles.roleCard, styles.adminRoleCard, selectedRole === 'admin' && styles.roleCardSelected]}
+                onPress={() => setSelectedRole('admin')}
+              >
+                <Text style={[styles.roleLabel, selectedRole === 'admin' && styles.roleLabelSelected]}>
+                  🔐 Admin
+                </Text>
+                <Text style={styles.roleDescription}>Platform administration</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
         {adminAccessEnabled && !isSignUp && (
-          <View style={styles.adminBanner}>
-            <Text style={styles.adminBannerText}>🔐 Admin Access Enabled</Text>
+          <View>
+            <View style={styles.adminBanner}>
+              <Text style={styles.adminBannerText}>🔐 Admin Access Enabled</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.quickAdminButton}
+              onPress={async () => {
+                setIsSubmitting(true);
+                try {
+                  await quickTestLogin('admin');
+                } catch (err) {
+                  console.error('Quick admin login failed:', err);
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.quickAdminButtonText}>
+                🚀 Quick Admin Login
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -317,6 +349,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     textAlign: 'center',
+  },
+  adminRoleCard: {
+    marginTop: 12,
+    width: '100%',
+  },
+  quickAdminButton: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  quickAdminButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });
 
