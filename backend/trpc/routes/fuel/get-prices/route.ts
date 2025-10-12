@@ -21,46 +21,64 @@ const FALLBACK_BY_STATE: Record<string, { diesel: number; gasoline: number }> = 
 };
 
 async function fetchWithRetry(attempt = 1): Promise<any | null> {
+  const MAX_ATTEMPTS = 7;
+  const TIMEOUT_MS = 30000;
+  
   try {
-    console.log(`⛽ [Fuel API] Fetch attempt ${attempt}/5`);
+    console.log(`⛽ [Fuel API] Fetch attempt ${attempt}/${MAX_ATTEMPTS}`);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => {
+      console.warn(`⏱️ [Fuel API] Timeout after ${TIMEOUT_MS}ms`);
+      controller.abort();
+    }, TIMEOUT_MS);
     
-    const res = await fetch(FUEL_API_URL, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${FUEL_API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      signal: controller.signal,
-    });
-    
-    clearTimeout(timeoutId);
+    try {
+      const res = await fetch(FUEL_API_URL, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${FUEL_API_KEY}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      const body = await res.text();
-      console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 120)}`);
-      if (attempt < 5) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-        console.log(`⏳ [Fuel API] Retrying after ${delay}ms...`);
-        await new Promise(r => setTimeout(r, delay));
-        return fetchWithRetry(attempt + 1);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 120)}`);
+        
+        if (attempt < MAX_ATTEMPTS && (res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 503)) {
+          const delay = Math.min(1500 * Math.pow(2, attempt - 1), 12000);
+          console.log(`⏳ [Fuel API] Retrying after ${delay}ms (status: ${res.status})...`);
+          await new Promise(r => setTimeout(r, delay));
+          return fetchWithRetry(attempt + 1);
+        }
+        return null;
       }
-      return null;
-    }
 
-    const data = await res.json();
-    console.log(`✅ [Fuel API] Data received successfully`);
-    return data;
+      const data = await res.json();
+      console.log(`✅ [Fuel API] Data received successfully`);
+      return data;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
   } catch (err) {
+    const isAbortError = err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'));
+    const isNetworkError = err instanceof Error && (
+      err.message.includes('fetch') ||
+      err.message.includes('network') ||
+      err.message.includes('Failed to fetch')
+    );
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.warn(`⚠️ Fuel API fetch failed (attempt ${attempt}):`, errorMsg);
     
-    if (attempt < 5) {
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
-      console.log(`⏳ [Fuel API] Retrying after ${delay}ms...`);
+    if (attempt < MAX_ATTEMPTS && (isAbortError || isNetworkError)) {
+      const delay = Math.min(1500 * Math.pow(2, attempt - 1), 12000);
+      console.log(`⏳ [Fuel API] Network/timeout error, retrying after ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
       return fetchWithRetry(attempt + 1);
     }

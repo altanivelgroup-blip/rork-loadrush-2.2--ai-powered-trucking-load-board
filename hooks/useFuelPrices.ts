@@ -32,11 +32,12 @@ export function useFuelPrices(
       enabled,
       staleTime: 30 * 60 * 1000,
       refetchInterval: 10 * 60 * 1000,
-      retry: 5,
-      retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 10000),
+      retry: 8,
+      retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 15000),
       refetchOnMount: true,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
+      networkMode: 'always',
     }
   );
 

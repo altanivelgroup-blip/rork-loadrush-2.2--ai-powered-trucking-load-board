@@ -81,8 +81,8 @@ export const getRouteProcedure = publicProcedure
     const url = 'https://api.openrouteservice.org/v2/directions/driving-car';
 
     let retryCount = 0;
-    const MAX_RETRIES = 4;
-    const TIMEOUT_MS = 45000;
+    const MAX_RETRIES = 6;
+    const TIMEOUT_MS = 60000;
 
     while (retryCount <= MAX_RETRIES) {
       try {
@@ -113,9 +113,9 @@ export const getRouteProcedure = publicProcedure
             const text = await res.text().catch(() => '');
             console.error(`[getRouteProcedure] ORS API error: ${res.status}`, text.substring(0, 200));
             
-            if (retryCount < MAX_RETRIES && (res.status === 429 || res.status >= 500 || res.status === 408)) {
-              const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-              console.log(`[getRouteProcedure] Retrying after ${delay}ms...`);
+            if (retryCount < MAX_RETRIES && (res.status === 429 || res.status >= 500 || res.status === 408 || res.status === 503)) {
+              const delay = Math.min(1500 * Math.pow(2, retryCount), 15000);
+              console.log(`[getRouteProcedure] Retrying after ${delay}ms (status: ${res.status})...`);
               await new Promise(resolve => setTimeout(resolve, delay));
               retryCount++;
               continue;
@@ -180,8 +180,8 @@ export const getRouteProcedure = publicProcedure
         console.error(`[getRouteProcedure] Error (attempt ${retryCount + 1}):`, err instanceof Error ? err.message : err);
         
         if (retryCount < MAX_RETRIES && (isTimeout || isNetworkError)) {
-          const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
-          console.log(`[getRouteProcedure] Network/timeout error, retrying after ${delay}ms...`);
+          const delay = Math.min(1500 * Math.pow(2, retryCount), 15000);
+          console.log(`[getRouteProcedure] Network/timeout error, retrying after ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           retryCount++;
           continue;

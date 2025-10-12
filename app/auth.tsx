@@ -40,6 +40,36 @@ export default function AuthScreen() {
     }
   };
 
+  const handleQuickAccessDriver = async () => {
+    setIsSubmitting(true);
+    clearError();
+    try {
+      console.log('🚚 Quick Access: Signing in as driver@loadrush.co');
+      await signIn('driver@loadrush.co', 'loadrush123');
+      console.log('✅ Quick Access: Driver sign-in successful');
+    } catch (error: any) {
+      console.error('🔥 Quick Access Driver error:', error);
+      Alert.alert('Quick Access Error', 'Failed to sign in as driver. Please try manual sign-in.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickAccessShipper = async () => {
+    setIsSubmitting(true);
+    clearError();
+    try {
+      console.log('📦 Quick Access: Signing in as shipper@loadrush.co');
+      await signIn('shipper@loadrush.co', 'loadrush123');
+      console.log('✅ Quick Access: Shipper sign-in successful');
+    } catch (error: any) {
+      console.error('🔥 Quick Access Shipper error:', error);
+      Alert.alert('Quick Access Error', 'Failed to sign in as shipper. Please try manual sign-in.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     const normalizedEmail = (email ?? '').trim().toLowerCase();
     if (!normalizedEmail || !password) {
@@ -218,6 +248,30 @@ export default function AuthScreen() {
               : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
+
+        {!isSignUp && (
+          <View style={styles.quickAccessContainer}>
+            <Text style={styles.quickAccessTitle}>Quick Access (Testing)</Text>
+            <View style={styles.quickAccessButtons}>
+              <TouchableOpacity
+                style={[styles.quickAccessButton, styles.quickAccessDriver]}
+                onPress={handleQuickAccessDriver}
+                disabled={isSubmitting}
+              >
+                <Truck size={20} color="#FFFFFF" />
+                <Text style={styles.quickAccessButtonText}>Driver</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.quickAccessButton, styles.quickAccessShipper]}
+                onPress={handleQuickAccessShipper}
+                disabled={isSubmitting}
+              >
+                <Package size={20} color="#FFFFFF" />
+                <Text style={styles.quickAccessButtonText}>Shipper</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -341,5 +395,44 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 14,
     fontWeight: '500' as const,
+  },
+  quickAccessContainer: {
+    marginTop: 24,
+    paddingTop: 24,
+    borderTopWidth: 1,
+    borderTopColor: Colors.light.border,
+  },
+  quickAccessTitle: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    marginBottom: 12,
+    textTransform: 'uppercase' as const,
+  },
+  quickAccessButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickAccessButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  quickAccessDriver: {
+    backgroundColor: '#10B981',
+  },
+  quickAccessShipper: {
+    backgroundColor: '#F59E0B',
+  },
+  quickAccessButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
 });

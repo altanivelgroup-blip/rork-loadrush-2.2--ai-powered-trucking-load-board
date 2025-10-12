@@ -17,10 +17,10 @@ const getBaseUrl = () => {
   return 'http://localhost:8081';
 };
 
-const MAX_RETRIES = 8;
+const MAX_RETRIES = 10;
 const INITIAL_RETRY_DELAY = 1000;
-const MAX_RETRY_DELAY = 10000;
-const REQUEST_TIMEOUT = 60000;
+const MAX_RETRY_DELAY = 15000;
+const REQUEST_TIMEOUT = 90000;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -100,11 +100,17 @@ async function fetchWithRetry(url: RequestInfo | URL, options?: RequestInit, att
         if (response.status === 401) {
           console.warn('🔑 [tRPC] Auth token may be invalid, clearing cache');
           clearAuthTokenCache();
+          
+          if (attempt < MAX_RETRIES) {
+            console.log('🔑 [tRPC] Retrying with fresh token...');
+            await sleep(1000);
+            return fetchWithRetry(url, options, attempt + 1);
+          }
         }
         
-        if (attempt < MAX_RETRIES && (response.status >= 500 || response.status === 429 || response.status === 408)) {
+        if (attempt < MAX_RETRIES && (response.status >= 500 || response.status === 429 || response.status === 408 || response.status === 503 || response.status === 502)) {
           const retryDelay = Math.min(INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1), MAX_RETRY_DELAY);
-          console.log(`⏳ [tRPC] Retrying after ${retryDelay}ms...`);
+          console.log(`⏳ [tRPC] Retrying after ${retryDelay}ms (status: ${response.status}, attempt ${attempt}/${MAX_RETRIES})...`);
           await sleep(retryDelay);
           return fetchWithRetry(url, options, attempt + 1);
         }
