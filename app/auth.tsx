@@ -22,9 +22,9 @@ import { Truck, Package, Shield } from 'lucide-react-native';
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signIn, signUp, loading, error, clearError, adminBypass } = useAuth();
+  const { signIn, signUp, loading, error, clearError, adminBypass, driverBypass } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>('driver@loadrush.com');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -210,6 +210,24 @@ export default function AuthScreen() {
               ? 'Already have an account? Sign In'
               : "Don't have an account? Sign Up"}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          testID="driver-quick-signin"
+          onPress={() => {
+            try {
+              console.log('🔓 Driver quick access pressed');
+              const user = driverBypass('driver@loadrush.com');
+              console.log('🚚 Driver bypass user set:', user.id);
+            } catch (e) {
+              console.error('Driver quick access error', e);
+              Alert.alert('Error', 'Unable to open driver dashboard.');
+            }
+          }}
+          style={{ marginTop: 8, alignItems: 'center' }}
+        >
+          <Text style={[styles.switchButtonText, { opacity: 0.8 }]}>Quick access: Driver</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

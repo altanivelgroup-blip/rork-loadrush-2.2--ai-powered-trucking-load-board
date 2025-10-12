@@ -375,6 +375,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return adminUser;
   }, []);
 
+  const driverBypass = useCallback((emailOverride?: string) => {
+    console.log('🚚 Driver bypass activated');
+    const driverUser: User = {
+      id: 'driver-bypass',
+      email: emailOverride ?? 'driver@loadrush.com',
+      role: 'driver',
+      createdAt: new Date().toISOString(),
+      profile: dummyDriverProfile,
+    };
+    setUser(driverUser);
+    if (Platform.OS === 'web') {
+      try {
+        setStorageItem(`user_role_${driverUser.id}`, 'driver');
+        setStorageItem(`user_profile_${driverUser.id}`, JSON.stringify(driverUser.profile));
+      } catch (e) {
+        console.log('Local storage bypass write failed', e);
+      }
+    }
+    return driverUser;
+  }, []);
+
   return useMemo(
     () => ({
       user,
@@ -387,6 +408,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       isAuthenticated: !!user,
       clearError,
       adminBypass,
+      driverBypass,
     }),
     [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass],
   );
