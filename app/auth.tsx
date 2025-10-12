@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import Colors from '@/constants/colors';
-import { Truck, Package } from 'lucide-react-native';
+import { Truck, Package, Shield } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -80,6 +80,12 @@ export default function AuthScreen() {
       icon: Package,
       label: 'Shipper',
       description: 'Post loads and find carriers',
+    },
+    {
+      role: 'admin',
+      icon: Shield,
+      label: 'Admin',
+      description: 'Manage platform and users',
     },
   ];
 
