@@ -110,7 +110,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
     loadGoogleMaps()
       .then((gmaps) => {
         if (!mounted || !containerRef.current) return;
-        const defaultZoom = 3.0;
+        const defaultZoom = 2.6;
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
@@ -137,7 +137,35 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         (window as any).__lastGoogleMapInstance = map;
         injectPulseCSS();
 
+        const usaBounds = new gmaps.LatLngBounds(
+          new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
+          new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
+        );
+        try {
+          isProgrammaticRef.current = true;
+          map.fitBounds(usaBounds, { top: 24, right: 24, bottom: 24, left: 24 } as any);
+          const mz = (map as any)?.minZoom ?? 2;
+          const afterFit = (map.getZoom?.() ?? defaultZoom) - 0.3;
+          map.setZoom(Math.max(mz, afterFit));
+          map.panTo({ lat: USA_CENTER.latitude, lng: USA_CENTER.longitude });
+        } catch (e) {
+          console.log('[WebMap] initial USA fit failed', e);
+        }
 
+        let ro: ResizeObserver | null = null;
+        try {
+          if (containerRef.current && 'ResizeObserver' in window) {
+            ro = new (window as any).ResizeObserver(() => {
+              try {
+                isProgrammaticRef.current = true;
+                map.fitBounds(usaBounds, { top: 24, right: 24, bottom: 24, left: 24 } as any);
+              } catch (e) {
+                console.log('[WebMap] resize fit failed', e);
+              }
+            });
+            ro.observe(containerRef.current);
+          }
+        } catch {}
 
         if (showsTraffic) {
           trafficLayerRef.current = new gmaps.TrafficLayer();
@@ -184,6 +212,10 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         }
         googleMapRef.current = null;
       } catch {}
+      try {
+        // @ts-ignore
+        ro?.disconnect?.();
+      } catch {}
     };
   }, [initialRegion?.latitude, initialRegion?.longitude, initialRegion?.latitudeDelta, initialRegion?.longitudeDelta, showsTraffic, mapType]);
 
@@ -227,6 +259,32 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         <View style={styles.zoomButtonsWrap} pointerEvents="auto">
           <Pressable
             onPress={() => {
+              const gmaps = (window as any)?.google?.maps;
+              const map = googleMapRef.current;
+              if (!map || !gmaps) return;
+              try {
+                const bounds = new gmaps.LatLngBounds(
+                  new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
+                  new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
+                );
+                isProgrammaticRef.current = true;
+                map.fitBounds(bounds, { top: 24, right: 24, bottom: 24, left: 24 } as any);
+                const mz = (map as any)?.minZoom ?? 2;
+                const afterFit = (map.getZoom?.() ?? 3) - 0.2;
+                map.setZoom(Math.max(mz, afterFit));
+                map.panTo({ lat: USA_CENTER.latitude, lng: USA_CENTER.longitude });
+              } catch (e) {
+                console.log('[WebMap] fit USA failed', e);
+              }
+            }}
+            style={styles.zoomButton}
+            testID="fitUSABtn"
+          >
+            <Text style={styles.zoomButtonText}>USA</Text>
+          </Pressable
+          >
+          <Pressable
+            onPress={() => {
               const map = googleMapRef.current;
               if (!map) return;
               try {
@@ -248,8 +306,9 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
               if (!map) return;
               try {
                 const current = map.getZoom?.() ?? 4;
+                const minZ = (map as any)?.minZoom ?? 2;
                 isProgrammaticRef.current = true;
-                map.setZoom(current - 1);
+                map.setZoom(Math.max(minZ, current - 1));
               } catch (e) {
                 console.log('[WebMap] zoom out failed', e);
               }
