@@ -51,12 +51,15 @@ export default function ServiceFinderScreen() {
   const [showQuickOptions, setShowQuickOptions] = useState(false);
 
   const quickServiceOptions = [
-    { label: 'Truck Stop', type: 'truck_stop' as ServiceType },
-    { label: 'Repair Shop', type: 'repair_shop' as ServiceType },
-    { label: 'Tire Service', type: 'tire_service' as ServiceType },
+    { label: 'Truck Repair', type: 'repair_shop' as ServiceType },
     { label: 'Fuel Station', type: 'fuel_station' as ServiceType },
     { label: 'Rest Area', type: 'rest_area' as ServiceType },
-    { label: 'Emergency', type: 'emergency' as ServiceType },
+    { label: 'Towing Service', type: 'emergency' as ServiceType },
+    { label: 'Tire Shop', type: 'tire_service' as ServiceType },
+    { label: 'Weigh Station', type: 'weigh_station' as ServiceType },
+    { label: 'Hotel/Motel', type: 'parking' as ServiceType },
+    { label: 'Truck Stop', type: 'truck_stop' as ServiceType },
+    { label: '24 Hr Tire Service', type: 'tire_service' as ServiceType },
   ];
 
   const { messages, sendMessage } = useRorkAgent({
@@ -474,21 +477,22 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
   },
   quickOptionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    backgroundColor: Colors.light.primary,
+    borderRadius: 8,
+    overflow: 'hidden',
     marginBottom: 12,
   },
   quickOptionButton: {
-    backgroundColor: '#F0F0F0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.2)',
   },
   quickOptionText: {
-    color: Colors.light.text,
-    fontSize: 13,
-    fontWeight: '500' as const,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
   radiusContainer: {
     flexDirection: 'row',
