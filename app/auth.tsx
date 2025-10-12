@@ -24,7 +24,34 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adminPressCount, setAdminPressCount] = useState(0);
+  const [adminPressTimer, setAdminPressTimer] = useState<NodeJS.Timeout | null>(null);
 
+
+  const handleLogoPress = () => {
+    if (adminPressTimer) {
+      clearTimeout(adminPressTimer);
+    }
+
+    const newCount = adminPressCount + 1;
+    setAdminPressCount(newCount);
+
+    if (newCount === 5) {
+      Alert.alert('Admin Access', 'Admin mode activated!');
+      setSelectedRole('admin');
+      setIsSignUp(true);
+      setAdminPressCount(0);
+      setAdminPressTimer(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setAdminPressCount(0);
+      setAdminPressTimer(null);
+    }, 2000);
+
+    setAdminPressTimer(timer);
+  };
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -98,16 +125,18 @@ export default function AuthScreen() {
       ]}
     >
       <View style={styles.header}>
-        <Image
-          source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
-          style={{
-            width: 170,
-            height: 170,
-            alignSelf: 'center',
-            resizeMode: 'contain',
-            opacity: 0.98,
-          }}
-        />
+        <TouchableOpacity onPress={handleLogoPress} activeOpacity={0.9}>
+          <Image
+            source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
+            style={{
+              width: 170,
+              height: 170,
+              alignSelf: 'center',
+              resizeMode: 'contain',
+              opacity: 0.98,
+            }}
+          />
+        </TouchableOpacity>
       </View>
 
 
