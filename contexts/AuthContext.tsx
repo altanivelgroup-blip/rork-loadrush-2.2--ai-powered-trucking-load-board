@@ -362,6 +362,19 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const clearError = useCallback(() => setError(null), []);
 
+  const adminBypass = useCallback(() => {
+    console.log('🔐 Admin bypass activated');
+    const adminUser: User = {
+      id: 'admin-bypass',
+      email: 'admin@loadrush.com',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+      profile: { name: 'Admin User', permissions: ['all'] },
+    };
+    setUser(adminUser);
+    return adminUser;
+  }, []);
+
   return useMemo(
     () => ({
       user,
@@ -373,7 +386,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       updateProfile,
       isAuthenticated: !!user,
       clearError,
+      adminBypass,
     }),
-    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError],
+    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass],
   );
 });

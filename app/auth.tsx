@@ -20,7 +20,7 @@ import { Truck, Package, Shield } from 'lucide-react-native';
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signIn, signUp, loading, error, clearError } = useAuth();
+  const { signIn, signUp, loading, error, clearError, adminBypass } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,6 +37,7 @@ export default function AuthScreen() {
           text: 'Enter',
           onPress: () => {
             console.log('🔐 Admin entrance activated');
+            adminBypass();
             router.replace('/(admin)/dashboard');
           },
         },
