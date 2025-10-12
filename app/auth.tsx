@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types';
 import Colors from '@/constants/colors';
@@ -18,16 +19,29 @@ import { Truck, Package, Shield } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { signIn, signUp, loading, error, clearError } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const handleLogoLongPress = () => {
-    Alert.alert('Admin Access', 'Admin mode activated!');
-    setSelectedRole('admin');
-    setIsSignUp(true);
+    Alert.alert(
+      'Admin Access',
+      'Enter admin dashboard?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Enter',
+          onPress: () => {
+            console.log('🔐 Admin entrance activated');
+            router.replace('/(admin)/dashboard');
+          },
+        },
+      ]
+    );
   };
 
   const handleSubmit = async () => {
