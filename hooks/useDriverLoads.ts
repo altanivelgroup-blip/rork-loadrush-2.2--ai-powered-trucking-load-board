@@ -45,40 +45,35 @@ export function useDriverLoads() {
 
     const nowIso = new Date().toISOString();
     const statuses = ['posted', 'matched', 'in_transit'] as const;
-    const isBypass = (driverId ?? '').includes('bypass');
-    const enablePublic = !driverId || isBypass;
 
     let unsubPublic: (() => void) | null = null;
     try {
-      if (enablePublic) {
-        // Fallback public feed for testing/sandbox so drivers can see the active board
-        const constraintsPublic: QueryConstraint[] = [
-          where('expiresAt', '>=', Timestamp.now()),
-          // Firestore supports 'in' for up to 10 items
-          where('status', 'in', statuses as unknown as string[]),
-        ];
-        const qPublic = query(collection(db, 'loads'), ...constraintsPublic);
-        unsubPublic = onSnapshot(
-          qPublic,
-          (snapshot) => {
-            const list: Load[] = snapshot.docs.map((doc) => {
-              const data: any = doc.data?.() ?? doc.data;
-              return {
-                ...data,
-                id: doc.id,
-                createdAt: data?.createdAt?.toDate?.()?.toISOString?.() ?? data?.createdAt ?? nowIso,
-                updatedAt: data?.updatedAt?.toDate?.()?.toISOString?.() ?? data?.updatedAt ?? nowIso,
-                expiresAt: data?.expiresAt?.toDate?.()?.toISOString?.() ?? data?.expiresAt ?? nowIso,
-              } as Load;
-            });
-            console.log('[Driver Loads] Public loads snapshot:', list.length);
-            setPublicData(list);
-          },
-          (err) => {
-            console.error('[Driver Loads] Public listener error:', err);
-          }
-        );
-      }
+      // Always enable public loads for all drivers to see Command Center loads
+      const constraintsPublic: QueryConstraint[] = [
+        where('expiresAt', '>=', Timestamp.now()),
+        where('status', 'in', statuses as unknown as string[]),
+      ];
+      const qPublic = query(collection(db, 'loads'), ...constraintsPublic);
+      unsubPublic = onSnapshot(
+        qPublic,
+        (snapshot) => {
+          const list: Load[] = snapshot.docs.map((doc) => {
+            const data: any = doc.data?.() ?? doc.data;
+            return {
+              ...data,
+              id: doc.id,
+              createdAt: data?.createdAt?.toDate?.()?.toISOString?.() ?? data?.createdAt ?? nowIso,
+              updatedAt: data?.updatedAt?.toDate?.()?.toISOString?.() ?? data?.updatedAt ?? nowIso,
+              expiresAt: data?.expiresAt?.toDate?.()?.toISOString?.() ?? data?.expiresAt ?? nowIso,
+            } as Load;
+          });
+          console.log('[Driver Loads] Public loads snapshot:', list.length);
+          setPublicData(list);
+        },
+        (err) => {
+          console.error('[Driver Loads] Public listener error:', err);
+        }
+      );
     } catch (err) {
       console.error('[Driver Loads] Failed to init public loads listener:', err);
     }
@@ -151,8 +146,14 @@ export function useDriverLoads() {
   }, [driverId]);
 
   const data = useMemo(() => {
-    const base = hasOwnLoadsRef.current && rawData.length > 0 ? rawData : publicData;
-    return [...base].sort((a, b) => {
+    // Merge own loads with public loads, removing duplicates
+    const ownLoadsMap = new Map(rawData.map(load => [load.id, load]));
+    const publicLoadsMap = new Map(publicData.map(load => [load.id, load]));
+    
+    // Combine both, prioritizing own loads
+    const combined = new Map([...publicLoadsMap, ...ownLoadsMap]);
+    
+    return Array.from(combined.values()).sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;

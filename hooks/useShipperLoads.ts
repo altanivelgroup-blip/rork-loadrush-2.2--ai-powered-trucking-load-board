@@ -18,6 +18,7 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
   const { user } = useAuth();
   const shipperId = user?.id;
   const [rawData, setRawData] = useState<Load[]>([]);
+  const [publicData, setPublicData] = useState<Load[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -30,6 +31,10 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
     console.log('[Shipper Loads] Setting up query for shipperId:', shipperId);
 
     const now = Timestamp.now();
+    const nowIso = new Date().toISOString();
+    const statuses = ['posted', 'matched', 'in_transit'] as const;
+    
+    // Query for shipper's own loads
     const constraints: QueryConstraint[] = [
       where('shipperId', '==', shipperId),
       where('expiresAt', '>=', now)
@@ -41,6 +46,13 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
 
     const q = query(collection(db, 'loads'), ...constraints);
 
+    // Query for all public loads (to show Command Center loads)
+    const constraintsPublic: QueryConstraint[] = [
+      where('expiresAt', '>=', now),
+      where('status', 'in', statuses as unknown as string[]),
+    ];
+    const qPublic = query(collection(db, 'loads'), ...constraintsPublic);
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -50,12 +62,12 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
           loads.push({
             ...data,
             id: doc.id,
-            createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || nowIso,
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || nowIso,
+            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || nowIso,
           } as unknown as Load);
         });
-        console.log('[Shipper Loads] Received', loads.length, 'non-expired loads from Firestore');
+        console.log('[Shipper Loads] Received', loads.length, 'own loads from Firestore');
         setRawData(loads);
         setLoading(false);
         setError(null);
@@ -67,19 +79,49 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
       }
     );
 
+    const unsubPublic = onSnapshot(
+      qPublic,
+      (snapshot) => {
+        const loads: Load[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          loads.push({
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || nowIso,
+            updatedAt: data.updatedAt?.toDate?.()?.toISOString() || nowIso,
+            expiresAt: data.expiresAt?.toDate?.()?.toISOString() || nowIso,
+          } as unknown as Load);
+        });
+        console.log('[Shipper Loads] Received', loads.length, 'public loads from Firestore');
+        setPublicData(loads);
+      },
+      (err) => {
+        console.error('[Shipper Loads] Public loads error:', err);
+      }
+    );
+
     return () => {
-      console.log('[Shipper Loads] Cleaning up listener');
+      console.log('[Shipper Loads] Cleaning up listeners');
       unsubscribe();
+      unsubPublic();
     };
   }, [shipperId, statusFilter]);
 
   const data = useMemo(() => {
-    return [...rawData].sort((a, b) => {
+    // Merge own loads with public loads, removing duplicates
+    const ownLoadsMap = new Map(rawData.map(load => [load.id, load]));
+    const publicLoadsMap = new Map(publicData.map(load => [load.id, load]));
+    
+    // Combine both, prioritizing own loads
+    const combined = new Map([...publicLoadsMap, ...ownLoadsMap]);
+    
+    return Array.from(combined.values()).sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
     });
-  }, [rawData]);
+  }, [rawData, publicData]);
 
   const activeLoads = useMemo(() => {
     return data.filter((load) => load.status === 'in_transit');
