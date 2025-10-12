@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Load } from '@/types';
 import { db } from '@/config/firebase';
@@ -17,11 +17,12 @@ export function useDriverLoads() {
   const [rawData, setRawData] = useState<Load[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [publicData, setPublicData] = useState<Load[]>([]);
+  const hasOwnLoadsRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!driverId) {
-      setLoading(false);
-      return;
+      console.log('[Driver Loads] No driverId - enabling public loads fallback');
     }
 
     console.log('[Driver Loads] Setting up listeners for driverId:', driverId);
@@ -41,6 +42,46 @@ export function useDriverLoads() {
     ];
 
     const qMatched = query(collection(db, 'loads'), ...constraintsMatched);
+
+    const nowIso = new Date().toISOString();
+    const statuses = ['posted', 'matched', 'in_transit'] as const;
+    const isBypass = (driverId ?? '').includes('bypass');
+    const enablePublic = !driverId || isBypass;
+
+    let unsubPublic: (() => void) | null = null;
+    try {
+      if (enablePublic) {
+        // Fallback public feed for testing/sandbox so drivers can see the active board
+        const constraintsPublic: QueryConstraint[] = [
+          where('expiresAt', '>=', Timestamp.now()),
+          // Firestore supports 'in' for up to 10 items
+          where('status', 'in', statuses as unknown as string[]),
+        ];
+        const qPublic = query(collection(db, 'loads'), ...constraintsPublic);
+        unsubPublic = onSnapshot(
+          qPublic,
+          (snapshot) => {
+            const list: Load[] = snapshot.docs.map((doc) => {
+              const data: any = doc.data?.() ?? doc.data;
+              return {
+                ...data,
+                id: doc.id,
+                createdAt: data?.createdAt?.toDate?.()?.toISOString?.() ?? data?.createdAt ?? nowIso,
+                updatedAt: data?.updatedAt?.toDate?.()?.toISOString?.() ?? data?.updatedAt ?? nowIso,
+                expiresAt: data?.expiresAt?.toDate?.()?.toISOString?.() ?? data?.expiresAt ?? nowIso,
+              } as Load;
+            });
+            console.log('[Driver Loads] Public loads snapshot:', list.length);
+            setPublicData(list);
+          },
+          (err) => {
+            console.error('[Driver Loads] Public listener error:', err);
+          }
+        );
+      }
+    } catch (err) {
+      console.error('[Driver Loads] Failed to init public loads listener:', err);
+    }
 
     const nextStateFromSnapshot = (existing: Record<string, Load>, docs: any[]) => {
       const result: Record<string, Load> = { ...existing };
@@ -68,6 +109,7 @@ export function useDriverLoads() {
       (snapshot) => {
         combined = nextStateFromSnapshot(combined, snapshot.docs);
         const arr = Object.values(combined);
+        hasOwnLoadsRef.current = arr.length > 0;
         console.log('[Driver Loads] Assigned loads snapshot:', arr.length);
         setRawData(arr);
         setLoading(false);
@@ -85,6 +127,7 @@ export function useDriverLoads() {
       (snapshot) => {
         combined = nextStateFromSnapshot(combined, snapshot.docs);
         const arr = Object.values(combined);
+        hasOwnLoadsRef.current = hasOwnLoadsRef.current || arr.length > 0;
         console.log('[Driver Loads] Matched loads snapshot merged:', arr.length);
         setRawData(arr);
         setLoading(false);
@@ -101,16 +144,20 @@ export function useDriverLoads() {
       console.log('[Driver Loads] Cleaning up listeners');
       unsubAssigned();
       unsubMatched();
+      if (unsubPublic) {
+        try { unsubPublic(); } catch (e) { console.log('[Driver Loads] Public unsubscribe error', e); }
+      }
     };
   }, [driverId]);
 
   const data = useMemo(() => {
-    return [...rawData].sort((a, b) => {
+    const base = hasOwnLoadsRef.current && rawData.length > 0 ? rawData : publicData;
+    return [...base].sort((a, b) => {
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
     });
-  }, [rawData]);
+  }, [rawData, publicData]);
 
   const activeLoads = useMemo(() => {
     return data.filter((l) => l.status === 'in_transit' || l.status === 'matched' || l.status === 'posted');
@@ -139,6 +186,9 @@ export function useDriverLoads() {
   console.log('[Driver Loads] Fetch complete:', {
     uid: driverId,
     total: data.length,
+    usingPublicFallback: !hasOwnLoadsRef.current,
+    ownCount: rawData.length,
+    publicCount: publicData.length,
     active: activeLoads.length,
     completed: completedLoads.length,
     delayed: delayedLoads.length,
