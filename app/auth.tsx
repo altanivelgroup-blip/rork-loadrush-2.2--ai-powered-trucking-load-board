@@ -3,12 +3,14 @@ import {
   View,
   Text,
   TextInput,
+  Pressable,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,21 +30,14 @@ export default function AuthScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleLogoLongPress = () => {
-    Alert.alert(
-      'Admin Access',
-      'Enter admin dashboard?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Enter',
-          onPress: () => {
-            console.log('🔐 Admin entrance activated');
-            adminBypass();
-            router.replace('/(admin)/dashboard');
-          },
-        },
-      ]
-    );
+    try {
+      console.log('🔐 Admin long-press detected — navigating to admin dashboard');
+      adminBypass();
+      router.replace('/(admin)/dashboard');
+    } catch (e) {
+      console.error('Admin long-press navigation error', e);
+      Alert.alert('Error', 'Unable to open admin dashboard.');
+    }
   };
 
   const handleSubmit = async () => {
@@ -117,18 +112,18 @@ export default function AuthScreen() {
       ]}
     >
       <View style={styles.header}>
-        <TouchableOpacity onLongPress={handleLogoLongPress} activeOpacity={0.9}>
+        <Pressable
+          onLongPress={handleLogoLongPress}
+          delayLongPress={Platform.OS === 'web' ? 300 : 500}
+          android_disableSound
+          testID="admin-long-press"
+          style={({ pressed }) => [styles.logoPressable, pressed ? styles.logoPressed : null]}
+        >
           <Image
             source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
-            style={{
-              width: 170,
-              height: 170,
-              alignSelf: 'center',
-              resizeMode: 'contain',
-              opacity: 0.98,
-            }}
+            style={styles.logo}
           />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
 
@@ -234,6 +229,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
     marginBottom: 40,
+  },
+  logoPressable: {
+    borderRadius: 20,
+  },
+  logoPressed: {
+    opacity: 0.85,
+  },
+  logo: {
+    width: 170,
+    height: 170,
+    alignSelf: 'center',
+    resizeMode: 'contain' as const,
+    opacity: 0.98,
   },
   formContainer: {
     backgroundColor: Colors.light.cardBackground,
