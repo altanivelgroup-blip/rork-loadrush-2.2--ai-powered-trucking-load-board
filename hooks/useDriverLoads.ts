@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Load } from '@/types';
 import { db } from '@/config/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, QueryConstraint } from 'firebase/firestore';
 
 export interface DriverLoadMetrics {
   totalActive: number;
@@ -15,7 +15,7 @@ export function useDriverLoads() {
   const { user } = useAuth();
   const driverId = user?.id;
   const [rawData, setRawData] = useState<Load[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
@@ -24,47 +24,83 @@ export function useDriverLoads() {
       return;
     }
 
-    console.log('[Driver Loads] Setting up query for driverId:', driverId);
+    console.log('[Driver Loads] Setting up listeners for driverId:', driverId);
 
-    const q = query(
-      collection(db, 'loads'),
-      where('status', '==', 'Available')
-    );
+    const now = Timestamp.now();
 
-    const unsubscribe = onSnapshot(
-      q,
+    const constraintsAssigned: QueryConstraint[] = [
+      where('assignedDriverId', '==', driverId),
+      where('expiresAt', '>=', now),
+    ];
+
+    const qAssigned = query(collection(db, 'loads'), ...constraintsAssigned);
+
+    const constraintsMatched: QueryConstraint[] = [
+      where('matchedDriverId', '==', driverId),
+      where('expiresAt', '>=', now),
+    ];
+
+    const qMatched = query(collection(db, 'loads'), ...constraintsMatched);
+
+    const nextStateFromSnapshot = (existing: Record<string, Load>, docs: any[]) => {
+      const result: Record<string, Load> = { ...existing };
+      docs.forEach((doc) => {
+        const data = doc.data?.() ?? doc.data;
+        const createdAtIso = data?.createdAt?.toDate?.()?.toISOString?.() ?? data?.createdAt ?? new Date().toISOString();
+        const updatedAtIso = data?.updatedAt?.toDate?.()?.toISOString?.() ?? data?.updatedAt ?? new Date().toISOString();
+        const expiresAtIso = data?.expiresAt?.toDate?.()?.toISOString?.() ?? data?.expiresAt ?? new Date().toISOString();
+        const item: Load = {
+          ...data,
+          id: doc.id,
+          createdAt: createdAtIso,
+          updatedAt: updatedAtIso,
+          expiresAt: expiresAtIso,
+        } as Load;
+        result[item.id] = item;
+      });
+      return result;
+    };
+
+    let combined: Record<string, Load> = {};
+
+    const unsubAssigned = onSnapshot(
+      qAssigned,
       (snapshot) => {
-        const now = new Date();
-        const loads: Load[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const expiresAt = data.expiresAt?.toDate?.() || new Date();
-          
-          if (expiresAt >= now) {
-            loads.push({
-              ...data,
-              id: doc.id,
-              createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-              updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-              expiresAt: expiresAt.toISOString(),
-            } as unknown as Load);
-          }
-        });
-        console.log('[Driver Loads] Received', loads.length, 'non-expired loads from Firestore (filtered in memory)');
-        setRawData(loads);
+        combined = nextStateFromSnapshot(combined, snapshot.docs);
+        const arr = Object.values(combined);
+        console.log('[Driver Loads] Assigned loads snapshot:', arr.length);
+        setRawData(arr);
         setLoading(false);
         setError(null);
       },
       (err) => {
-        console.error('[Driver Loads] Error:', err);
+        console.error('[Driver Loads] Assigned listener error:', err);
+        setError(err as Error);
+        setLoading(false);
+      }
+    );
+
+    const unsubMatched = onSnapshot(
+      qMatched,
+      (snapshot) => {
+        combined = nextStateFromSnapshot(combined, snapshot.docs);
+        const arr = Object.values(combined);
+        console.log('[Driver Loads] Matched loads snapshot merged:', arr.length);
+        setRawData(arr);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('[Driver Loads] Matched listener error:', err);
         setError(err as Error);
         setLoading(false);
       }
     );
 
     return () => {
-      console.log('[Driver Loads] Cleaning up listener');
-      unsubscribe();
+      console.log('[Driver Loads] Cleaning up listeners');
+      unsubAssigned();
+      unsubMatched();
     };
   }, [driverId]);
 
@@ -77,7 +113,7 @@ export function useDriverLoads() {
   }, [rawData]);
 
   const activeLoads = useMemo(() => {
-    return data;
+    return data.filter((l) => l.status === 'in_transit' || l.status === 'matched' || l.status === 'posted');
   }, [data]);
 
   const completedLoads = useMemo(() => {
@@ -87,9 +123,9 @@ export function useDriverLoads() {
   const delayedLoads = useMemo(() => {
     return data.filter((load) => {
       if (load.status !== 'in_transit') return false;
-      const deliveryDate = new Date(load.dropoff.date);
+      const deliveryDate = load?.dropoff?.date ? new Date(load.dropoff.date) : null;
       const now = new Date();
-      return now > deliveryDate;
+      return deliveryDate ? now > deliveryDate : false;
     });
   }, [data]);
 
@@ -97,8 +133,8 @@ export function useDriverLoads() {
     totalActive: activeLoads.length,
     totalDelivered: completedLoads.length,
     totalDelayed: delayedLoads.length,
-    totalInTransit: activeLoads.length,
-  }), [activeLoads.length, completedLoads.length, delayedLoads.length]);
+    totalInTransit: activeLoads.filter((l) => l.status === 'in_transit').length,
+  }), [activeLoads, completedLoads.length, delayedLoads.length]);
 
   console.log('[Driver Loads] Fetch complete:', {
     uid: driverId,
@@ -108,7 +144,7 @@ export function useDriverLoads() {
     delayed: delayedLoads.length,
     loading,
     error: error?.message,
-    query: 'status == Available AND expiresAt >= now',
+    query: 'assignedDriverId==uid OR matchedDriverId==uid AND expiresAt>=now',
   });
 
   if (!driverId) {
@@ -127,5 +163,5 @@ export function useDriverLoads() {
     metrics,
     loading,
     error,
-  };
+  } as const;
 }

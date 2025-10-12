@@ -16,8 +16,17 @@ export interface AdminLoadMetrics {
 export function useAdminLoads(statusFilter?: AdminLoadFilter, searchQuery?: string) {
   const { data: rawData, loading, error } = useCollectionData<Load>('loads', {});
 
+  const nonExpired = useMemo(() => {
+    const now = Date.now();
+    return rawData.filter((l) => {
+      const expires = (l as any)?.expiresAt;
+      const ts = typeof expires === 'string' ? new Date(expires).getTime() : (expires?.toDate?.()?.getTime?.() ?? now);
+      return ts >= now;
+    });
+  }, [rawData]);
+
   const data = useMemo(() => {
-    let filtered = [...rawData];
+    let filtered = [...nonExpired];
 
     if (statusFilter && statusFilter !== 'all') {
       filtered = filtered.filter((load) => {
@@ -48,27 +57,27 @@ export function useAdminLoads(statusFilter?: AdminLoadFilter, searchQuery?: stri
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
     });
-  }, [rawData, statusFilter, searchQuery]);
+  }, [nonExpired, statusFilter, searchQuery]);
 
   const pendingLoads = useMemo(() => {
-    return rawData.filter((load) => load.status === 'posted' || load.status === 'matched');
-  }, [rawData]);
+    return nonExpired.filter((load) => load.status === 'posted' || load.status === 'matched');
+  }, [nonExpired]);
 
   const matchedLoads = useMemo(() => {
-    return rawData.filter((load) => load.status === 'matched');
-  }, [rawData]);
+    return nonExpired.filter((load) => load.status === 'matched');
+  }, [nonExpired]);
 
   const activeLoads = useMemo(() => {
-    return rawData.filter((load) => load.status === 'in_transit');
-  }, [rawData]);
+    return nonExpired.filter((load) => load.status === 'in_transit');
+  }, [nonExpired]);
 
   const deliveredLoads = useMemo(() => {
-    return rawData.filter((load) => load.status === 'delivered');
-  }, [rawData]);
+    return nonExpired.filter((load) => load.status === 'delivered');
+  }, [nonExpired]);
 
   const cancelledLoads = useMemo(() => {
-    return rawData.filter((load) => load.status === 'cancelled');
-  }, [rawData]);
+    return nonExpired.filter((load) => load.status === 'cancelled');
+  }, [nonExpired]);
 
   const metrics: AdminLoadMetrics = useMemo(() => ({
     totalPending: pendingLoads.length,
@@ -76,11 +85,11 @@ export function useAdminLoads(statusFilter?: AdminLoadFilter, searchQuery?: stri
     totalActive: activeLoads.length,
     totalDelivered: deliveredLoads.length,
     totalCancelled: cancelledLoads.length,
-    totalLoads: rawData.length,
-  }), [pendingLoads.length, matchedLoads.length, activeLoads.length, deliveredLoads.length, cancelledLoads.length, rawData.length]);
+    totalLoads: nonExpired.length,
+  }), [pendingLoads.length, matchedLoads.length, activeLoads.length, deliveredLoads.length, cancelledLoads.length, nonExpired.length]);
 
   console.log('[Admin Loads] Fetch complete:', {
-    total: rawData.length,
+    total: nonExpired.length,
     filtered: data.length,
     pending: pendingLoads.length,
     matched: matchedLoads.length,
@@ -103,5 +112,5 @@ export function useAdminLoads(statusFilter?: AdminLoadFilter, searchQuery?: stri
     metrics,
     loading,
     error,
-  };
+  } as const;
 }

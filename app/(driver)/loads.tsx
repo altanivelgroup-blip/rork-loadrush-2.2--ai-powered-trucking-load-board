@@ -159,11 +159,25 @@ export default function DriverLoads() {
                 style={styles.loadCard}
                 onPress={() => handleLoadPress(load.id)}
                 activeOpacity={0.7}
+                testID={`driverLoadCard-${load.id}`}
               >
                 <View style={styles.cardHeader}>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>Active</Text>
-                  </View>
+                  {(() => {
+                    const status = (load.status as string) ?? 'posted';
+                    const statusMap: Record<string, { color: string; text: string }> = {
+                      posted: { color: '#2563EB', text: 'Pending' },
+                      matched: { color: '#F97316', text: 'Matched' },
+                      in_transit: { color: '#10B981', text: 'Active' },
+                      delivered: { color: '#6B7280', text: 'Delivered' },
+                      cancelled: { color: '#EF4444', text: 'Cancelled' },
+                    };
+                    const info = statusMap[status] ?? statusMap.posted;
+                    return (
+                      <View style={[styles.statusBadge, { backgroundColor: info.color }]} testID={`driverLoadStatusBadge-${load.id}`}>
+                        <Text style={styles.statusBadgeText}>{info.text}</Text>
+                      </View>
+                    );
+                  })()}
                 </View>
 
                 <View style={styles.cardBody}>
