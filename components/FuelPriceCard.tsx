@@ -11,10 +11,12 @@ interface FuelPriceCardProps {
 }
 
 const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity }) => {
-  const { price: fuelPrice, loading, error, lastFetch, refetch, scope, isUsingFallback } = useFuelPrices(
+  const { price: fuelPrice, loading, error, lastFetch, refetch, scope, dataSource } = useFuelPrices(
     fuelType,
     { state: driverState ?? null, city: driverCity ?? null }
   );
+  
+  const isUsingFallback = dataSource !== 'live_api';
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [rotateAnim] = useState(new Animated.Value(0));
 
@@ -91,6 +93,16 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, d
         <View style={styles.shimmerContainer}>
           <View style={styles.shimmerBar} />
           <Text style={styles.shimmerText}>Fetching live prices...</Text>
+        </View>
+      ) : fuelPrice === null || fuelPrice === undefined ? (
+        <View style={styles.errorContainer}>
+          <AlertCircle size={20} color={Colors.light.danger} />
+          <Text style={styles.errorText}>
+            {error || 'No fuel data available'}
+          </Text>
+          <TouchableOpacity onPress={handleRefresh} style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <>

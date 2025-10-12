@@ -284,12 +284,17 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       console.log('🔐 [signIn] Starting sign in for:', email);
+      console.log('🔐 [signIn] Platform:', Platform.OS);
       setError(null);
+      
+      console.log('🔐 [signIn] Calling Firebase signInWithEmailAndPassword...');
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       const userEmail = userCredential.user.email || '';
 
-      console.log('🔐 [signIn] Firebase auth successful, resolving role...');
+      console.log('🔐 [signIn] Firebase auth successful! UID:', uid);
+      console.log('🔐 [signIn] Resolving user role...');
+      
       const { role, profile } = await resolveUserRole(uid, userEmail);
 
       const existingUser: User = {
@@ -307,11 +312,22 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     } catch (err) {
       const authError = err as AuthError;
       console.error('🔥 [signIn] Sign in error:', authError.code, authError.message);
+      console.error('🔥 [signIn] Full error:', JSON.stringify(authError, null, 2));
+      
       let msg = 'Failed to sign in';
-      if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password')
+      
+      if (authError.code === 'auth/requests-to-this-api-identitytoolkit-method-google.cloud.identitytoolkit.v1.authenticationservice.signinwithpassword-are-blocked') {
+        msg = 'Sign-in is temporarily blocked. Please enable Email/Password authentication in Firebase Console.';
+      } else if (authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password' || authError.code === 'auth/invalid-credential') {
         msg = 'Invalid email or password';
-      else if (authError.code === 'auth/invalid-email') msg = 'Invalid email';
-      else if (authError.code === 'auth/too-many-requests') msg = 'Too many attempts, try later';
+      } else if (authError.code === 'auth/invalid-email') {
+        msg = 'Invalid email';
+      } else if (authError.code === 'auth/too-many-requests') {
+        msg = 'Too many attempts, try later';
+      } else if (authError.code === 'auth/network-request-failed') {
+        msg = 'Network error. Please check your internet connection.';
+      }
+      
       setError(msg);
       throw new Error(msg);
     }
@@ -410,6 +426,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       adminBypass,
       driverBypass,
     }),
-    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass],
+    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass, driverBypass],
   );
 });
