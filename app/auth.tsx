@@ -28,7 +28,6 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('driver');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [quickAccessLoading, setQuickAccessLoading] = useState<'driver' | 'shipper' | null>(null);
   
   const handleLogoLongPress = () => {
     try {
@@ -42,100 +41,32 @@ export default function AuthScreen() {
   };
 
   const handleQuickAccessDriver = async () => {
-    if (isSubmitting || quickAccessLoading) {
-      console.log('⚠️ Quick Access: Already submitting, ignoring click');
-      return;
-    }
-    
     setIsSubmitting(true);
-    setQuickAccessLoading('driver');
     clearError();
-    
     try {
-      console.log('🚚 Quick Access: Starting driver sign-in...');
-      console.log('🚚 Quick Access: Email: driver@loadrush.co');
-      console.log('🚚 Quick Access: Password: loadrush123');
-      
-      const result = await signIn('driver@loadrush.co', 'loadrush123');
-      
-      console.log('✅ Quick Access: Driver sign-in successful!', result);
-      console.log('✅ Quick Access: User role:', result?.role);
-      console.log('✅ Quick Access: User ID:', result?.id);
-      console.log('✅ Quick Access: Navigation will be handled by _layout.tsx');
-      
+      console.log('🚚 Quick Access: Signing in as driver@loadrush.co');
+      await signIn('driver@loadrush.co', 'loadrush123');
+      console.log('✅ Quick Access: Driver sign-in successful');
     } catch (error: any) {
       console.error('🔥 Quick Access Driver error:', error);
-      console.error('🔥 Error details:', {
-        message: error?.message,
-        code: error?.code,
-        name: error?.name,
-        stack: error?.stack
-      });
-      
-      let errorMessage = error?.message || 'Failed to sign in as driver';
-      
-      if (errorMessage.includes('user-not-found') || errorMessage.includes('Invalid email')) {
-        errorMessage = 'Driver account (driver@loadrush.co) not found in Firebase.\n\nPlease create this account in Firebase Console first.';
-      } else if (errorMessage.includes('wrong-password') || errorMessage.includes('invalid-credential')) {
-        errorMessage = 'Invalid password for driver@loadrush.co.\n\nExpected password: loadrush123';
-      }
-      
-      Alert.alert(
-        'Quick Access Error', 
-        errorMessage,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Quick Access Error', 'Failed to sign in as driver. Please try manual sign-in.');
+    } finally {
       setIsSubmitting(false);
-      setQuickAccessLoading(null);
     }
   };
 
   const handleQuickAccessShipper = async () => {
-    if (isSubmitting || quickAccessLoading) {
-      console.log('⚠️ Quick Access: Already submitting, ignoring click');
-      return;
-    }
-    
     setIsSubmitting(true);
-    setQuickAccessLoading('shipper');
     clearError();
-    
     try {
-      console.log('📦 Quick Access: Starting shipper sign-in...');
-      console.log('📦 Quick Access: Email: shipper@loadrush.co');
-      console.log('📦 Quick Access: Password: loadrush123');
-      
-      const result = await signIn('shipper@loadrush.co', 'loadrush123');
-      
-      console.log('✅ Quick Access: Shipper sign-in successful!', result);
-      console.log('✅ Quick Access: User role:', result?.role);
-      console.log('✅ Quick Access: User ID:', result?.id);
-      console.log('✅ Quick Access: Navigation will be handled by _layout.tsx');
-      
+      console.log('📦 Quick Access: Signing in as shipper@loadrush.co');
+      await signIn('shipper@loadrush.co', 'loadrush123');
+      console.log('✅ Quick Access: Shipper sign-in successful');
     } catch (error: any) {
       console.error('🔥 Quick Access Shipper error:', error);
-      console.error('🔥 Error details:', {
-        message: error?.message,
-        code: error?.code,
-        name: error?.name,
-        stack: error?.stack
-      });
-      
-      let errorMessage = error?.message || 'Failed to sign in as shipper';
-      
-      if (errorMessage.includes('user-not-found') || errorMessage.includes('Invalid email')) {
-        errorMessage = 'Shipper account (shipper@loadrush.co) not found in Firebase.\n\nPlease create this account in Firebase Console first.';
-      } else if (errorMessage.includes('wrong-password') || errorMessage.includes('invalid-credential')) {
-        errorMessage = 'Invalid password for shipper@loadrush.co.\n\nExpected password: loadrush123';
-      }
-      
-      Alert.alert(
-        'Quick Access Error', 
-        errorMessage,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Quick Access Error', 'Failed to sign in as shipper. Please try manual sign-in.');
+    } finally {
       setIsSubmitting(false);
-      setQuickAccessLoading(null);
     }
   };
 
@@ -323,40 +254,20 @@ export default function AuthScreen() {
             <Text style={styles.quickAccessTitle}>Quick Access (Testing)</Text>
             <View style={styles.quickAccessButtons}>
               <TouchableOpacity
-                style={[
-                  styles.quickAccessButton, 
-                  styles.quickAccessDriver,
-                  (isSubmitting || quickAccessLoading) && styles.quickAccessButtonDisabled
-                ]}
+                style={[styles.quickAccessButton, styles.quickAccessDriver]}
                 onPress={handleQuickAccessDriver}
-                disabled={isSubmitting || quickAccessLoading !== null}
+                disabled={isSubmitting}
               >
-                {quickAccessLoading === 'driver' ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Truck size={20} color="#FFFFFF" />
-                )}
-                <Text style={styles.quickAccessButtonText}>
-                  {quickAccessLoading === 'driver' ? 'Signing in...' : 'Driver'}
-                </Text>
+                <Truck size={20} color="#FFFFFF" />
+                <Text style={styles.quickAccessButtonText}>Driver</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.quickAccessButton, 
-                  styles.quickAccessShipper,
-                  (isSubmitting || quickAccessLoading) && styles.quickAccessButtonDisabled
-                ]}
+                style={[styles.quickAccessButton, styles.quickAccessShipper]}
                 onPress={handleQuickAccessShipper}
-                disabled={isSubmitting || quickAccessLoading !== null}
+                disabled={isSubmitting}
               >
-                {quickAccessLoading === 'shipper' ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Package size={20} color="#FFFFFF" />
-                )}
-                <Text style={styles.quickAccessButtonText}>
-                  {quickAccessLoading === 'shipper' ? 'Signing in...' : 'Shipper'}
-                </Text>
+                <Package size={20} color="#FFFFFF" />
+                <Text style={styles.quickAccessButtonText}>Shipper</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -523,8 +434,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600' as const,
-  },
-  quickAccessButtonDisabled: {
-    opacity: 0.6,
   },
 });
