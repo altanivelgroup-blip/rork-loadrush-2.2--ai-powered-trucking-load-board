@@ -288,13 +288,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setError(null);
       
       console.log('🔐 [signIn] Calling Firebase signInWithEmailAndPassword...');
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      let userCredential;
+      try {
+        userCredential = await Promise.race([
+          signInWithEmailAndPassword(auth, email, password),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Sign-in timeout after 30s')), 30000)
+          )
+        ]) as any;
+      } catch (timeoutError) {
+        if (timeoutError instanceof Error && timeoutError.message.includes('timeout')) {
+          console.error('🔥 [signIn] Firebase sign-in timeout');
+          throw new Error('Sign-in is taking too long. Please check your internet connection and try again.');
+        }
+        throw timeoutError;
+      }
+      
       const uid = userCredential.user.uid;
       const userEmail = userCredential.user.email || '';
 
       console.log('🔐 [signIn] Firebase auth successful! UID:', uid);
-      console.log('🔐 [signIn] Resolving user role...');
+      console.log('🔐 [signIn] Getting fresh auth token...');
       
+      try {
+        await userCredential.user.getIdToken(true);
+        console.log('✅ [signIn] Auth token refreshed');
+      } catch (tokenError) {
+        console.warn('⚠️ [signIn] Token refresh failed (non-critical):', tokenError);
+      }
+      
+      console.log('🔐 [signIn] Resolving user role...');
       const { role, profile } = await resolveUserRole(uid, userEmail);
 
       const existingUser: User = {
@@ -307,6 +331,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       console.log('🔐 [signIn] Setting user with role:', role);
       setUser(existingUser);
+      
+      const { clearAuthTokenCache } = await import('@/lib/trpc');
+      clearAuthTokenCache();
+      console.log('🔑 [signIn] Cleared tRPC auth cache for fresh token');
+      
       console.log('✅ [signIn] Sign in successful as:', role);
       return existingUser;
     } catch (err) {
@@ -326,6 +355,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         msg = 'Too many attempts, try later';
       } else if (authError.code === 'auth/network-request-failed') {
         msg = 'Network error. Please check your internet connection.';
+      } else if (authError.message && authError.message.includes('timeout')) {
+        msg = authError.message;
       }
       
       setError(msg);

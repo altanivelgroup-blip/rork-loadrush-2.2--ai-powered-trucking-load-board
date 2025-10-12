@@ -22,6 +22,11 @@ const FALLBACK_BY_STATE: Record<string, { diesel: number; gasoline: number }> = 
 
 async function fetchWithRetry(attempt = 1): Promise<any | null> {
   try {
+    console.log(`⛽ [Fuel API] Fetch attempt ${attempt}/5`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    
     const res = await fetch(FUEL_API_URL, {
       method: "GET",
       headers: {
@@ -29,24 +34,34 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      signal: AbortSignal.timeout(15000),
+      signal: controller.signal,
     });
+    
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const body = await res.text();
       console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 120)}`);
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, 800 * attempt));
+      if (attempt < 5) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+        console.log(`⏳ [Fuel API] Retrying after ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
         return fetchWithRetry(attempt + 1);
       }
       return null;
     }
 
-    return res.json();
+    const data = await res.json();
+    console.log(`✅ [Fuel API] Data received successfully`);
+    return data;
   } catch (err) {
-    console.warn(`⚠️ Fuel API fetch failed (attempt ${attempt}):`, err instanceof Error ? err.message : String(err));
-    if (attempt < 3) {
-      await new Promise(r => setTimeout(r, 800 * attempt));
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`⚠️ Fuel API fetch failed (attempt ${attempt}):`, errorMsg);
+    
+    if (attempt < 5) {
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      console.log(`⏳ [Fuel API] Retrying after ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
       return fetchWithRetry(attempt + 1);
     }
     return null;

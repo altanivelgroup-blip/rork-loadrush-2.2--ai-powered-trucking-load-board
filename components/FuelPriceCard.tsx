@@ -11,12 +11,22 @@ interface FuelPriceCardProps {
 }
 
 const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity }) => {
-  const { price: fuelPrice, loading, error, lastFetch, refetch, scope, dataSource } = useFuelPrices(
+  const { price: fuelPrice, loading, error, lastFetch, refetch, scope, isUsingFallback } = useFuelPrices(
     fuelType,
-    { state: driverState ?? null, city: driverCity ?? null }
+    { state: driverState ?? null, city: driverCity ?? null, enabled: true }
   );
   
-  const isUsingFallback = dataSource !== 'live_api';
+  useEffect(() => {
+    console.log('[FuelPriceCard] State:', {
+      fuelType,
+      driverState,
+      driverCity,
+      price: fuelPrice,
+      loading,
+      error,
+      isUsingFallback,
+    });
+  }, [fuelType, driverState, driverCity, fuelPrice, loading, error, isUsingFallback]);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [rotateAnim] = useState(new Animated.Value(0));
 
