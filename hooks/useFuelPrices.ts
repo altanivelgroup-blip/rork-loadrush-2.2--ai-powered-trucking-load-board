@@ -22,17 +22,25 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export function useFuelPrices(
   fuelType: FuelKind = 'diesel',
-  opts?: { state?: string | null; city?: string | null; enabled?: boolean }
+  opts?: { state?: string | null; city?: string | null; enabled?: boolean; lat?: number | null; lon?: number | null }
 ) {
   const state = opts?.state ?? undefined;
   const city = opts?.city ?? undefined;
+  const lat = opts?.lat ?? undefined;
+  const lon = opts?.lon ?? undefined;
   const enabled = opts?.enabled ?? true;
   const [hasFetchedOnce, setHasFetchedOnce] = useState<boolean>(false);
   const [initialFromCache, setInitialFromCache] = useState<boolean>(false);
   const queryClient = useQueryClient();
 
-  const input = useMemo(() => ({ fuelType, state, city }), [fuelType, state, city]);
-  const cacheKey = useMemo(() => `fuel:${fuelType}:${state ?? 'USA'}:${city ?? 'ALL'}`, [fuelType, state, city]);
+  const input = useMemo(() => ({ fuelType, state, city, lat, lon }), [fuelType, state, city, lat, lon]);
+  const cacheKey = useMemo(() => {
+    if (typeof lat === 'number' && typeof lon === 'number') {
+      const round = (n: number) => Math.round(n * 10) / 10;
+      return `fuel:${fuelType}:geo:${round(lat)},${round(lon)}`;
+    }
+    return `fuel:${fuelType}:${state ?? 'USA'}:${city ?? 'ALL'}`;
+  }, [fuelType, state, city, lat, lon]);
 
   useEffect(() => {
     let isMounted = true;
@@ -58,7 +66,7 @@ export function useFuelPrices(
     };
   }, [cacheKey, input, queryClient]);
 
-  const query = trpc.fuel.getPrices.useQuery(input, {
+  const query = trpc.fuel.getPrices.useQuery(input as { fuelType: FuelKind; state?: string; city?: string; lat?: number; lon?: number }, {
     enabled,
     staleTime: CACHE_TTL_MS,
     gcTime: 30 * 60 * 1000,

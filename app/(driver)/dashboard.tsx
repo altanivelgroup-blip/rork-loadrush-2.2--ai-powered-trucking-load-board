@@ -157,7 +157,7 @@ export default function DriverDashboard() {
 
 
 
-        <FuelPriceCard fuelType={fuelType} driverState={driverState} driverCity={driverCity} />
+        <FuelPriceCard fuelType={fuelType} driverState={driverState} driverCity={driverCity} lat={location?.latitude ?? null} lon={location?.longitude ?? null} />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Performance Overview</Text>

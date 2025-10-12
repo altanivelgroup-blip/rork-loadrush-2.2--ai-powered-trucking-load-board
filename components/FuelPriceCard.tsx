@@ -8,12 +8,14 @@ interface FuelPriceCardProps {
   fuelType: 'diesel' | 'gasoline';
   driverState?: string;
   driverCity?: string;
+  lat?: number | null;
+  lon?: number | null;
 }
 
-const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity }) => {
+const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity, lat, lon }) => {
   const { price: fuelPrice, loading, error, lastFetch, refetch, scope, isUsingFallback } = useFuelPrices(
     fuelType,
-    { state: driverState ?? null, city: driverCity ?? null, enabled: true }
+    { state: driverState ?? null, city: driverCity ?? null, enabled: true, lat: lat ?? null, lon: lon ?? null }
   );
   
   useEffect(() => {
@@ -21,6 +23,8 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, d
       fuelType,
       driverState,
       driverCity,
+      lat,
+      lon,
       price: fuelPrice,
       loading,
       error,

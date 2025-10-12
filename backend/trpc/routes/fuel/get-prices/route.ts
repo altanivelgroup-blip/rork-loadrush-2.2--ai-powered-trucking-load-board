@@ -24,18 +24,28 @@ type FuelPayload = {
   diesel: number;
   gasoline: number;
   updatedAt: string;
-  scope: { state: string | null; city: string | null };
+  scope: { state: string | null; city: string | null; lat: number | null; lon: number | null };
   dataSource: string;
 };
 
 const memoryCache = new Map<string, { data: FuelPayload; savedAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-function makeKey(state?: string, city?: string) {
-  return `fuel:${state ?? 'USA'}:${city ?? 'ALL'}`;
+function roundCoord(n: number, precision = 1) {
+  const p = Math.pow(10, precision);
+  return Math.round(n * p) / p;
 }
 
-async function fetchWithRetry(attempt = 1): Promise<any | null> {
+function makeKey(opts: { state?: string; city?: string; lat?: number; lon?: number }) {
+  if (typeof opts.lat === 'number' && typeof opts.lon === 'number') {
+    const latB = roundCoord(opts.lat, 1);
+    const lonB = roundCoord(opts.lon, 1);
+    return `fuel:geo:${latB},${lonB}`;
+  }
+  return `fuel:${opts.state ?? 'USA'}:${opts.city ?? 'ALL'}`;
+}
+
+async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?: string; city?: string; lat?: number; lon?: number }, attempt = 1): Promise<any | null> {
   const MAX_ATTEMPTS = 4;
   const TIMEOUT_MS = 15000;
   try {
@@ -46,7 +56,17 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
       controller.abort();
     }, TIMEOUT_MS);
     try {
-      const res = await fetch(FUEL_API_URL, {
+      const url = new URL(FUEL_API_URL);
+      if (typeof params.lat === 'number' && typeof params.lon === 'number') {
+        url.searchParams.set('lat', String(params.lat));
+        url.searchParams.set('lon', String(params.lon));
+      }
+      if (params.fuelType) url.searchParams.set('fuelType', params.fuelType);
+      if (params.state) url.searchParams.set('state', params.state);
+      if (params.city) url.searchParams.set('city', params.city);
+      url.searchParams.set('country', 'USA');
+
+      const res = await fetch(url.toString(), {
         method: "GET",
         headers: {
           Authorization: `Bearer ${FUEL_API_KEY}`,
@@ -63,7 +83,7 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
           console.log(`⏳ [Fuel API] Retrying after ${delay}ms (status: ${res.status})...`);
           await new Promise(r => setTimeout(r, delay));
-          return fetchWithRetry(attempt + 1);
+          return fetchWithRetry(params, attempt + 1);
         }
         return null;
       }
@@ -87,7 +107,7 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
       console.log(`⏳ [Fuel API] Network/timeout error, retrying after ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
-      return fetchWithRetry(attempt + 1);
+      return fetchWithRetry(params, attempt + 1);
     }
     return null;
   }
@@ -99,11 +119,13 @@ export const getFuelPricesRoute = publicProcedure
       fuelType: z.enum(["diesel", "gasoline"]).optional().default("diesel"),
       state: z.string().optional(),
       city: z.string().optional(),
+      lat: z.number().optional(),
+      lon: z.number().optional(),
     })
   )
   .query(async ({ input }) => {
     const startTime = Date.now();
-    const key = makeKey(input.state, input.city);
+    const key = makeKey({ state: input.state, city: input.city, lat: input.lat, lon: input.lon });
     const cached = memoryCache.get(key);
     if (cached && Date.now() - cached.savedAt < CACHE_TTL_MS) {
       console.log(`🗄️ [Fuel API] Serve from memory cache in ${Date.now() - startTime}ms for ${key}`);
@@ -112,27 +134,40 @@ export const getFuelPricesRoute = publicProcedure
       return cached.data;
     }
     try {
-      console.log(`⛽ [Fuel API] Request: fuelType=${input.fuelType}, state=${input.state ?? 'none'}, city=${input.city ?? 'none'}`);
+      console.log(`⛽ [Fuel API] Request: fuelType=${input.fuelType}, state=${input.state ?? 'none'}, city=${input.city ?? 'none'}, lat=${input.lat ?? 'none'}, lon=${input.lon ?? 'none'}`);
       console.log(`🔗 [Fuel API] URL: ${FUEL_API_URL}`);
       console.log(`🔑 [Fuel API] Key configured: ${FUEL_API_KEY ? 'Yes' : 'No'}`);
       let dieselPrice: number | null = null;
       let gasolinePrice: number | null = null;
       let dataSource = 'national_default';
       if (FUEL_API_KEY) {
-        const data = await fetchWithRetry();
+        const data = await fetchWithRetry({ fuelType: input.fuelType, state: input.state, city: input.city, lat: input.lat, lon: input.lon });
         if (data) {
           console.log(`✅ [Fuel API] Data received, parsing...`);
           const arr = data?.result || data?.data || data?.prices || [];
           if (Array.isArray(arr) && arr.length > 0) {
             console.log(`📊 [Fuel API] Found ${arr.length} price records`);
             let filtered = arr as any[];
-            if (input.state) {
-              filtered = filtered.filter((p) => String(p.state ?? p.region ?? '').toLowerCase() === input.state!.toLowerCase());
-              console.log(`🔍 [Fuel API] Filtered by state "${input.state}": ${filtered.length} records`);
-            }
-            if (input.city) {
-              filtered = filtered.filter((p) => String(p.city ?? '').toLowerCase() === input.city!.toLowerCase());
-              console.log(`🔍 [Fuel API] Filtered by city "${input.city}": ${filtered.length} records`);
+            if (typeof input.lat === 'number' && typeof input.lon === 'number') {
+              filtered = filtered
+                .map((p) => ({
+                  ...p,
+                  _dist: typeof p.lat === 'number' && typeof p.lon === 'number'
+                    ? Math.hypot((p.lat - input.lat!), (p.lon - input.lon!))
+                    : Number.POSITIVE_INFINITY,
+                }))
+                .sort((a, b) => (a._dist as number) - (b._dist as number))
+                .slice(0, 20);
+              console.log(`📍 [Fuel API] Nearest by lat/lon: ${filtered.length} records`);
+            } else {
+              if (input.state) {
+                filtered = filtered.filter((p) => String(p.state ?? p.region ?? '').toLowerCase() === input.state!.toLowerCase());
+                console.log(`🔍 [Fuel API] Filtered by state "${input.state}": ${filtered.length} records`);
+              }
+              if (input.city) {
+                filtered = filtered.filter((p) => String(p.city ?? '').toLowerCase() === input.city!.toLowerCase());
+                console.log(`🔍 [Fuel API] Filtered by city "${input.city}": ${filtered.length} records`);
+              }
             }
             const dieselList = filtered
               .map((p) => Number(p.diesel ?? p.price_diesel ?? p.price))
@@ -190,6 +225,8 @@ export const getFuelPricesRoute = publicProcedure
         scope: {
           state: input.state ?? null,
           city: input.city ?? null,
+          lat: input.lat ?? null,
+          lon: input.lon ?? null,
         },
         dataSource,
       };
@@ -210,6 +247,8 @@ export const getFuelPricesRoute = publicProcedure
         scope: {
           state: input.state ?? null,
           city: input.city ?? null,
+          lat: input.lat ?? null,
+          lon: input.lon ?? null,
         },
         dataSource: 'error_fallback',
       };
