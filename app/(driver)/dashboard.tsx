@@ -28,6 +28,7 @@ export default function DriverDashboard() {
   
   const profile = firestoreProfile || (user?.profile as DriverProfile);
   const driverState = profile?.truckInfo?.state;
+  const driverCity = profile?.truckInfo?.city || profile?.homeBase?.city;
   const fuelType = (profile?.truckInfo?.fuelType === 'gasoline' ? 'gasoline' : 'diesel') as 'diesel' | 'gasoline';
   const analytics = firestoreAnalytics || dummyDriverAnalytics;
   const activeLoads = firestoreActiveLoads.length > 0 ? firestoreActiveLoads : dummyLoads.filter(
@@ -156,7 +157,7 @@ export default function DriverDashboard() {
 
 
 
-        <FuelPriceCard fuelType={fuelType} driverState={driverState} />
+        <FuelPriceCard fuelType={fuelType} driverState={driverState} driverCity={driverCity} />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Performance Overview</Text>

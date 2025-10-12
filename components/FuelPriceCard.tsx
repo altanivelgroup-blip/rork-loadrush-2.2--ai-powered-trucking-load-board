@@ -7,10 +7,14 @@ import Colors from '@/constants/colors';
 interface FuelPriceCardProps {
   fuelType: 'diesel' | 'gasoline';
   driverState?: string;
+  driverCity?: string;
 }
 
-const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState }) => {
-  const { price: fuelPrice, loading, error, lastFetch, refetch } = useFuelPrices(fuelType);
+const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity }) => {
+  const { price: fuelPrice, loading, error, lastFetch, refetch, scope } = useFuelPrices(
+    fuelType,
+    { state: driverState ?? null, city: driverCity ?? null }
+  );
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [rotateAnim] = useState(new Animated.Value(0));
 
@@ -54,8 +58,15 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
     [lastFetch, formatLastUpdate]
   );
 
+  const scopeText = useMemo(() => {
+    if (scope?.city) return String(scope.city);
+    if (scope?.state) return String(scope.state);
+    if (driverState) return driverState;
+    return 'USA';
+  }, [scope?.city, scope?.state, driverState]);
+
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID="fuel-price-card">
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Fuel size={20} color={Colors.light.accent} />
@@ -67,6 +78,7 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
           onPress={handleRefresh}
           disabled={cooldownSeconds > 0}
           style={[styles.refreshButton, cooldownSeconds > 0 && styles.refreshButtonDisabled]}
+          testID="fuel-refresh-btn"
         >
           <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
             <RefreshCw size={18} color={cooldownSeconds > 0 ? Colors.light.textSecondary : Colors.light.accent} />
@@ -86,12 +98,10 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
           <Text style={styles.priceSubtext}>
             per gallon • {fuelType === 'diesel' ? 'Diesel' : 'Gasoline'}
           </Text>
-          {driverState && (
-            <View style={styles.locationContainer}>
-              <MapPin size={14} color={Colors.light.textSecondary} />
-              <Text style={styles.locationText}>{driverState}</Text>
-            </View>
-          )}
+          <View style={styles.locationContainer}>
+            <MapPin size={14} color={Colors.light.textSecondary} />
+            <Text style={styles.locationText}>{scopeText}</Text>
+          </View>
           {lastUpdateText && (
             <View style={styles.timestampContainer}>
               <Clock size={12} color={Colors.light.textSecondary} />
@@ -101,14 +111,14 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState })
           {error && (
             <View style={styles.warningBanner}>
               <AlertCircle size={14} color={Colors.light.warning} />
-              <Text style={styles.warningText}>Using estimated price</Text>
+              <Text style={styles.warningText}>Using fallback price</Text>
             </View>
           )}
         </>
       ) : (
         <View style={styles.errorContainer}>
           <AlertCircle size={16} color={Colors.light.danger} />
-          <Text style={styles.errorText}>No fuel data available.</Text>
+          <Text style={styles.errorText}>No fuel data available. Showing national average.</Text>
         </View>
       )}
     </View>
