@@ -36,9 +36,25 @@ function isAbortError(err: unknown): boolean {
 async function fetchRouteViaBackend(params: {
   origin: { latitude: number; longitude: number };
   destination: { latitude: number; longitude: number };
-}) {
+}, retryAttempt = 0): Promise<any> {
   const { origin, destination } = params;
-  return await trpcClient.routing.getRoute.query({ origin, destination });
+  const MAX_RETRIES = 3;
+  
+  try {
+    return await trpcClient.routing.getRoute.query({ origin, destination });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[useDriverRoute] Fetch error (attempt ${retryAttempt + 1}/${MAX_RETRIES}):`, errorMessage);
+    
+    if (retryAttempt < MAX_RETRIES - 1) {
+      const delay = 1000 * (retryAttempt + 1);
+      console.log(`[useDriverRoute] Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchRouteViaBackend(params, retryAttempt + 1);
+    }
+    
+    throw error;
+  }
 }
 
 export function useDriverRoute({ origin, destination, enabled = true }: UseDriverRouteParams) {
@@ -96,6 +112,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       });
 
       setRouteData(routeResult);
+      setError(null);
     } catch (err) {
       if (isAbortError(err)) {
         console.warn('[useDriverRoute] Request aborted');
@@ -103,8 +120,13 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       }
       console.error('[useDriverRoute] Error fetching route:', err);
       const message = err instanceof Error ? err.message : 'Failed to fetch route';
+      
       if (message.includes('timeout') || message.includes('timed out')) {
-        setError('Route calculation timed out. Please try again.');
+        setError('Route calculation timed out. Retrying...');
+      } else if (message.includes('fetch') || message.includes('network')) {
+        setError('Network error. Check backend connection.');
+      } else if (message.includes('TRPCClientError')) {
+        setError('Backend connection failed. Using fallback data.');
       } else {
         setError(message);
       }
