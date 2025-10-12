@@ -21,8 +21,8 @@ export interface UseDriverRouteParams {
   enabled?: boolean;
 }
 
-const UPDATE_INTERVAL = 30000;
-const REQUEST_TIMEOUT_MS = 28000;
+const UPDATE_INTERVAL = 60000;
+const REQUEST_TIMEOUT_MS = 50000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -38,16 +38,17 @@ async function fetchRouteViaBackend(params: {
   destination: { latitude: number; longitude: number };
 }, retryAttempt = 0): Promise<any> {
   const { origin, destination } = params;
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = 2;
   
   try {
+    console.log(`[useDriverRoute] Fetching route (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})...`);
     return await trpcClient.routing.getRoute.query({ origin, destination });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[useDriverRoute] Fetch error (attempt ${retryAttempt + 1}/${MAX_RETRIES}):`, errorMessage);
+    console.error(`[useDriverRoute] Fetch error (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1}):`, errorMessage);
     
-    if (retryAttempt < MAX_RETRIES - 1) {
-      const delay = 1000 * (retryAttempt + 1);
+    if (retryAttempt < MAX_RETRIES) {
+      const delay = Math.min(2000 * Math.pow(2, retryAttempt), 8000);
       console.log(`[useDriverRoute] Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return fetchRouteViaBackend(params, retryAttempt + 1);
@@ -74,7 +75,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
     }
 
     const now = Date.now();
-    if (now - lastFetchRef.current < UPDATE_INTERVAL - 1000) {
+    if (now - lastFetchRef.current < UPDATE_INTERVAL - 5000) {
       return;
     }
     lastFetchRef.current = now;
@@ -105,6 +106,11 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         destination,
       });
 
+      if (controller.signal.aborted) {
+        console.warn('[useDriverRoute] Request was aborted, ignoring result');
+        return;
+      }
+
       console.log('[useDriverRoute] Route fetched successfully', {
         points: routeResult.routeCoords.length,
         distance: `${routeResult.distanceMiles.toFixed(1)} mi`,
@@ -122,13 +128,13 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       const message = err instanceof Error ? err.message : 'Failed to fetch route';
       
       if (message.includes('timeout') || message.includes('timed out')) {
-        setError('Route calculation timed out. Retrying...');
+        setError('Route calculation timed out');
       } else if (message.includes('fetch') || message.includes('network')) {
-        setError('Network error. Check backend connection.');
+        setError('Network error');
       } else if (message.includes('TRPCClientError')) {
-        setError('Backend connection failed. Using fallback data.');
+        setError('Backend connection failed');
       } else {
-        setError(message);
+        setError('Route calculation failed');
       }
     } finally {
       if (timeoutId) clearTimeout(timeoutId);

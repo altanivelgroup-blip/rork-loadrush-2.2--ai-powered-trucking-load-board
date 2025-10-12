@@ -12,6 +12,48 @@ const inputSchema = z.object({
   }),
 });
 
+function calculateStraightLineRoute(
+  origin: { latitude: number; longitude: number },
+  destination: { latitude: number; longitude: number }
+) {
+  const R = 6371;
+  const dLat = ((destination.latitude - origin.latitude) * Math.PI) / 180;
+  const dLon = ((destination.longitude - origin.longitude) * Math.PI) / 180;
+  const lat1 = (origin.latitude * Math.PI) / 180;
+  const lat2 = (destination.latitude * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceKm = R * c;
+  const distanceMiles = distanceKm * 0.621371;
+
+  const avgSpeedMph = 55;
+  const durationMin = Math.round((distanceMiles / avgSpeedMph) * 60);
+  const hours = Math.floor(durationMin / 60);
+  const minutes = durationMin % 60;
+  const durationFormatted = hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`;
+
+  const routeCoords = [
+    { latitude: origin.latitude, longitude: origin.longitude },
+    { latitude: destination.latitude, longitude: destination.longitude },
+  ];
+
+  console.log('[getRouteProcedure] Using fallback straight-line route:', {
+    distance: `${distanceMiles.toFixed(1)} mi`,
+    duration: durationFormatted,
+  });
+
+  return {
+    routeCoords,
+    distanceKm,
+    distanceMiles,
+    durationMin,
+    durationFormatted,
+  };
+}
+
 export const getRouteProcedure = publicProcedure
   .input(inputSchema)
   .query(async ({ input, ctx }) => {
@@ -25,8 +67,8 @@ export const getRouteProcedure = publicProcedure
 
     const orsApiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
     if (!orsApiKey) {
-      console.error('[getRouteProcedure] ORS API key not configured');
-      throw new Error('ORS API key not configured');
+      console.warn('[getRouteProcedure] ORS API key not configured, using fallback');
+      return calculateStraightLineRoute(origin, destination);
     }
 
     const body = {
@@ -39,87 +81,117 @@ export const getRouteProcedure = publicProcedure
     const url = 'https://api.openrouteservice.org/v2/directions/driving-car';
 
     let retryCount = 0;
-    const MAX_RETRIES = 2;
+    const MAX_RETRIES = 4;
+    const TIMEOUT_MS = 45000;
 
     while (retryCount <= MAX_RETRIES) {
       try {
         console.log(`[getRouteProcedure] Calling ORS API (attempt ${retryCount + 1}/${MAX_RETRIES + 1})...`);
         
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Authorization': orsApiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(25000),
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.warn(`[getRouteProcedure] Request timeout after ${TIMEOUT_MS}ms`);
+          controller.abort();
+        }, TIMEOUT_MS);
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => '');
-          console.error(`[getRouteProcedure] ORS API error: ${res.status}`, text);
-          
-          if (retryCount < MAX_RETRIES && (res.status === 429 || res.status >= 500)) {
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-            continue;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': orsApiKey,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'LoadRush/1.0',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            console.error(`[getRouteProcedure] ORS API error: ${res.status}`, text.substring(0, 200));
+            
+            if (retryCount < MAX_RETRIES && (res.status === 429 || res.status >= 500 || res.status === 408)) {
+              const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
+              console.log(`[getRouteProcedure] Retrying after ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              retryCount++;
+              continue;
+            }
+            
+            console.warn('[getRouteProcedure] ORS API failed, using fallback');
+            return calculateStraightLineRoute(origin, destination);
           }
-          
-          throw new Error(`ORS API error: ${res.status} ${text}`);
+
+          const data = await res.json();
+
+          const features = data?.features ?? [];
+          if (features.length === 0) {
+            console.warn('[getRouteProcedure] No route found, using fallback');
+            return calculateStraightLineRoute(origin, destination);
+          }
+
+          const route = features[0];
+          const geometry = route.geometry;
+          const summary = route.properties?.summary;
+          const distanceMeters: number = summary?.distance ?? 0;
+          const durationSeconds: number = summary?.duration ?? 0;
+
+          const routeCoords = (geometry?.coordinates ?? []).map((coord: [number, number]) => ({
+            latitude: coord[1],
+            longitude: coord[0],
+          }));
+
+          const distanceKm = distanceMeters / 1000;
+          const distanceMiles = distanceKm * 0.621371;
+          const durationMin = Math.round(durationSeconds / 60);
+
+          const hours = Math.floor(durationMin / 60);
+          const minutes = durationMin % 60;
+          const durationFormatted = hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`;
+
+          console.log('[getRouteProcedure] Route calculated successfully:', {
+            points: routeCoords.length,
+            distance: `${distanceMiles.toFixed(1)} mi`,
+            duration: durationFormatted,
+          });
+
+          return {
+            routeCoords,
+            distanceKm,
+            distanceMiles,
+            durationMin,
+            durationFormatted,
+          };
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
         }
-
-        const data = await res.json();
-
-        const features = data?.features ?? [];
-        if (features.length === 0) {
-          throw new Error('No route found');
-        }
-
-        const route = features[0];
-        const geometry = route.geometry;
-        const summary = route.properties?.summary;
-        const distanceMeters: number = summary?.distance ?? 0;
-        const durationSeconds: number = summary?.duration ?? 0;
-
-        const routeCoords = (geometry?.coordinates ?? []).map((coord: [number, number]) => ({
-          latitude: coord[1],
-          longitude: coord[0],
-        }));
-
-        const distanceKm = distanceMeters / 1000;
-        const distanceMiles = distanceKm * 0.621371;
-        const durationMin = Math.round(durationSeconds / 60);
-
-        const hours = Math.floor(durationMin / 60);
-        const minutes = durationMin % 60;
-        const durationFormatted = hours > 0 ? `${hours} h ${minutes} m` : `${minutes} m`;
-
-        console.log('[getRouteProcedure] Route calculated successfully:', {
-          points: routeCoords.length,
-          distance: `${distanceMiles.toFixed(1)} mi`,
-          duration: durationFormatted,
-        });
-
-        return {
-          routeCoords,
-          distanceKm,
-          distanceMiles,
-          durationMin,
-          durationFormatted,
-        };
       } catch (err) {
-        console.error(`[getRouteProcedure] Error (attempt ${retryCount + 1}):`, err);
+        const isTimeout = err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'));
+        const isNetworkError = err instanceof Error && (
+          err.message.includes('fetch') ||
+          err.message.includes('network') ||
+          err.message.includes('Failed to fetch')
+        );
+
+        console.error(`[getRouteProcedure] Error (attempt ${retryCount + 1}):`, err instanceof Error ? err.message : err);
         
-        if (retryCount < MAX_RETRIES) {
+        if (retryCount < MAX_RETRIES && (isTimeout || isNetworkError)) {
+          const delay = Math.min(2000 * Math.pow(2, retryCount), 10000);
+          console.log(`[getRouteProcedure] Network/timeout error, retrying after ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
           retryCount++;
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
           continue;
         }
         
-        throw err;
+        console.warn('[getRouteProcedure] All retries exhausted, using fallback');
+        return calculateStraightLineRoute(origin, destination);
       }
     }
 
-    throw new Error('Failed to fetch route after retries');
+    console.warn('[getRouteProcedure] Max retries reached, using fallback');
+    return calculateStraightLineRoute(origin, destination);
   });

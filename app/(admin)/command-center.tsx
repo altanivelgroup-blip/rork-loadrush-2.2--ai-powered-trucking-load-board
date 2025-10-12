@@ -631,7 +631,7 @@ function DriverCard({ driver, isSelected, onPress }: DriverCardProps) {
   const { routeData } = useDriverRoute({
     origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
-    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+    enabled: isSelected && !!(driver.pickupLocation && driver.dropoffLocation),
   });
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -1073,7 +1073,7 @@ function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
   const { routeData } = useDriverRoute({
     origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
-    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+    enabled: true && !!(driver.pickupLocation && driver.dropoffLocation),
   });
 
   const scale = animation.interpolate({
@@ -1647,7 +1647,7 @@ function ProjectorOverlay({ driver, animation }: ProjectorOverlayProps) {
   const { routeData } = useDriverRoute({
     origin: { latitude: driver.location.lat, longitude: driver.location.lng },
     destination: driver.dropoffLocation || null,
-    enabled: !!(driver.pickupLocation && driver.dropoffLocation),
+    enabled: true && !!(driver.pickupLocation && driver.dropoffLocation),
   });
 
   const translateY = animation.interpolate({
