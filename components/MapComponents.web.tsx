@@ -124,6 +124,9 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
           fullscreenControl: false,
           mapTypeControl: false,
           clickableIcons: false,
+          zoomControl: true,
+          scrollwheel: true,
+          keyboardShortcuts: true,
           restriction: {
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
             strictBounds: true,
@@ -219,6 +222,45 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
   return (
     <View style={[styles.container, style]} testID={testID ?? 'webGoogleMap'}>
       <View style={styles.mapHost} ref={(el) => (containerRef.current = el as unknown as HTMLDivElement)} />
+      {/* Zoom Controls */}
+      <View style={styles.zoomControls} pointerEvents="box-none">
+        <View style={styles.zoomButtonsWrap} pointerEvents="auto">
+          <Pressable
+            onPress={() => {
+              const map = googleMapRef.current;
+              if (!map) return;
+              try {
+                const current = map.getZoom?.() ?? 4;
+                isProgrammaticRef.current = true;
+                map.setZoom(current + 1);
+              } catch (e) {
+                console.log('[WebMap] zoom in failed', e);
+              }
+            }}
+            style={styles.zoomButton}
+            testID="zoomInBtn"
+          >
+            <Text style={styles.zoomButtonText}>+</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              const map = googleMapRef.current;
+              if (!map) return;
+              try {
+                const current = map.getZoom?.() ?? 4;
+                isProgrammaticRef.current = true;
+                map.setZoom(current - 1);
+              } catch (e) {
+                console.log('[WebMap] zoom out failed', e);
+              }
+            }}
+            style={styles.zoomButton}
+            testID="zoomOutBtn"
+          >
+            <Text style={styles.zoomButtonText}>-</Text>
+          </Pressable>
+        </View>
+      </View>
       {children}
       {loadError ? (
         <View style={styles.errorOverlay} testID="webGoogleMapError">
@@ -428,6 +470,32 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600' as const,
   },
+  zoomControls: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    padding: 12,
+  },
+  zoomButtonsWrap: {
+    backgroundColor: 'rgba(15,23,42,0.7)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.25)',
+    overflow: 'hidden',
+  },
+  zoomButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(148,163,184,0.25)',
+  },
+  zoomButtonText: {
+    color: '#E2E8F0',
+    fontSize: 18,
+    fontWeight: '700' as const,
+  }
 });
 
 function injectPulseCSS() {
