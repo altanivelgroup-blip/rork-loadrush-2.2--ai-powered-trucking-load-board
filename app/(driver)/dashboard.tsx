@@ -154,42 +154,7 @@ export default function DriverDashboard() {
           )}
         </View>
 
-        <View style={styles.gpsCard}>
-          <View style={styles.gpsHeader}>
-            <View style={styles.gpsHeaderLeft}>
-              <MapPin size={20} color={isTracking ? '#22C55E' : '#EF4444'} />
-              <Text style={styles.gpsTitle}>GPS Tracking</Text>
-            </View>
-            <View style={[styles.gpsStatusBadge, { backgroundColor: isTracking ? '#ECFDF5' : '#FEE2E2' }]}>
-              <View style={[styles.gpsStatusDot, { backgroundColor: isTracking ? '#22C55E' : '#EF4444' }]} />
-              <Text style={[styles.gpsStatusText, { color: isTracking ? '#059669' : '#DC2626' }]}>
-                {isTracking ? 'Tracking Active' : 'Tracking Paused'}
-              </Text>
-            </View>
-          </View>
-          {location && (
-            <View style={styles.gpsLocationInfo}>
-              <View style={styles.gpsLocationRow}>
-                <Text style={styles.gpsLocationLabel}>Latitude:</Text>
-                <Text style={styles.gpsLocationValue}>{location.latitude.toFixed(4)}°N</Text>
-              </View>
-              <View style={styles.gpsLocationRow}>
-                <Text style={styles.gpsLocationLabel}>Longitude:</Text>
-                <Text style={styles.gpsLocationValue}>{location.longitude.toFixed(4)}°W</Text>
-              </View>
-              <View style={styles.gpsLocationRow}>
-                <Text style={styles.gpsLocationLabel}>Last Update:</Text>
-                <Text style={styles.gpsLocationValue}>{location.updatedAt.toLocaleTimeString()}</Text>
-              </View>
-            </View>
-          )}
-          <View style={styles.gpsFooter}>
-            <Radio size={14} color="#6B7280" />
-            <Text style={styles.gpsFooterText}>
-              Your location is synced to Command Center every 10 seconds
-            </Text>
-          </View>
-        </View>
+
 
         <FuelPriceCard fuelType={fuelType} driverState={driverState} />
 

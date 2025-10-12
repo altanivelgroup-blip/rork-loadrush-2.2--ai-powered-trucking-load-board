@@ -47,8 +47,8 @@ export default function CommandCenter() {
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
-    latitudeDelta: Platform.OS === 'web' ? 25 : 28,
-    longitudeDelta: Platform.OS === 'web' ? 45 : 50,
+    latitudeDelta: Platform.OS === 'web' ? 22 : 25,
+    longitudeDelta: Platform.OS === 'web' ? 40 : 45,
   }), []);
   const USA_BOUNDS = useMemo(() => ({
     north: 49.384358,
@@ -435,7 +435,7 @@ export default function CommandCenter() {
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
-              minZoomLevel={Platform.OS === 'web' ? 2 : 3}
+              minZoomLevel={Platform.OS === 'web' ? 3 : 4}
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
@@ -445,26 +445,30 @@ export default function CommandCenter() {
                   correctingRef.current.__isCorrecting = correctingRef.current.__isCorrecting ?? false;
                   correctingRef.current.__lastCorrectionTs = correctingRef.current.__lastCorrectionTs ?? 0;
 
+                  const latDelta = region.latitudeDelta ?? 0;
+                  const lngDelta = region.longitudeDelta ?? 0;
+                  
                   const outOfBounds =
-                    region.latitude > USA_BOUNDS.north + 2 ||
-                    region.latitude < USA_BOUNDS.south - 2 ||
-                    region.longitude < USA_BOUNDS.west - 5 ||
-                    region.longitude > USA_BOUNDS.east + 5;
+                    region.latitude > USA_BOUNDS.north + 3 ||
+                    region.latitude < USA_BOUNDS.south - 3 ||
+                    region.longitude < USA_BOUNDS.west - 8 ||
+                    region.longitude > USA_BOUNDS.east + 8;
 
-                  const tooZoomedOut = (region.latitudeDelta ?? 0) > 90 || (region.longitudeDelta ?? 0) > 120;
+                  const tooZoomedOut = latDelta > 50 || lngDelta > 80;
                   const now = Date.now();
-                  const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 800;
+                  const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 1000;
 
                   if ((outOfBounds || tooZoomedOut) && mapRef.current?.animateToRegion && !correctingRef.current.__isCorrecting && cooldownPassed) {
+                    console.log('[Map] Correcting bounds - lat:', region.latitude, 'lng:', region.longitude, 'latDelta:', latDelta, 'lngDelta:', lngDelta);
                     correctingRef.current.__isCorrecting = true;
                     correctingRef.current.__lastCorrectionTs = now;
-                    mapRef.current.animateToRegion(USA_REGION, 300);
+                    mapRef.current.animateToRegion(USA_REGION, 400);
                     setTimeout(() => {
                       if (mapRef.current) mapRef.current.__isCorrecting = false;
-                    }, 350);
+                    }, 450);
                   }
                 } catch (e) {
-                  // no-op
+                  console.log('[Map] Region change error:', e);
                 }
               }}
               onMapReady={() => {
