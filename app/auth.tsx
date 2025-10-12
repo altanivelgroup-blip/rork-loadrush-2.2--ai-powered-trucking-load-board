@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +18,7 @@ import { Truck, Package } from 'lucide-react-native';
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp, loading, error, clearError, quickTestLogin } = useAuth();
+  const { signIn, signUp, loading, error, clearError } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -93,30 +92,16 @@ export default function AuthScreen() {
       ]}
     >
       <View style={styles.header}>
-        <Pressable
-          onLongPress={async () => {
-            setIsSubmitting(true);
-            try {
-              await quickTestLogin('admin');
-            } catch (err) {
-              console.error('Quick admin login failed:', err);
-            } finally {
-              setIsSubmitting(false);
-            }
+        <Image
+          source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
+          style={{
+            width: 170,
+            height: 170,
+            alignSelf: 'center',
+            resizeMode: 'contain',
+            opacity: 0.98,
           }}
-          delayLongPress={2000}
-        >
-          <Image
-            source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/gcn87eukb5wumku9s7os3' }}
-            style={{
-              width: 170,
-              height: 170,
-              alignSelf: 'center',
-              resizeMode: 'contain',
-              opacity: 0.98,
-            }}
-          />
-        </Pressable>
+        />
       </View>
 
 
@@ -204,52 +189,6 @@ export default function AuthScreen() {
               : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
-
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Quick Test Access</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.quickAccessContainer}>
-          <TouchableOpacity
-            style={[styles.quickAccessButton, styles.driverButton]}
-            onPress={async () => {
-              setIsSubmitting(true);
-              try {
-                await quickTestLogin('driver');
-              } catch (err) {
-                console.error('Quick driver login failed:', err);
-                Alert.alert('Error', 'Failed to login as driver');
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-            disabled={isSubmitting}
-          >
-            <Truck size={20} color="#FFFFFF" />
-            <Text style={styles.quickAccessText}>Driver</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickAccessButton, styles.shipperButton]}
-            onPress={async () => {
-              setIsSubmitting(true);
-              try {
-                await quickTestLogin('shipper');
-              } catch (err) {
-                console.error('Quick shipper login failed:', err);
-                Alert.alert('Error', 'Failed to login as shipper');
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-            disabled={isSubmitting}
-          >
-            <Package size={20} color="#FFFFFF" />
-            <Text style={styles.quickAccessText}>Shipper</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </ScrollView>
   );
@@ -360,46 +299,6 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 14,
     fontWeight: '500' as const,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.light.border,
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    color: Colors.light.textSecondary,
-    fontWeight: '500' as const,
-  },
-  quickAccessContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  quickAccessButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 8,
-  },
-  driverButton: {
-    backgroundColor: '#10B981',
-  },
-  shipperButton: {
-    backgroundColor: '#3B82F6',
-  },
-  quickAccessText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600' as const,
   },
 });
 

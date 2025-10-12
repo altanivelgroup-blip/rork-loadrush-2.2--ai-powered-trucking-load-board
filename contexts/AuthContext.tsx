@@ -341,121 +341,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
-  const quickTestLogin = useCallback(async (role: UserRole) => {
-    console.log('🔥 Firestore Quick Test Login -', role);
-    setError(null);
-    setLoading(true);
 
-    const createFallbackUser = (r: UserRole) => {
-      let profile: ShipperProfile | DriverProfile | AdminProfile;
-
-      if (r === 'driver') {
-        profile = dummyDriverProfile;
-      } else if (r === 'shipper') {
-        profile = dummyShipperProfile;
-      } else {
-        profile = {
-          name: 'Admin User',
-          permissions: ['all'],
-        };
-      }
-
-      const fallbackUser: User = {
-        id: `test-${r}-${Date.now()}`,
-        email: `${r}_test@loadrush.ai`,
-        role: r,
-        createdAt: new Date().toISOString(),
-        profile,
-      };
-
-      console.log(`✅ Creating ${r} fallback user:`, fallbackUser);
-      setUser(fallbackUser);
-      setStorageItem(`user_role_${fallbackUser.id}`, fallbackUser.role);
-      console.log(`✅ ${r} fallback test account created successfully with role:`, fallbackUser.role);
-      setLoading(false);
-    };
-
-    try {
-      const { db } = await import('@/config/firebase');
-      const { doc, getDoc } = await import('firebase/firestore');
-
-      let collectionName: string;
-      let docId: string;
-
-      if (role === 'driver') {
-        collectionName = 'driver_test';
-        docId = 'DRIVER_TEST_001';
-      } else if (role === 'shipper') {
-        collectionName = 'shipper_test';
-        docId = 'SHIPPER_TEST_001';
-      } else {
-        collectionName = 'admin_test';
-        docId = 'ADMIN_TEST_001';
-      }
-
-      console.log(`🔍 Attempting to fetch: ${collectionName}/${docId}`);
-
-      const docRef = doc(db, collectionName, docId);
-
-      const fetchPromise = getDoc(docRef);
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Firestore timeout - using fallback')), 3000),
-      );
-
-      const docSnap = await Promise.race([fetchPromise, timeoutPromise] as const);
-
-      if (!(docSnap as any).exists()) {
-        console.warn(`⚠️ No test document found in ${collectionName}, using fallback`);
-        createFallbackUser(role);
-        return;
-      }
-
-      const data: any = (docSnap as any).data();
-      console.log('✅ Firestore Test Account Loaded:', data);
-
-      let profile: ShipperProfile | DriverProfile | AdminProfile;
-
-      if (role === 'driver') {
-        profile = {
-          ...dummyDriverProfile,
-          ...data,
-          firstName: data?.firstName || data?.name || 'Demo',
-          lastName: data?.lastName || 'Driver',
-        };
-      } else if (role === 'shipper') {
-        profile = {
-          ...dummyShipperProfile,
-          ...data,
-          companyName: data?.companyName || data?.name || 'Demo Company',
-        };
-      } else {
-        profile = {
-          name: data?.name || 'Admin User',
-          permissions: data?.permissions || ['all'],
-        };
-      }
-
-      const testUser: User = {
-        id: data?.uid || docId,
-        email: data?.email || `${role}_test@loadrush.ai`,
-        role: role,
-        createdAt: data?.createdAt || new Date().toISOString(),
-        profile,
-      };
-
-      console.log(`✅ Creating ${role} test user from Firestore:`, testUser);
-      setUser(testUser);
-      setStorageItem(`user_role_${testUser.id}`, testUser.role);
-      console.log(`✅ ${role} test account connected successfully with role:`, testUser.role);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('🔥 Firestore Quick Login Error -', errorMessage);
-      console.log('⚠️ Using fallback authentication due to -', errorMessage);
-      createFallbackUser(role);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const updateProfile = useCallback(
     async (updatedProfile: ShipperProfile | DriverProfile) => {
@@ -484,11 +370,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signUp,
       signIn,
       signOut,
-      quickTestLogin,
       updateProfile,
       isAuthenticated: !!user,
       clearError,
     }),
-    [user, loading, error, signUp, signIn, signOut, quickTestLogin, updateProfile, clearError],
+    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError],
   );
 });
