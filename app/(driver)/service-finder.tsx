@@ -235,9 +235,6 @@ export default function ServiceFinderScreen() {
             <Wrench size={24} color={Colors.light.primary} />
             <Text style={styles.headerTitle}>Service Finder</Text>
           </View>
-          <TouchableOpacity style={styles.signOutButton}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -459,18 +456,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.light.text,
   },
-  signOutButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FF6B6B',
-  },
-  signOutText: {
-    color: '#FF6B6B',
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
+
   quickOptionsButton: {
     flexDirection: 'row',
     alignItems: 'center',
