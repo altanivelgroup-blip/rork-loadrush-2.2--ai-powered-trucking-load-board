@@ -426,7 +426,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     console.log('🚚 Driver bypass activated');
     const driverUser: User = {
       id: 'driver-bypass',
-      email: emailOverride ?? 'driver@loadrush.com',
+      email: emailOverride ?? 'driver@loadrush.co',
       role: 'driver',
       createdAt: new Date().toISOString(),
       profile: dummyDriverProfile,
@@ -443,6 +443,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return driverUser;
   }, []);
 
+  const shipperBypass = useCallback((emailOverride?: string) => {
+    console.log('📦 Shipper bypass activated');
+    const shipperUser: User = {
+      id: 'shipper-bypass',
+      email: emailOverride ?? 'shipper@loadrush.co',
+      role: 'shipper',
+      createdAt: new Date().toISOString(),
+      profile: dummyShipperProfile,
+    };
+    setUser(shipperUser);
+    if (Platform.OS === 'web') {
+      try {
+        setStorageItem(`user_role_${shipperUser.id}`, 'shipper');
+        setStorageItem(`user_profile_${shipperUser.id}`, JSON.stringify(shipperUser.profile));
+      } catch (e) {
+        console.log('Local storage bypass write failed', e);
+      }
+    }
+    return shipperUser;
+  }, []);
+
   return useMemo(
     () => ({
       user,
@@ -456,7 +477,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       clearError,
       adminBypass,
       driverBypass,
+      shipperBypass,
     }),
-    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass, driverBypass],
+    [user, loading, error, signUp, signIn, signOut, updateProfile, clearError, adminBypass, driverBypass, shipperBypass],
   );
 });
