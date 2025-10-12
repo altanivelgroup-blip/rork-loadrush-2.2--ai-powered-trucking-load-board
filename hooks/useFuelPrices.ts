@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import { useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type FuelKind = 'diesel' | 'gasoline';
 
@@ -16,6 +18,7 @@ const FALLBACK_PRICES: Record<string, { diesel: number; gasoline: number }> = {
 };
 
 const NATIONAL_AVERAGE = { diesel: 3.59, gasoline: 3.45 };
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export function useFuelPrices(
   fuelType: FuelKind = 'diesel',
@@ -24,41 +27,78 @@ export function useFuelPrices(
   const state = opts?.state ?? undefined;
   const city = opts?.city ?? undefined;
   const enabled = opts?.enabled ?? true;
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState<boolean>(false);
+  const [initialFromCache, setInitialFromCache] = useState<boolean>(false);
+  const queryClient = useQueryClient();
 
-  const query = trpc.fuel.getPrices.useQuery(
-    { fuelType, state, city },
-    {
-      enabled,
-      staleTime: 30 * 60 * 1000,
-      refetchInterval: 10 * 60 * 1000,
-      retry: 8,
-      retryDelay: (attempt) => Math.min(1000 * Math.pow(2, attempt), 15000),
-      refetchOnMount: true,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-      networkMode: 'always',
-    }
-  );
+  const input = useMemo(() => ({ fuelType, state, city }), [fuelType, state, city]);
+  const cacheKey = useMemo(() => `fuel:${fuelType}:${state ?? 'USA'}:${city ?? 'ALL'}`, [fuelType, state, city]);
 
   useEffect(() => {
-    if (query.data && !hasFetchedOnce) {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(cacheKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { data: any; savedAt: number } | null;
+        if (!parsed?.data || !parsed.savedAt) return;
+        const age = Date.now() - parsed.savedAt;
+        if (age < CACHE_TTL_MS && isMounted) {
+          const key = trpc.fuel.getPrices.getQueryKey(input);
+          queryClient.setQueryData(key, parsed.data);
+          setInitialFromCache(true);
+          console.log('[useFuelPrices] 🗄️ Served from cache instantly', { cacheKey, ageMs: age });
+        }
+      } catch (e) {
+        console.warn('[useFuelPrices] Cache read error', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [cacheKey, input, queryClient]);
+
+  const query = trpc.fuel.getPrices.useQuery(input, {
+    enabled,
+    staleTime: CACHE_TTL_MS,
+    gcTime: 30 * 60 * 1000,
+    refetchInterval: 10 * 60 * 1000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(750 * Math.pow(2, attempt), 5000),
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    networkMode: 'always',
+    keepPreviousData: true,
+  });
+
+  useEffect(() => {
+    if (query.data) {
       setHasFetchedOnce(true);
-      console.log('[useFuelPrices] ✅ First fetch successful:', {
-        fuelType,
-        state,
-        city,
-        price: fuelType === 'diesel' ? query.data.diesel : query.data.gasoline,
-      });
+      (async () => {
+        try {
+          await AsyncStorage.setItem(cacheKey, JSON.stringify({ data: query.data, savedAt: Date.now() }));
+          console.log('[useFuelPrices] 💾 Cached fresh data', { cacheKey });
+        } catch (e) {
+          console.warn('[useFuelPrices] Cache write error', e);
+        }
+      })();
+      if (!initialFromCache) {
+        console.log('[useFuelPrices] ✅ First live fetch successful:', {
+          fuelType,
+          state,
+          city,
+          price: fuelType === 'diesel' ? query.data.diesel : query.data.gasoline,
+        });
+      }
     }
-  }, [query.data, hasFetchedOnce, fuelType, state, city]);
+  }, [query.data, cacheKey, initialFromCache, fuelType, state, city]);
 
   useEffect(() => {
     if (query.error) {
       console.warn('[useFuelPrices] ⚠️ Query error:', query.error.message);
-      console.warn('[useFuelPrices] Using fallback prices for:', { state, city });
     }
-  }, [query.error, state, city]);
+  }, [query.error]);
 
   const getFallbackPrice = (): number => {
     if (state && FALLBACK_PRICES[state]) {
@@ -74,7 +114,7 @@ export function useFuelPrices(
 
   return {
     price: finalPrice,
-    loading: query.isLoading && !hasFetchedOnce,
+    loading: !initialFromCache && query.isLoading && !hasFetchedOnce,
     error: query.error?.message ?? null,
     lastFetch,
     refetch: query.refetch,

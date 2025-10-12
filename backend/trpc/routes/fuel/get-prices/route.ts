@@ -20,19 +20,31 @@ const FALLBACK_BY_STATE: Record<string, { diesel: number; gasoline: number }> = 
   "Pennsylvania": { diesel: 4.05, gasoline: 3.75 },
 };
 
+type FuelPayload = {
+  diesel: number;
+  gasoline: number;
+  updatedAt: string;
+  scope: { state: string | null; city: string | null };
+  dataSource: string;
+};
+
+const memoryCache = new Map<string, { data: FuelPayload; savedAt: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+function makeKey(state?: string, city?: string) {
+  return `fuel:${state ?? 'USA'}:${city ?? 'ALL'}`;
+}
+
 async function fetchWithRetry(attempt = 1): Promise<any | null> {
-  const MAX_ATTEMPTS = 7;
-  const TIMEOUT_MS = 30000;
-  
+  const MAX_ATTEMPTS = 4;
+  const TIMEOUT_MS = 15000;
   try {
     console.log(`⛽ [Fuel API] Fetch attempt ${attempt}/${MAX_ATTEMPTS}`);
-    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.warn(`⏱️ [Fuel API] Timeout after ${TIMEOUT_MS}ms`);
       controller.abort();
     }, TIMEOUT_MS);
-    
     try {
       const res = await fetch(FUEL_API_URL, {
         method: "GET",
@@ -43,22 +55,18 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
         },
         signal: controller.signal,
       });
-      
       clearTimeout(timeoutId);
-
       if (!res.ok) {
         const body = await res.text().catch(() => '');
         console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 120)}`);
-        
         if (attempt < MAX_ATTEMPTS && (res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 503)) {
-          const delay = Math.min(1500 * Math.pow(2, attempt - 1), 12000);
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
           console.log(`⏳ [Fuel API] Retrying after ${delay}ms (status: ${res.status})...`);
           await new Promise(r => setTimeout(r, delay));
           return fetchWithRetry(attempt + 1);
         }
         return null;
       }
-
       const data = await res.json();
       console.log(`✅ [Fuel API] Data received successfully`);
       return data;
@@ -75,9 +83,8 @@ async function fetchWithRetry(attempt = 1): Promise<any | null> {
     );
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.warn(`⚠️ Fuel API fetch failed (attempt ${attempt}):`, errorMsg);
-    
     if (attempt < MAX_ATTEMPTS && (isAbortError || isNetworkError)) {
-      const delay = Math.min(1500 * Math.pow(2, attempt - 1), 12000);
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
       console.log(`⏳ [Fuel API] Network/timeout error, retrying after ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
       return fetchWithRetry(attempt + 1);
@@ -96,15 +103,21 @@ export const getFuelPricesRoute = publicProcedure
   )
   .query(async ({ input }) => {
     const startTime = Date.now();
+    const key = makeKey(input.state, input.city);
+    const cached = memoryCache.get(key);
+    if (cached && Date.now() - cached.savedAt < CACHE_TTL_MS) {
+      console.log(`🗄️ [Fuel API] Serve from memory cache in ${Date.now() - startTime}ms for ${key}`);
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ [Fuel API] Response ready in ${elapsed}ms (source: memory_cache)`);
+      return cached.data;
+    }
     try {
       console.log(`⛽ [Fuel API] Request: fuelType=${input.fuelType}, state=${input.state ?? 'none'}, city=${input.city ?? 'none'}`);
       console.log(`🔗 [Fuel API] URL: ${FUEL_API_URL}`);
       console.log(`🔑 [Fuel API] Key configured: ${FUEL_API_KEY ? 'Yes' : 'No'}`);
-
       let dieselPrice: number | null = null;
       let gasolinePrice: number | null = null;
       let dataSource = 'national_default';
-
       if (FUEL_API_KEY) {
         const data = await fetchWithRetry();
         if (data) {
@@ -121,14 +134,12 @@ export const getFuelPricesRoute = publicProcedure
               filtered = filtered.filter((p) => String(p.city ?? '').toLowerCase() === input.city!.toLowerCase());
               console.log(`🔍 [Fuel API] Filtered by city "${input.city}": ${filtered.length} records`);
             }
-
             const dieselList = filtered
               .map((p) => Number(p.diesel ?? p.price_diesel ?? p.price))
               .filter((n) => Number.isFinite(n) && n > 0) as number[];
             const gasList = filtered
               .map((p) => Number(p.gasoline ?? p.price_gasoline ?? p.price))
               .filter((n) => Number.isFinite(n) && n > 0) as number[];
-
             if (dieselList.length > 0) {
               dieselPrice = Number((dieselList.reduce((a, b) => a + b, 0) / dieselList.length).toFixed(2));
               dataSource = 'live_api';
@@ -155,7 +166,6 @@ export const getFuelPricesRoute = publicProcedure
       } else {
         console.warn(`⚠️ [Fuel API] No API key configured, using fallbacks`);
       }
-
       if ((dieselPrice === null || gasolinePrice === null) && input.state && FALLBACK_BY_STATE[input.state]) {
         const fb = FALLBACK_BY_STATE[input.state];
         dieselPrice = dieselPrice ?? fb.diesel;
@@ -163,7 +173,6 @@ export const getFuelPricesRoute = publicProcedure
         dataSource = 'state_fallback';
         console.log(`🔄 [Fuel API] Using state fallback for ${input.state}: diesel=${dieselPrice}, gas=${gasolinePrice}`);
       }
-
       if (dieselPrice === null) {
         dieselPrice = 3.59;
         dataSource = 'national_default';
@@ -172,11 +181,9 @@ export const getFuelPricesRoute = publicProcedure
         gasolinePrice = 3.45;
         dataSource = 'national_default';
       }
-
       const elapsed = Date.now() - startTime;
       console.log(`✅ [Fuel API] Response ready in ${elapsed}ms (source: ${dataSource})`);
-
-      return {
+      const payload: FuelPayload = {
         diesel: dieselPrice,
         gasoline: gasolinePrice,
         updatedAt: new Date().toISOString(),
@@ -186,9 +193,16 @@ export const getFuelPricesRoute = publicProcedure
         },
         dataSource,
       };
+      memoryCache.set(key, { data: payload, savedAt: Date.now() });
+      return payload;
     } catch (error) {
       const elapsed = Date.now() - startTime;
       console.error(`❌ [Fuel API] Error after ${elapsed}ms:`, error instanceof Error ? error.message : String(error));
+      const cachedError = memoryCache.get(key);
+      if (cachedError) {
+        console.log('🗄️ [Fuel API] Serving stale cache on error');
+        return cachedError.data;
+      }
       return {
         diesel: 3.59,
         gasoline: 3.45,
