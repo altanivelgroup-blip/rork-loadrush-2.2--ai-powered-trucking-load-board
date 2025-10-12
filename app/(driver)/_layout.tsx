@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Package, BarChart3, User, PlusCircle } from 'lucide-react-native';
+import { LayoutDashboard, Package, BarChart3, User, PlusCircle, Wrench } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 const CustomHeader = ({ title, tagline }: { title: string; tagline?: string }) => {
@@ -67,6 +67,14 @@ export default function DriverLayout() {
         }}
       />
       <Tabs.Screen
+        name="service-finder"
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Wrench size={24} color={color} />,
+          tabBarLabel: 'Service Finder',
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           header: () => <CustomHeader title="Profile" />,
@@ -74,7 +82,6 @@ export default function DriverLayout() {
           tabBarLabel: 'Profile',
         }}
       />
-      <Tabs.Screen name="service-finder" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="maintenance" options={{ href: null }} />
       <Tabs.Screen name="wallet" options={{ href: null }} />
