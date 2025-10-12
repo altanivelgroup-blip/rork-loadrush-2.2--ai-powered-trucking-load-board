@@ -125,7 +125,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
           mapTypeControl: false,
           clickableIcons: false,
           zoomControl: true,
-          scrollwheel: true,
+          scrollwheel: false,
           keyboardShortcuts: true,
           restriction: {
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
@@ -136,6 +136,49 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         googleMapRef.current = map;
         (window as any).__lastGoogleMapInstance = map;
         injectPulseCSS();
+
+        let zoomAccumulator = 0;
+        const ZOOM_SENSITIVITY = 0.15;
+        const ZOOM_THRESHOLD = 0.5;
+        let zoomTimeout: NodeJS.Timeout | null = null;
+
+        const handleWheel = (e: WheelEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const delta = e.deltaY > 0 ? -1 : 1;
+          zoomAccumulator += delta * ZOOM_SENSITIVITY;
+
+          if (zoomTimeout) clearTimeout(zoomTimeout);
+
+          if (Math.abs(zoomAccumulator) >= ZOOM_THRESHOLD) {
+            const currentZoom = map.getZoom() ?? 4;
+            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
+            const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
+            const newZoom = Math.max(minZ, Math.min(maxZ, currentZoom + (zoomAccumulator > 0 ? 0.5 : -0.5)));
+            
+            isProgrammaticRef.current = true;
+            map.setZoom(newZoom);
+            zoomAccumulator = 0;
+          } else {
+            zoomTimeout = setTimeout(() => {
+              if (Math.abs(zoomAccumulator) > 0.01) {
+                const currentZoom = map.getZoom() ?? 4;
+                const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
+                const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
+                const newZoom = Math.max(minZ, Math.min(maxZ, currentZoom + (zoomAccumulator > 0 ? 0.5 : -0.5)));
+                
+                isProgrammaticRef.current = true;
+                map.setZoom(newZoom);
+              }
+              zoomAccumulator = 0;
+            }, 150);
+          }
+        };
+
+        if (containerRef.current) {
+          containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
+        }
 
         const usaBounds = new gmaps.LatLngBounds(
           new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
@@ -201,6 +244,11 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
 
     return () => {
       mounted = false;
+      try {
+        if (containerRef.current) {
+          containerRef.current.removeEventListener('wheel', handleWheel as any);
+        }
+      } catch {}
       try {
         if (trafficLayerRef.current) {
           trafficLayerRef.current.setMap(null);
