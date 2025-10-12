@@ -47,8 +47,8 @@ export default function CommandCenter() {
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
-    latitudeDelta: Platform.OS === 'web' ? 42 : 28,
-    longitudeDelta: Platform.OS === 'web' ? 72 : 50,
+    latitudeDelta: Platform.OS === 'web' ? 30 : 28,
+    longitudeDelta: Platform.OS === 'web' ? 55 : 50,
   }), []);
   const USA_BOUNDS = useMemo(() => ({
     north: 49.384358,
@@ -435,7 +435,7 @@ export default function CommandCenter() {
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
-              minZoomLevel={Platform.OS === 'web' ? 2.0 : 3}
+              minZoomLevel={Platform.OS === 'web' ? 2.5 : 3}
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
@@ -477,8 +477,8 @@ export default function CommandCenter() {
                       mapRef.current.animateToRegion({
                         latitude: 39.8283,
                         longitude: -98.5795,
-                        latitudeDelta: 42,
-                        longitudeDelta: 72,
+                        latitudeDelta: 30,
+                        longitudeDelta: 55,
                       }, 1000);
                     }
                   }, 300);
