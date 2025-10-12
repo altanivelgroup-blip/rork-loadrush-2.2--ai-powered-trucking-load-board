@@ -22,7 +22,7 @@ import { Truck, Package, Shield } from 'lucide-react-native';
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { signIn, signUp, loading, error, clearError, adminBypass, driverBypass } = useAuth();
+  const { signIn, signUp, loading, error, clearError, adminBypass } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState<string>('driver@loadrush.com');
   const [password, setPassword] = useState('');
@@ -41,7 +41,8 @@ export default function AuthScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!email || !password) {
+    const normalizedEmail = (email ?? '').trim().toLowerCase();
+    if (!normalizedEmail || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -49,12 +50,12 @@ export default function AuthScreen() {
     clearError();
     setIsSubmitting(true);
     try {
-      console.log('🔐 Starting authentication...', { email, isSignUp });
+      console.log('🔐 Starting authentication...', { email: normalizedEmail, isSignUp });
       if (isSignUp) {
-        const result = await signUp(email, password, selectedRole);
+        const result = await signUp(normalizedEmail, password, selectedRole);
         console.log('✅ Sign up successful:', result);
       } else {
-        const result = await signIn(email, password);
+        const result = await signIn(normalizedEmail, password);
         console.log('✅ Sign in successful:', result);
       }
     } catch (error: any) {
@@ -174,7 +175,10 @@ export default function AuthScreen() {
             placeholder="your@email.com"
             placeholderTextColor={Colors.light.textSecondary}
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
           />
         </View>
 
@@ -187,6 +191,8 @@ export default function AuthScreen() {
             placeholder="••••••••"
             placeholderTextColor={Colors.light.textSecondary}
             secureTextEntry
+            textContentType="password"
+            autoComplete="password"
           />
         </View>
 
@@ -194,6 +200,7 @@ export default function AuthScreen() {
           style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={isSubmitting}
+          testID="auth-submit"
         >
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -210,24 +217,6 @@ export default function AuthScreen() {
               ? 'Already have an account? Sign In'
               : "Don't have an account? Sign Up"}
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          testID="driver-quick-signin"
-          onPress={() => {
-            try {
-              console.log('🔓 Driver quick access pressed');
-              const user = driverBypass('driver@loadrush.com');
-              console.log('🚚 Driver bypass user set:', user.id);
-            } catch (e) {
-              console.error('Driver quick access error', e);
-              Alert.alert('Error', 'Unable to open driver dashboard.');
-            }
-          }}
-          style={{ marginTop: 8, alignItems: 'center' }}
-        >
-          <Text style={[styles.switchButtonText, { opacity: 0.8 }]}>Quick access: Driver</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -354,5 +343,3 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
 });
-
-
