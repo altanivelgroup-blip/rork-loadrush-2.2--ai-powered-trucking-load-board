@@ -114,8 +114,8 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         const zoom = initialRegion ? regionToZoom(initialRegion.latitudeDelta) : defaultZoom;
         const center = initialRegion ? { lat: initialRegion.latitude, lng: initialRegion.longitude } : { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude };
         const map = new gmaps.Map(containerRef.current, {
-          center,
-          zoom,
+          center: { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude },
+          zoom: 4,
           minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
@@ -129,7 +129,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
           keyboardShortcuts: true,
           restriction: {
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
-            strictBounds: true,
+            strictBounds: false,
           },
           styles: darkMapStyles,
         });
@@ -143,11 +143,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         );
         try {
           isProgrammaticRef.current = true;
-          map.fitBounds(usaBounds, { top: 50, right: 50, bottom: 50, left: 50 } as any);
-          setTimeout(() => {
-            isProgrammaticRef.current = true;
-            map.setZoom(3);
-          }, 150);
+          map.fitBounds(usaBounds, { top: 80, right: 80, bottom: 80, left: 80 } as any);
         } catch (e) {
           console.log('[WebMap] initial USA fit failed', e);
         }
@@ -158,11 +154,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
             ro = new (window as any).ResizeObserver(() => {
               try {
                 isProgrammaticRef.current = true;
-                map.fitBounds(usaBounds, { top: 50, right: 50, bottom: 50, left: 50 } as any);
-                setTimeout(() => {
-                  isProgrammaticRef.current = true;
-                  map.setZoom(3);
-                }, 150);
+                map.fitBounds(usaBounds, { top: 80, right: 80, bottom: 80, left: 80 } as any);
               } catch (e) {
                 console.log('[WebMap] resize fit failed', e);
               }
@@ -272,11 +264,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
                   new gmaps.LatLng(USA_BOUNDS.north, USA_BOUNDS.east),
                 );
                 isProgrammaticRef.current = true;
-                map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 } as any);
-                setTimeout(() => {
-                  isProgrammaticRef.current = true;
-                  map.setZoom(3);
-                }, 150);
+                map.fitBounds(bounds, { top: 80, right: 80, bottom: 80, left: 80 } as any);
               } catch (e) {
                 console.log('[WebMap] fit USA failed', e);
               }
