@@ -36,14 +36,24 @@ export default function AuthScreen() {
     clearError();
     setIsSubmitting(true);
     try {
+      console.log('🔐 Starting authentication...', { email, isSignUp });
       if (isSignUp) {
-        await signUp(email, password, selectedRole);
+        const result = await signUp(email, password, selectedRole);
+        console.log('✅ Sign up successful:', result);
       } else {
-        await signIn(email, password);
+        const result = await signIn(email, password);
+        console.log('✅ Sign in successful:', result);
       }
     } catch (error: any) {
       console.error('🔥 Firebase Auth error:', error);
-      Alert.alert('Authentication Error', error.message || 'Authentication failed');
+      const errorMessage = error?.message || error?.toString() || 'Authentication failed';
+      Alert.alert(
+        'Authentication Error',
+        errorMessage + '\n\nPlease check your credentials and try again.',
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -194,6 +204,52 @@ export default function AuthScreen() {
               : "Don't have an account? Sign Up"}
           </Text>
         </TouchableOpacity>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>Quick Test Access</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <View style={styles.quickAccessContainer}>
+          <TouchableOpacity
+            style={[styles.quickAccessButton, styles.driverButton]}
+            onPress={async () => {
+              setIsSubmitting(true);
+              try {
+                await quickTestLogin('driver');
+              } catch (err) {
+                console.error('Quick driver login failed:', err);
+                Alert.alert('Error', 'Failed to login as driver');
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
+            <Truck size={20} color="#FFFFFF" />
+            <Text style={styles.quickAccessText}>Driver</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.quickAccessButton, styles.shipperButton]}
+            onPress={async () => {
+              setIsSubmitting(true);
+              try {
+                await quickTestLogin('shipper');
+              } catch (err) {
+                console.error('Quick shipper login failed:', err);
+                Alert.alert('Error', 'Failed to login as shipper');
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            disabled={isSubmitting}
+          >
+            <Package size={20} color="#FFFFFF" />
+            <Text style={styles.quickAccessText}>Shipper</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -305,7 +361,46 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
   },
-
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.light.border,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    fontWeight: '500' as const,
+  },
+  quickAccessContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickAccessButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: 8,
+  },
+  driverButton: {
+    backgroundColor: '#10B981',
+  },
+  shipperButton: {
+    backgroundColor: '#3B82F6',
+  },
+  quickAccessText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
 });
 
 
