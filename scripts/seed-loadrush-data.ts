@@ -530,7 +530,7 @@ async function clearExistingLoads() {
 }
 
 async function seedLoads() {
-  console.log('\n📦 Seeding LoadRush loads...');
+  console.log('\n📦 Seeding LoadRush loads (USA-only, 30-day persistence)...');
   
   const loadsRef = collection(db, 'loads');
   let successCount = 0;
@@ -540,6 +540,8 @@ async function seedLoads() {
       const expirationDate = new Date();
       expirationDate.setDate(expirationDate.getDate() + 30);
       const expiresAt = Timestamp.fromDate(expirationDate);
+      
+      console.log(`  📅 Load ${load.loadId} expires: ${expirationDate.toLocaleDateString()} (30 days from now)`);
       
       const pickupDate = new Date();
       pickupDate.setHours(pickupDate.getHours() + 2);
@@ -612,7 +614,9 @@ async function seedLoadRushData() {
   console.log('   - 23 test loads with varied statuses');
   console.log('   - 12 Available loads (visible to drivers)');
   console.log('   - 7 In-Transit/Assigned loads (tracked by shipper)');
-  console.log('   - 4 Completed loads (delivery history)\n');
+  console.log('   - 4 Completed loads (delivery history)');
+  console.log('   - ⏰ All loads persist for 30 days');
+  console.log('   - 🇺🇸 USA-only routes (CA, TX, AZ, NM)\n');
   
   try {
     await clearExistingLoads();
