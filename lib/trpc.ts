@@ -35,16 +35,27 @@ async function getAuthToken(): Promise<string | null> {
 
     const currentUser = auth.currentUser;
     if (currentUser) {
-      const token = await currentUser.getIdToken(false);
-      authTokenCache = {
-        token,
-        expiry: Date.now() + 55 * 60 * 1000,
-      };
-      console.log('🔑 [tRPC] Fresh auth token obtained');
-      return token;
+      const token = await Promise.race([
+        currentUser.getIdToken(false),
+        new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Token fetch timeout')), 5000)
+        )
+      ]);
+      
+      if (token) {
+        authTokenCache = {
+          token,
+          expiry: Date.now() + 55 * 60 * 1000,
+        };
+        console.log('🔑 [tRPC] Fresh auth token obtained');
+        return token;
+      }
+    } else {
+      console.log('ℹ️ [tRPC] No Firebase user (bypass mode)');
     }
   } catch (error) {
-    console.warn('⚠️ [tRPC] Failed to get auth token:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.warn('⚠️ [tRPC] Failed to get auth token:', errorMsg);
     authTokenCache = null;
   }
   return null;

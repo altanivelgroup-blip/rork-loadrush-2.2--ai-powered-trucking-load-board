@@ -52,19 +52,14 @@ export default function AuthScreen() {
     clearError();
     
     try {
-      console.log('🚚 Quick Access: Starting driver sign-in...');
+      console.log('🚚 Quick Access: Starting driver bypass (testing mode)...');
       console.log('🚚 Quick Access: Email: driver@loadrush.co');
-      console.log('🚚 Quick Access: Password: loadrush123');
       
-      try {
-        const result = await signIn('driver@loadrush.co', 'loadrush123');
-        console.log('✅ Quick Access: Driver sign-in successful!', result);
-      } catch (e) {
-        console.warn('⚠️ Quick Access: Firebase sign-in failed, falling back to bypass', e);
-        const bypass = driverBypass('driver@loadrush.co');
-        console.log('✅ Quick Access: Driver bypass engaged', bypass);
-      }
+      const bypass = driverBypass('driver@loadrush.co');
+      console.log('✅ Quick Access: Driver bypass engaged', bypass);
       console.log('✅ Quick Access: Navigation will be handled by _layout.tsx');
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
       
     } catch (error: any) {
       console.error('🔥 Quick Access Driver error:', error);
@@ -86,19 +81,14 @@ export default function AuthScreen() {
     clearError();
     
     try {
-      console.log('📦 Quick Access: Starting shipper sign-in...');
+      console.log('📦 Quick Access: Starting shipper bypass (testing mode)...');
       console.log('📦 Quick Access: Email: shipper@loadrush.co');
-      console.log('📦 Quick Access: Password: loadrush123');
       
-      try {
-        const result = await signIn('shipper@loadrush.co', 'loadrush123');
-        console.log('✅ Quick Access: Shipper sign-in successful!', result);
-      } catch (e) {
-        console.warn('⚠️ Quick Access: Firebase sign-in failed, falling back to bypass', e);
-        const bypass = shipperBypass('shipper@loadrush.co');
-        console.log('✅ Quick Access: Shipper bypass engaged', bypass);
-      }
+      const bypass = shipperBypass('shipper@loadrush.co');
+      console.log('✅ Quick Access: Shipper bypass engaged', bypass);
       console.log('✅ Quick Access: Navigation will be handled by _layout.tsx');
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
       
     } catch (error: any) {
       console.error('🔥 Quick Access Shipper error:', error);
