@@ -11,7 +11,7 @@ interface FuelPriceCardProps {
 }
 
 const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, driverCity }) => {
-  const { price: fuelPrice, loading, error, lastFetch, refetch, scope } = useFuelPrices(
+  const { price: fuelPrice, loading, error, lastFetch, refetch, scope, isUsingFallback } = useFuelPrices(
     fuelType,
     { state: driverState ?? null, city: driverCity ?? null }
   );
@@ -87,12 +87,12 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, d
         </TouchableOpacity>
       </View>
 
-      {loading && fuelPrice === null ? (
+      {loading ? (
         <View style={styles.shimmerContainer}>
           <View style={styles.shimmerBar} />
           <Text style={styles.shimmerText}>Fetching live prices...</Text>
         </View>
-      ) : fuelPrice !== null && fuelPrice !== undefined ? (
+      ) : (
         <>
           <Text style={styles.priceValue}>${fuelPrice.toFixed(2)}</Text>
           <Text style={styles.priceSubtext}>
@@ -102,24 +102,21 @@ const FuelPriceCard = React.memo<FuelPriceCardProps>(({ fuelType, driverState, d
             <MapPin size={14} color={Colors.light.textSecondary} />
             <Text style={styles.locationText}>{scopeText}</Text>
           </View>
-          {lastUpdateText && (
+          {lastUpdateText && !isUsingFallback && (
             <View style={styles.timestampContainer}>
               <Clock size={12} color={Colors.light.textSecondary} />
               <Text style={styles.timestampText}>Updated {lastUpdateText}</Text>
             </View>
           )}
-          {error && (
+          {isUsingFallback && (
             <View style={styles.warningBanner}>
               <AlertCircle size={14} color={Colors.light.warning} />
-              <Text style={styles.warningText}>Using fallback price</Text>
+              <Text style={styles.warningText}>
+                {error ? 'Live data unavailable - showing estimated price' : 'Using estimated price'}
+              </Text>
             </View>
           )}
         </>
-      ) : (
-        <View style={styles.errorContainer}>
-          <AlertCircle size={16} color={Colors.light.danger} />
-          <Text style={styles.errorText}>No fuel data available. Showing national average.</Text>
-        </View>
       )}
     </View>
   );

@@ -62,25 +62,31 @@ export const getFuelPricesRoute = publicProcedure
     })
   )
   .query(async ({ input }) => {
+    const startTime = Date.now();
     try {
-      console.log(`⛽ Fetching prices (ft=${input.fuelType}, state=${input.state ?? '-'}, city=${input.city ?? '-'})`);
-      console.log(`🔗 API URL: ${FUEL_API_URL}`);
-      console.log(`🔑 API Key present: ${FUEL_API_KEY ? 'Yes' : 'No'}`);
+      console.log(`⛽ [Fuel API] Request: fuelType=${input.fuelType}, state=${input.state ?? 'none'}, city=${input.city ?? 'none'}`);
+      console.log(`🔗 [Fuel API] URL: ${FUEL_API_URL}`);
+      console.log(`🔑 [Fuel API] Key configured: ${FUEL_API_KEY ? 'Yes' : 'No'}`);
 
       let dieselPrice: number | null = null;
       let gasolinePrice: number | null = null;
+      let dataSource = 'national_default';
 
       if (FUEL_API_KEY) {
         const data = await fetchWithRetry();
         if (data) {
+          console.log(`✅ [Fuel API] Data received, parsing...`);
           const arr = data?.result || data?.data || data?.prices || [];
           if (Array.isArray(arr) && arr.length > 0) {
-            let filtered = arr as Array<any>;
+            console.log(`📊 [Fuel API] Found ${arr.length} price records`);
+            let filtered = arr as any[];
             if (input.state) {
               filtered = filtered.filter((p) => String(p.state ?? p.region ?? '').toLowerCase() === input.state!.toLowerCase());
+              console.log(`🔍 [Fuel API] Filtered by state "${input.state}": ${filtered.length} records`);
             }
             if (input.city) {
               filtered = filtered.filter((p) => String(p.city ?? '').toLowerCase() === input.city!.toLowerCase());
+              console.log(`🔍 [Fuel API] Filtered by city "${input.city}": ${filtered.length} records`);
             }
 
             const dieselList = filtered
@@ -92,27 +98,50 @@ export const getFuelPricesRoute = publicProcedure
 
             if (dieselList.length > 0) {
               dieselPrice = Number((dieselList.reduce((a, b) => a + b, 0) / dieselList.length).toFixed(2));
+              dataSource = 'live_api';
+              console.log(`💰 [Fuel API] Diesel avg from ${dieselList.length} records: ${dieselPrice}`);
             }
             if (gasList.length > 0) {
               gasolinePrice = Number((gasList.reduce((a, b) => a + b, 0) / gasList.length).toFixed(2));
+              dataSource = 'live_api';
+              console.log(`💰 [Fuel API] Gasoline avg from ${gasList.length} records: ${gasolinePrice}`);
             }
           } else {
             const d = Number(data?.diesel ?? data?.average_diesel);
             const g = Number(data?.gasoline ?? data?.average_gasoline);
             dieselPrice = Number.isFinite(d) && d > 0 ? d : null;
             gasolinePrice = Number.isFinite(g) && g > 0 ? g : null;
+            if (dieselPrice || gasolinePrice) {
+              dataSource = 'live_api';
+              console.log(`💰 [Fuel API] Direct prices: diesel=${dieselPrice}, gas=${gasolinePrice}`);
+            }
           }
+        } else {
+          console.warn(`⚠️ [Fuel API] No data returned from API`);
         }
+      } else {
+        console.warn(`⚠️ [Fuel API] No API key configured, using fallbacks`);
       }
 
       if ((dieselPrice === null || gasolinePrice === null) && input.state && FALLBACK_BY_STATE[input.state]) {
         const fb = FALLBACK_BY_STATE[input.state];
         dieselPrice = dieselPrice ?? fb.diesel;
         gasolinePrice = gasolinePrice ?? fb.gasoline;
+        dataSource = 'state_fallback';
+        console.log(`🔄 [Fuel API] Using state fallback for ${input.state}: diesel=${dieselPrice}, gas=${gasolinePrice}`);
       }
 
-      if (dieselPrice === null) dieselPrice = 3.59;
-      if (gasolinePrice === null) gasolinePrice = 3.45;
+      if (dieselPrice === null) {
+        dieselPrice = 3.59;
+        dataSource = 'national_default';
+      }
+      if (gasolinePrice === null) {
+        gasolinePrice = 3.45;
+        dataSource = 'national_default';
+      }
+
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ [Fuel API] Response ready in ${elapsed}ms (source: ${dataSource})`);
 
       return {
         diesel: dieselPrice,
@@ -122,9 +151,11 @@ export const getFuelPricesRoute = publicProcedure
           state: input.state ?? null,
           city: input.city ?? null,
         },
+        dataSource,
       };
     } catch (error) {
-      console.error("❌ Fuel price fetch failed:", error);
+      const elapsed = Date.now() - startTime;
+      console.error(`❌ [Fuel API] Error after ${elapsed}ms:`, error instanceof Error ? error.message : String(error));
       return {
         diesel: 3.59,
         gasoline: 3.45,
@@ -133,6 +164,7 @@ export const getFuelPricesRoute = publicProcedure
           state: input.state ?? null,
           city: input.city ?? null,
         },
+        dataSource: 'error_fallback',
       };
     }
   });
