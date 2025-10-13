@@ -267,6 +267,8 @@ export default function CommandCenter() {
     );
   }
 
+  const hasDrivers = drivers.length > 0;
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Command Center', headerShown: false }} />
@@ -447,26 +449,38 @@ export default function CommandCenter() {
             </View>
           </View>
 
-          <View style={styles.legendContainer}>
-            <LegendItem status="pickup" label="Pickup" />
-            <LegendItem status="in_transit" label="In Transit" />
-            <LegendItem status="accomplished" label="Accomplished" />
-            <LegendItem status="breakdown" label="Breakdown" />
-          </View>
+          {!hasDrivers && (
+            <View style={styles.emptyDriversContainer}>
+              <RadioTower size={48} color="rgba(37, 99, 235, 0.3)" />
+              <Text style={styles.emptyDriversText}>No Active Drivers</Text>
+              <Text style={styles.emptyDriversSubtext}>Drivers will appear here when they are online and tracking</Text>
+            </View>
+          )}
 
-          <ScrollView
-            style={styles.driverList}
-            showsVerticalScrollIndicator={false}
-          >
-            {filteredDrivers.map((driver) => (
-              <DriverCard
-                key={driver.id}
-                driver={driver}
-                isSelected={selectedDriver === driver.id}
-                onPress={() => openPanel(driver.id)}
-              />
-            ))}
-          </ScrollView>
+          {hasDrivers && (
+            <View style={styles.legendContainer}>
+              <LegendItem status="pickup" label="Pickup" />
+              <LegendItem status="in_transit" label="In Transit" />
+              <LegendItem status="accomplished" label="Accomplished" />
+              <LegendItem status="breakdown" label="Breakdown" />
+            </View>
+          )}
+
+          {hasDrivers && (
+            <ScrollView
+              style={styles.driverList}
+              showsVerticalScrollIndicator={false}
+            >
+              {filteredDrivers.map((driver) => (
+                <DriverCard
+                  key={driver.id}
+                  driver={driver}
+                  isSelected={selectedDriver === driver.id}
+                  onPress={() => openPanel(driver.id)}
+                />
+              ))}
+            </ScrollView>
+          )}
           </Animated.View>
         )}
 
@@ -607,10 +621,10 @@ export default function CommandCenter() {
               <View style={styles.mapOverlay}>
                 <MapPin size={64} color="rgba(37, 99, 235, 0.3)" />
                 <Text style={styles.mapOverlayText}>
-                  {filteredDrivers.length} Active Drivers
+                  {filteredDrivers.length} Active Driver{filteredDrivers.length !== 1 ? 's' : ''}
                 </Text>
                 <Text style={styles.mapOverlaySubtext}>
-                  Live tracking across continental U.S.
+                  {hasDrivers ? 'Live tracking across continental U.S.' : 'Waiting for drivers to come online'}
                 </Text>
               </View>
             </View>
@@ -2935,5 +2949,26 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     opacity: 0.3,
+  },
+  emptyDriversContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  emptyDriversText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#60A5FA',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptyDriversSubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
