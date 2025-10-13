@@ -127,12 +127,15 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
           zoomControl: false,
           scrollwheel: true,
           keyboardShortcuts: true,
+          draggable: true,
+          disableDoubleClickZoom: false,
           restriction: {
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
             strictBounds: false,
           },
           styles: darkMapStyles,
         });
+        console.log('[WebMap] Map initialized with draggable: true, gestureHandling: greedy');
         googleMapRef.current = map;
         (window as any).__lastGoogleMapInstance = map;
         injectPulseCSS();
