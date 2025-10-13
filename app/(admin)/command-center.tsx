@@ -26,6 +26,7 @@ const CACHE_DURATION = 1000 * 60 * 60;
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
+const isTablet = width >= 768 && width < 1024;
 
 // Platform-specific map import handled via .native.tsx extension
 import { MapView, Marker, PROVIDER_GOOGLE } from '@/components/MapComponents';
@@ -47,6 +48,7 @@ export default function CommandCenter() {
   const mapRef = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const sidebarAnimation = useRef(new Animated.Value(1)).current;
   const { isSimulating, startSimulation, stopSimulation, progress: simulationProgress } = useDemoSimulation();
   const USA_REGION = useMemo(() => ({
@@ -122,6 +124,7 @@ export default function CommandCenter() {
   const driversWithHistory = useMemo(() => filteredDrivers.filter((d) => getMockLocationHistory(d.id).length > 0), [filteredDrivers]);
 
   useEffect(() => {
+    setIsMounted(true);
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 800,
@@ -422,11 +425,11 @@ export default function CommandCenter() {
               Platform.OS === 'web' && {
                 width: sidebarAnimation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, isSmallScreen ? width * 0.35 : 400],
+                  outputRange: [0, isTablet ? 320 : (isSmallScreen ? width * 0.35 : 400)],
                 }),
                 minWidth: sidebarAnimation.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, isSmallScreen ? 280 : 400],
+                  outputRange: [0, isTablet ? 320 : (isSmallScreen ? 280 : 400)],
                 }),
                 opacity: sidebarAnimation.interpolate({
                   inputRange: [0, 0.3, 1],
@@ -466,11 +469,19 @@ export default function CommandCenter() {
           </Animated.View>
         )}
 
-        <Animated.View style={[styles.mapContainer, (projectorMode || viewMode === 'map') && styles.mapContainerFullscreen, { opacity: fadeAnim }]}>
+        <Animated.View style={[
+          styles.mapContainer,
+          (projectorMode || viewMode === 'map') && styles.mapContainerFullscreen,
+          { opacity: fadeAnim },
+          isTablet && viewMode === 'map' && !sidebarCollapsed && styles.mapContainerTablet,
+        ]}>
           {viewMode === 'map' && MapView ? (
             <MapView
               ref={mapRef}
-              style={{ flex: 1, minHeight: 300, backgroundColor: '#0F172A' }}
+              style={[
+                { flex: 1, minHeight: 300, backgroundColor: '#0F172A' },
+                isTablet && { maxHeight: '85vh' },
+              ]}
               provider={Platform.select({ ios: undefined, android: PROVIDER_GOOGLE, web: undefined })}
               initialRegion={{
                 latitude: USA_REGION.latitude,
@@ -478,7 +489,7 @@ export default function CommandCenter() {
                 latitudeDelta: USA_REGION.latitudeDelta,
                 longitudeDelta: USA_REGION.longitudeDelta,
               }}
-              minZoomLevel={Platform.OS === 'web' ? 3 : 4}
+              minZoomLevel={3}
               maxZoomLevel={18}
               onRegionChangeComplete={(region: any) => {
                 try {
@@ -1947,8 +1958,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   sidebar: {
-    width: isSmallScreen ? '100%' : '30%',
-    maxWidth: 400,
+    width: isTablet ? 320 : (isSmallScreen ? '100%' : '30%'),
+    maxWidth: isTablet ? 320 : 400,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderRightWidth: 1,
     borderRightColor: 'rgba(30, 41, 59, 0.5)',
@@ -1958,7 +1969,7 @@ const styles = StyleSheet.create({
   },
   sidebarToggleButton: {
     position: 'absolute',
-    left: isSmallScreen ? 280 : 400,
+    left: isTablet ? 320 : (isSmallScreen ? 280 : 400),
     top: '50%',
     zIndex: 1001,
     width: 36,
@@ -2138,6 +2149,10 @@ const styles = StyleSheet.create({
   },
   mapContainerFullscreen: {
     width: '100%',
+  },
+  mapContainerTablet: {
+    maxWidth: '100%',
+    maxHeight: '85vh',
   },
   darkMapPlaceholder: {
     flex: 1,

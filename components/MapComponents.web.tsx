@@ -116,7 +116,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         const map = new gmaps.Map(containerRef.current, {
           center: { lat: USA_CENTER.latitude, lng: USA_CENTER.longitude },
           zoom: 4,
-          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 2,
+          minZoom: typeof minZoomLevel === 'number' ? minZoomLevel : 3,
           maxZoom: typeof maxZoomLevel === 'number' ? maxZoomLevel : 18,
           mapTypeId: mapType === 'satellite' ? gmaps.MapTypeId.SATELLITE : gmaps.MapTypeId.ROADMAP,
           gestureHandling: 'greedy',
@@ -124,8 +124,8 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
           fullscreenControl: false,
           mapTypeControl: false,
           clickableIcons: false,
-          zoomControl: true,
-          scrollwheel: false,
+          zoomControl: false,
+          scrollwheel: true,
           keyboardShortcuts: true,
           restriction: {
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
@@ -137,48 +137,19 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         (window as any).__lastGoogleMapInstance = map;
         injectPulseCSS();
 
-        let zoomAccumulator = 0;
-        const ZOOM_SENSITIVITY = 0.15;
-        const ZOOM_THRESHOLD = 0.5;
-        let zoomTimeout: NodeJS.Timeout | null = null;
-
-        const handleWheel = (e: WheelEvent) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const delta = e.deltaY > 0 ? -1 : 1;
-          zoomAccumulator += delta * ZOOM_SENSITIVITY;
-
-          if (zoomTimeout) clearTimeout(zoomTimeout);
-
-          if (Math.abs(zoomAccumulator) >= ZOOM_THRESHOLD) {
-            const currentZoom = map.getZoom() ?? 4;
-            const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
-            const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
-            const newZoom = Math.max(minZ, Math.min(maxZ, currentZoom + (zoomAccumulator > 0 ? 0.5 : -0.5)));
-            
+        gmaps.event.addListener(map, 'zoom_changed', () => {
+          const currentZoom = map.getZoom() ?? 4;
+          const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 3;
+          const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
+          
+          if (currentZoom < minZ) {
             isProgrammaticRef.current = true;
-            map.setZoom(newZoom);
-            zoomAccumulator = 0;
-          } else {
-            zoomTimeout = setTimeout(() => {
-              if (Math.abs(zoomAccumulator) > 0.01) {
-                const currentZoom = map.getZoom() ?? 4;
-                const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 2;
-                const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
-                const newZoom = Math.max(minZ, Math.min(maxZ, currentZoom + (zoomAccumulator > 0 ? 0.5 : -0.5)));
-                
-                isProgrammaticRef.current = true;
-                map.setZoom(newZoom);
-              }
-              zoomAccumulator = 0;
-            }, 150);
+            map.setZoom(minZ);
+          } else if (currentZoom > maxZ) {
+            isProgrammaticRef.current = true;
+            map.setZoom(maxZ);
           }
-        };
-
-        if (containerRef.current) {
-          containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
-        }
+        });
 
         const usaBounds = new gmaps.LatLngBounds(
           new gmaps.LatLng(USA_BOUNDS.south, USA_BOUNDS.west),
@@ -244,11 +215,6 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
 
     return () => {
       mounted = false;
-      try {
-        if (containerRef.current) {
-          containerRef.current.removeEventListener('wheel', handleWheel as any);
-        }
-      } catch {}
       try {
         if (trafficLayerRef.current) {
           trafficLayerRef.current.setMap(null);
@@ -329,8 +295,11 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
               if (!map) return;
               try {
                 const current = map.getZoom?.() ?? 4;
+                const maxZ = typeof maxZoomLevel === 'number' ? maxZoomLevel : 18;
+                const newZoom = Math.min(maxZ, current + 1);
                 isProgrammaticRef.current = true;
-                map.setZoom(current + 1);
+                map.setZoom(newZoom);
+                console.log('[WebMap] Zoom in to', newZoom);
               } catch (e) {
                 console.log('[WebMap] zoom in failed', e);
               }
@@ -346,9 +315,11 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
               if (!map) return;
               try {
                 const current = map.getZoom?.() ?? 4;
-                const minZ = (map as any)?.minZoom ?? 2;
+                const minZ = typeof minZoomLevel === 'number' ? minZoomLevel : 3;
+                const newZoom = Math.max(minZ, current - 1);
                 isProgrammaticRef.current = true;
-                map.setZoom(Math.max(minZ, current - 1));
+                map.setZoom(newZoom);
+                console.log('[WebMap] Zoom out to', newZoom);
               } catch (e) {
                 console.log('[WebMap] zoom out failed', e);
               }
