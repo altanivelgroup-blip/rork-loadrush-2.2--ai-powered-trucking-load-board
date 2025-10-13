@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map, RotateCcw, Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map as MapIcon, RotateCcw, Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -291,7 +291,7 @@ export default function CommandCenter() {
             }}
             activeOpacity={0.7}
           >
-            <Map size={18} color={viewMode === 'map' ? '#60A5FA' : '#94A3B8'} />
+            <MapIcon size={18} color={viewMode === 'map' ? '#60A5FA' : '#94A3B8'} />
             <Text style={[styles.modeLabel, viewMode === 'map' && styles.modeLabelActive]}>
               View: {viewMode === 'dark' ? 'Dark' : 'Map'}
             </Text>
