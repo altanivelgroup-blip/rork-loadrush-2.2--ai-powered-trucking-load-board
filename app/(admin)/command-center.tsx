@@ -19,6 +19,9 @@ import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterD
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
 
+const reverseGeocodeCache = new Map<string, { city: string; state: string; timestamp: number }>();
+const CACHE_DURATION = 1000 * 60 * 60;
+
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isSmallScreen = width < 768;
@@ -1075,6 +1078,57 @@ function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
     destination: driver.dropoffLocation || null,
     enabled: true && !!(driver.pickupLocation && driver.dropoffLocation),
   });
+  const [locationName, setLocationName] = useState<{ city: string; state: string }>({ city: 'Loading...', state: '' });
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      const cacheKey = `${driver.location.lat.toFixed(2)},${driver.location.lng.toFixed(2)}`;
+      const cached = reverseGeocodeCache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setLocationName({ city: cached.city, state: cached.state });
+        return;
+      }
+
+      try {
+        const apiKey = process.env.EXPO_PUBLIC_ORS_API_KEY;
+        if (!apiKey) {
+          console.warn('[DriverPopup] No ORS API key configured');
+          setLocationName({ city: 'Location unavailable', state: '' });
+          return;
+        }
+
+        const url = `https://api.openrouteservice.org/geocode/reverse?api_key=${apiKey}&point.lon=${driver.location.lng}&point.lat=${driver.location.lat}`;
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          console.warn(`[DriverPopup] Geocode API error: ${res.status}`);
+          setLocationName({ city: 'Location unavailable', state: '' });
+          return;
+        }
+
+        const data = await res.json();
+        const props = data.features?.[0]?.properties;
+        
+        if (props) {
+          const city = props.locality || props.county || props.region || 'Unknown';
+          const state = props.region || props.macroregion || '';
+          const result = { city, state, timestamp: Date.now() };
+          
+          reverseGeocodeCache.set(cacheKey, result);
+          setLocationName({ city, state });
+          console.log(`[DriverPopup] ${driver.driverId} location: ${city}, ${state}`);
+        } else {
+          setLocationName({ city: 'Location unavailable', state: '' });
+        }
+      } catch (err) {
+        console.error('[DriverPopup] Reverse geocode error:', err);
+        setLocationName({ city: 'Location unavailable', state: '' });
+      }
+    };
+
+    fetchLocation();
+  }, [driver.location.lat, driver.location.lng, driver.driverId]);
 
   const scale = animation.interpolate({
     inputRange: [0, 1],
@@ -1082,9 +1136,6 @@ function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
   });
 
   const opacity = animation;
-
-  const mockCity = 'Dallas, TX';
-  const mockState = 'Texas';
 
   return (
     <>
@@ -1154,8 +1205,8 @@ function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
             <MapPin size={16} color="#60A5FA" />
             <Text style={styles.popupLabel}>Current Location</Text>
           </View>
-          <Text style={styles.popupValue}>{mockCity}</Text>
-          <Text style={styles.popupSubvalue}>{mockState}</Text>
+          <Text style={styles.popupValue}>{locationName.city}</Text>
+          {locationName.state && <Text style={styles.popupSubvalue}>{locationName.state}</Text>}
         </View>
 
         {driver.currentLoad && (
