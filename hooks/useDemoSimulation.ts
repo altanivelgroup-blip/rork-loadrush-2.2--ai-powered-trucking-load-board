@@ -1,167 +1,55 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
-export interface SimulationDriver {
+export interface SimulationConfig {
   driverId: string;
-  name: string;
-  currentLocation: { lat: number; lng: number };
-  targetLocation: { lat: number; lng: number };
-  route: Array<{ lat: number; lng: number }>;
-  currentStep: number;
-  eta: number;
-  distanceRemaining: number;
+  startLocation: { lat: number; lng: number };
+  endLocation: { lat: number; lng: number };
+  durationSeconds: number;
 }
 
-interface UseDemoSimulationProps {
-  enabled: boolean;
-  durationMinutes?: number;
-  drivers: Array<{
-    id: string;
-    driverId: string;
-    name: string;
-    location: { lat: number; lng: number };
-    pickupLocation?: { latitude: number; longitude: number };
-    dropoffLocation?: { latitude: number; longitude: number };
-    status: string;
-  }>;
+export interface UseDemoSimulationReturn {
+  isSimulating: boolean;
+  startSimulation: (configs: SimulationConfig[]) => void;
+  stopSimulation: () => void;
+  progress: number;
 }
 
-export function useDemoSimulation({
-  enabled,
-  durationMinutes = 5,
-  drivers,
-}: UseDemoSimulationProps) {
-  const [isRunning, setIsRunning] = useState(false);
+export function useDemoSimulation(): UseDemoSimulationReturn {
+  const [isSimulating, setIsSimulating] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [simulationDrivers, setSimulationDrivers] = useState<SimulationDriver[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const configsRef = useRef<SimulationConfig[]>([]);
   const startTimeRef = useRef<number>(0);
 
-  const generateRoute = useCallback(
-    (
-      start: { lat: number; lng: number },
-      end: { lat: number; lng: number },
-      steps: number = 30
-    ): Array<{ lat: number; lng: number }> => {
-      const route: Array<{ lat: number; lng: number }> = [];
+  const interpolateLocation = (
+    start: { lat: number; lng: number },
+    end: { lat: number; lng: number },
+    progress: number
+  ): { lat: number; lng: number } => {
+    return {
+      lat: start.lat + (end.lat - start.lat) * progress,
+      lng: start.lng + (end.lng - start.lng) * progress,
+    };
+  };
 
-      for (let i = 0; i <= steps; i++) {
-        const progress = i / steps;
-        const lat = start.lat + (end.lat - start.lat) * progress;
-        const lng = start.lng + (end.lng - start.lng) * progress;
-        route.push({ lat, lng });
-      }
-
-      return route;
-    },
-    []
-  );
-
-  const initializeSimulation = useCallback(() => {
-    console.log('[DemoSimulation] Initializing simulation for', drivers.length, 'drivers');
-
-    const simDrivers: SimulationDriver[] = drivers
-      .filter((d) => d.status === 'in_transit' || d.status === 'pickup')
-      .map((driver) => {
-        const start = driver.location;
-        const end = driver.dropoffLocation
-          ? { lat: driver.dropoffLocation.latitude, lng: driver.dropoffLocation.longitude }
-          : { lat: start.lat + 0.5, lng: start.lng + 0.5 };
-
-        const route = generateRoute(start, end, 30);
-        const distance = Math.sqrt(
-          Math.pow(end.lat - start.lat, 2) + Math.pow(end.lng - start.lng, 2)
-        ) * 69;
-
-        return {
-          driverId: driver.driverId,
-          name: driver.name,
-          currentLocation: start,
-          targetLocation: end,
-          route,
-          currentStep: 0,
-          eta: durationMinutes,
-          distanceRemaining: distance,
-        };
+  const updateDriverLocation = async (driverId: string, location: { lat: number; lng: number }) => {
+    try {
+      const driverRef = doc(db, 'drivers', driverId);
+      await updateDoc(driverRef, {
+        location: {
+          lat: location.lat,
+          lng: location.lng,
+        },
+        lastUpdate: new Date(),
+        updatedAt: new Date(),
       });
-
-    setSimulationDrivers(simDrivers);
-    console.log('[DemoSimulation] Initialized', simDrivers.length, 'simulation drivers');
-  }, [drivers, durationMinutes, generateRoute]);
-
-  const updateDriverLocation = useCallback(
-    async (driverId: string, location: { lat: number; lng: number }) => {
-      try {
-        const driverDoc = doc(db, 'drivers', driverId);
-        await updateDoc(driverDoc, {
-          location,
-          updatedAt: serverTimestamp(),
-        });
-        console.log(`[DemoSimulation] Updated ${driverId} location:`, location);
-      } catch (error) {
-        console.error(`[DemoSimulation] Error updating ${driverId}:`, error);
-      }
-    },
-    []
-  );
-
-  const startSimulation = useCallback(() => {
-    if (isRunning) return;
-
-    console.log('[DemoSimulation] Starting simulation');
-    initializeSimulation();
-    setIsRunning(true);
-    setProgress(0);
-    startTimeRef.current = Date.now();
-
-    const totalDuration = durationMinutes * 60 * 1000;
-    const updateInterval = totalDuration / 30;
-
-    intervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const currentProgress = Math.min((elapsed / totalDuration) * 100, 100);
-      setProgress(currentProgress);
-
-      setSimulationDrivers((prevDrivers) => {
-        const updatedDrivers = prevDrivers.map((driver) => {
-          if (driver.currentStep >= driver.route.length - 1) {
-            return driver;
-          }
-
-          const nextStep = driver.currentStep + 1;
-          const newLocation = driver.route[nextStep];
-          const remainingSteps = driver.route.length - nextStep;
-          const remainingProgress = remainingSteps / driver.route.length;
-
-          updateDriverLocation(driver.driverId, newLocation);
-
-          return {
-            ...driver,
-            currentLocation: newLocation,
-            currentStep: nextStep,
-            eta: durationMinutes * remainingProgress,
-            distanceRemaining: driver.distanceRemaining * remainingProgress,
-          };
-        });
-
-        return updatedDrivers;
-      });
-
-      if (currentProgress >= 100) {
-        console.log('[DemoSimulation] Simulation complete, resetting...');
-        stopSimulation();
-        setTimeout(() => {
-          resetSimulation();
-        }, 2000);
-      }
-    }, updateInterval);
-  }, [
-    isRunning,
-    durationMinutes,
-    initializeSimulation,
-    updateDriverLocation,
-  ]);
+      console.log(`[DemoSimulation] Updated ${driverId} to`, location);
+    } catch (err) {
+      console.error(`[DemoSimulation] Error updating ${driverId}:`, err);
+    }
+  };
 
   const stopSimulation = useCallback(() => {
     console.log('[DemoSimulation] Stopping simulation');
@@ -169,22 +57,53 @@ export function useDemoSimulation({
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    setIsRunning(false);
+    setIsSimulating(false);
+    setProgress(0);
+    configsRef.current = [];
   }, []);
 
-  const resetSimulation = useCallback(() => {
-    console.log('[DemoSimulation] Resetting simulation');
-    stopSimulation();
-    setProgress(0);
-    setSimulationDrivers([]);
-    initializeSimulation();
-  }, [stopSimulation, initializeSimulation]);
-
-  useEffect(() => {
-    if (!enabled) {
-      stopSimulation();
+  const startSimulation = useCallback((configs: SimulationConfig[]) => {
+    console.log('[DemoSimulation] Starting simulation with', configs.length, 'drivers');
+    
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
     }
-  }, [enabled, stopSimulation]);
+
+    configsRef.current = configs;
+    startTimeRef.current = Date.now();
+    setIsSimulating(true);
+    setProgress(0);
+
+    const maxDuration = Math.max(...configs.map(c => c.durationSeconds));
+    const updateIntervalMs = 100;
+
+    intervalRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      const overallProgress = Math.min(elapsed / maxDuration, 1);
+      
+      setProgress(overallProgress * 100);
+
+      configsRef.current.forEach((config) => {
+        const configProgress = Math.min(elapsed / config.durationSeconds, 1);
+        const newLocation = interpolateLocation(
+          config.startLocation,
+          config.endLocation,
+          configProgress
+        );
+        updateDriverLocation(config.driverId, newLocation);
+      });
+
+      if (overallProgress >= 1) {
+        console.log('[DemoSimulation] Simulation complete');
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setIsSimulating(false);
+        setProgress(100);
+      }
+    }, updateIntervalMs);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -195,11 +114,9 @@ export function useDemoSimulation({
   }, []);
 
   return {
-    isRunning,
-    progress,
-    simulationDrivers,
+    isSimulating,
     startSimulation,
     stopSimulation,
-    resetSimulation,
+    progress,
   };
 }

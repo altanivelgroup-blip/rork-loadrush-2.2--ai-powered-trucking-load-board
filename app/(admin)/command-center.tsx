@@ -18,6 +18,7 @@ import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, M
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
+import { useDemoSimulation, SimulationConfig } from '@/hooks/useDemoSimulation';
 
 const reverseGeocodeCache = new Map<string, { city: string; state: string; timestamp: number }>();
 const CACHE_DURATION = 1000 * 60 * 60;
@@ -47,6 +48,7 @@ export default function CommandCenter() {
   const [mapReady, setMapReady] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const sidebarAnimation = useRef(new Animated.Value(1)).current;
+  const { isSimulating, startSimulation, stopSimulation, progress: simulationProgress } = useDemoSimulation();
   const USA_REGION = useMemo(() => ({
     latitude: 39.8283,
     longitude: -98.5795,
@@ -296,6 +298,36 @@ export default function CommandCenter() {
               View: {viewMode === 'dark' ? 'Dark' : 'Map'}
             </Text>
           </TouchableOpacity>
+          <View style={styles.demoToggle}>
+            <Play size={18} color={isSimulating ? '#22C55E' : '#60A5FA'} />
+            <Text style={styles.demoLabel}>Demo Mode</Text>
+            <Switch
+              value={isSimulating}
+              onValueChange={(value) => {
+                if (value) {
+                  const demoConfigs: SimulationConfig[] = filteredDrivers
+                    .filter(d => d.pickupLocation && d.dropoffLocation)
+                    .slice(0, 6)
+                    .map(d => ({
+                      driverId: d.id,
+                      startLocation: d.location,
+                      endLocation: { lat: d.dropoffLocation!.latitude, lng: d.dropoffLocation!.longitude },
+                      durationSeconds: 30 + Math.random() * 15,
+                    }));
+                  
+                  if (demoConfigs.length > 0) {
+                    console.log('[CommandCenter] Starting demo with', demoConfigs.length, 'drivers');
+                    startSimulation(demoConfigs);
+                  }
+                } else {
+                  stopSimulation();
+                }
+              }}
+              trackColor={{ false: '#334155', true: '#22C55E' }}
+              thumbColor={isSimulating ? '#22C55E' : '#94A3B8'}
+              ios_backgroundColor="#334155"
+            />
+          </View>
           <View style={styles.projectorToggle}>
             <Monitor size={18} color="#60A5FA" />
             <Text style={styles.projectorLabel}>Projector Mode</Text>
@@ -310,10 +342,18 @@ export default function CommandCenter() {
               ios_backgroundColor="#334155"
             />
           </View>
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>System Stable</Text>
-          </View>
+          {isSimulating && (
+            <View style={[styles.statusBadge, { backgroundColor: 'rgba(34, 197, 94, 0.15)', borderColor: 'rgba(34, 197, 94, 0.3)' }]}>
+              <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
+              <Text style={[styles.statusText, { color: '#22C55E' }]}>Demo Active {simulationProgress.toFixed(0)}%</Text>
+            </View>
+          )}
+          {!isSimulating && (
+            <View style={styles.statusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>System Stable</Text>
+            </View>
+          )}
         </View>
       </Animated.View>
 
@@ -1856,6 +1896,22 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(37, 99, 235, 0.3)',
   },
   projectorLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  demoToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+  },
+  demoLabel: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#94A3B8',
