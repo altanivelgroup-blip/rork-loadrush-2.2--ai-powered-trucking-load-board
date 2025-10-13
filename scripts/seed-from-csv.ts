@@ -42,7 +42,13 @@ async function seedDrivers(file: string, db: ReturnType<typeof getFirestore>) {
   for (const r of rows) {
     const id = r.id;
     if (!id) continue;
+    const lat = Number(r.latitude);
+    const lng = Number(r.longitude);
+    
     const payload = {
+      id,
+      driverId: id,
+      name: `${r.firstName} ${r.lastName}`,
       firstName: r.firstName,
       lastName: r.lastName,
       email: r.email,
@@ -57,6 +63,7 @@ async function seedDrivers(file: string, db: ReturnType<typeof getFirestore>) {
         mpg: Number(r.mpg ?? '7'),
         fuelType: r.fuelType ?? 'diesel',
         state: r.tractorState ?? 'NV',
+        city: r.city,
       },
       trailerInfo: {
         type: r.trailerType ?? "53' Dry Van",
@@ -66,17 +73,20 @@ async function seedDrivers(file: string, db: ReturnType<typeof getFirestore>) {
       equipment: (r.equipment ?? '').split(';').map((s) => s.trim()).filter(Boolean),
       wallet: Number(r.wallet ?? '0'),
       location: {
-        latitude: Number(r.latitude),
-        longitude: Number(r.longitude),
+        latitude: lat,
+        longitude: lng,
+        lat,
+        lng,
         city: r.city,
         state: r.state,
       },
       updatedAt: serverTimestamp(),
     };
     await setDoc(doc(db, 'drivers', id), payload, { merge: true });
+    console.log(`  ✅ Driver ${id}: ${payload.name} at (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
     ok += 1;
   }
-  console.log(`Drivers seeded: ${ok}`);
+  console.log(`✅ Drivers seeded: ${ok}`);
 }
 
 async function seedShippers(file: string, db: ReturnType<typeof getFirestore>) {
@@ -87,6 +97,7 @@ async function seedShippers(file: string, db: ReturnType<typeof getFirestore>) {
     const id = r.id;
     if (!id) continue;
     const payload = {
+      id,
       companyName: r.companyName,
       contactName: r.contactName,
       phone: r.phone,
@@ -98,9 +109,10 @@ async function seedShippers(file: string, db: ReturnType<typeof getFirestore>) {
       updatedAt: serverTimestamp(),
     };
     await setDoc(doc(db, 'shippers', id), payload, { merge: true });
+    console.log(`  ✅ Shipper ${id}: ${r.companyName}`);
     ok += 1;
   }
-  console.log(`Shippers seeded: ${ok}`);
+  console.log(`✅ Shippers seeded: ${ok}`);
 }
 
 async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
@@ -108,6 +120,10 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
   const content = fs.readFileSync(file, 'utf-8');
   const rows = csvToObjects(content);
   let ok = 0;
+  
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  
   for (const r of rows) {
     const id = r.id;
     if (!id) continue;
@@ -140,12 +156,15 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
       rate,
       distance,
       ratePerMile: rate / Math.max(1, distance || 1),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
     };
     
     if (r.matchedDriverId && r.matchedDriverId.trim()) {
       payload.matchedDriverId = r.matchedDriverId.trim();
+      payload.status = 'matched';
+      console.log(`  ✅ Load ${id} matched to driver ${r.matchedDriverId}`);
     }
     if (r.matchedDriverName && r.matchedDriverName.trim()) {
       payload.matchedDriverName = r.matchedDriverName.trim();
@@ -153,10 +172,13 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
     await setDoc(doc(db, 'loads', id), payload, { merge: true });
     ok += 1;
   }
-  console.log(`Loads seeded from ${path.basename(file)}: ${ok}`);
+  console.log(`✅ Loads seeded from ${path.basename(file)}: ${ok}`);
 }
 
 async function main() {
+  console.log('\n🚀 Starting Vegas Data Seeding...');
+  console.log('=' .repeat(60));
+  
   const db = getFirestore(app);
 
   const root = path.resolve(process.cwd(), 'scripts', 'data');
@@ -166,19 +188,34 @@ async function main() {
   if (!fs.existsSync(driversPath)) throw new Error(`Missing file: ${driversPath}`);
   if (!fs.existsSync(shippersPath)) throw new Error(`Missing file: ${shippersPath}`);
 
+  console.log('\n📦 Step 1: Seeding Drivers...');
   await seedDrivers(driversPath, db);
+  
+  console.log('\n📦 Step 2: Seeding Shippers...');
   await seedShippers(shippersPath, db);
 
+  console.log('\n📦 Step 3: Seeding Loads...');
   const allFiles = fs.readdirSync(root);
   const loadCsvs = allFiles.filter((f) => f.startsWith('loads-') && f.endsWith('.csv'));
   if (loadCsvs.length === 0) {
     throw new Error(`No load CSV files found in ${root}. Expected files like 'loads-*.csv'`);
   }
   for (const f of loadCsvs) {
+    console.log(`\n  Processing ${f}...`);
     await seedLoads(path.join(root, f), db);
   }
 
-  console.log('Seeding complete.');
+  console.log('\n' + '=' .repeat(60));
+  console.log('✅ Vegas Data Seeding Complete!');
+  console.log('\n📊 Summary:');
+  console.log('  - Drivers: Check Firestore "drivers" collection');
+  console.log('  - Shippers: Check Firestore "shippers" collection');
+  console.log('  - Loads: Check Firestore "loads" collection');
+  console.log('\n🔍 Next Steps:');
+  console.log('  1. Refresh your app');
+  console.log('  2. Log in as driver (e.g., alex.martinez@example.com)');
+  console.log('  3. Check Command Center as admin');
+  console.log('=' .repeat(60) + '\n');
 }
 
 main().catch((e) => {
