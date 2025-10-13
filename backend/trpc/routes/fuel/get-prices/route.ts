@@ -1,7 +1,7 @@
 import { publicProcedure } from "@/backend/trpc/create-context";
 import { z } from "zod";
 
-const FUEL_API_URL = process.env.FUEL_API_URL || "https://zylalabs.com/api/7700/fuel+prices+tracker+api/12475/fuel+costs";
+const FUEL_API_URL = process.env.FUEL_API_URL || "https://zylalabs.com/api/10741/loadrush+v2+api/20317/getfuelpricesbylocation";
 const FUEL_API_KEY = process.env.FUEL_API_KEY || "";
 
 if (!FUEL_API_KEY) {
@@ -18,6 +18,7 @@ const FALLBACK_BY_STATE: Record<string, { diesel: number; gasoline: number }> = 
   "Georgia": { diesel: 3.79, gasoline: 3.19 },
   "Ohio": { diesel: 3.69, gasoline: 3.09 },
   "Pennsylvania": { diesel: 4.05, gasoline: 3.75 },
+  "Nevada": { diesel: 4.29, gasoline: 4.19 },
 };
 
 type FuelPayload = {
@@ -45,7 +46,7 @@ function makeKey(opts: { state?: string; city?: string; lat?: number; lon?: numb
   return `fuel:${opts.state ?? 'USA'}:${opts.city ?? 'ALL'}`;
 }
 
-async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?: string; city?: string; lat?: number; lon?: number }, attempt = 1): Promise<any | null> {
+async function fetchWithRetry(params: { fuelType?: 'diesel' | 'regular'; lat?: number; lon?: number }, attempt = 1): Promise<any | null> {
   const MAX_ATTEMPTS = 2;
   const TIMEOUT_MS = 8000;
   try {
@@ -61,10 +62,12 @@ async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?
         url.searchParams.set('lat', String(params.lat));
         url.searchParams.set('lon', String(params.lon));
       }
-      if (params.fuelType) url.searchParams.set('fuelType', params.fuelType);
-      if (params.state) url.searchParams.set('state', params.state);
-      if (params.city) url.searchParams.set('city', params.city);
-      url.searchParams.set('country', 'USA');
+      if (params.fuelType) {
+        url.searchParams.set('fuelType', params.fuelType);
+      }
+
+      console.log(`🔗 [Fuel API] Request URL: ${url.toString()}`);
+      console.log(`🔑 [Fuel API] Using Bearer token: ${FUEL_API_KEY.substring(0, 10)}...`);
 
       const res = await fetch(url.toString(), {
         method: "GET",
@@ -78,7 +81,7 @@ async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?
       clearTimeout(timeoutId);
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 120)}`);
+        console.warn(`⚠️ Fuel API error (attempt ${attempt}): ${res.status} ${res.statusText} :: ${body.substring(0, 200)}`);
         if (attempt < MAX_ATTEMPTS && (res.status >= 500 || res.status === 429 || res.status === 408 || res.status === 503)) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 6000);
           console.log(`⏳ [Fuel API] Retrying after ${delay}ms (status: ${res.status})...`);
@@ -88,7 +91,7 @@ async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?
         return null;
       }
       const data = await res.json();
-      console.log(`✅ [Fuel API] Data received successfully`);
+      console.log(`✅ [Fuel API] Data received successfully:`, JSON.stringify(data).substring(0, 300));
       return data;
     } catch (fetchError) {
       clearTimeout(timeoutId);
@@ -167,60 +170,53 @@ export const getFuelPricesRoute = publicProcedure
       let dieselPrice: number | null = null;
       let gasolinePrice: number | null = null;
       let dataSource = 'national_default';
+      
       if (FUEL_API_KEY && FUEL_API_KEY !== '[YOUR_ACTUAL_API_KEY]') {
-        const data = await fetchWithRetry({ fuelType: input.fuelType, state: input.state, city: input.city, lat: input.lat, lon: input.lon });
+        const apiParams: { fuelType?: 'diesel' | 'regular'; lat?: number; lon?: number } = {};
+        
+        if (input.fuelType === 'diesel') {
+          apiParams.fuelType = 'diesel';
+        } else if (input.fuelType === 'gasoline') {
+          apiParams.fuelType = 'regular';
+        }
+        
+        if (typeof input.lat === 'number' && typeof input.lon === 'number') {
+          apiParams.lat = input.lat;
+          apiParams.lon = input.lon;
+        }
+        
+        const data = await fetchWithRetry(apiParams);
         if (data) {
           console.log(`✅ [Fuel API] Data received, parsing...`);
-          const arr = data?.result || data?.data || data?.prices || [];
-          if (Array.isArray(arr) && arr.length > 0) {
-            console.log(`📊 [Fuel API] Found ${arr.length} price records`);
-            let filtered = arr as any[];
-            if (typeof input.lat === 'number' && typeof input.lon === 'number') {
-              filtered = filtered
-                .map((p) => ({
-                  ...p,
-                  _dist: typeof p.lat === 'number' && typeof p.lon === 'number'
-                    ? Math.hypot((p.lat - input.lat!), (p.lon - input.lon!))
-                    : Number.POSITIVE_INFINITY,
-                }))
-                .sort((a, b) => (a._dist as number) - (b._dist as number))
-                .slice(0, 20);
-              console.log(`📍 [Fuel API] Nearest by lat/lon: ${filtered.length} records`);
+          
+          if (data.price && typeof data.price === 'number') {
+            if (input.fuelType === 'diesel') {
+              dieselPrice = Number(data.price.toFixed(2));
+              gasolinePrice = Number((data.price * 1.05).toFixed(2));
             } else {
-              if (input.state) {
-                filtered = filtered.filter((p) => String(p.state ?? p.region ?? '').toLowerCase() === input.state!.toLowerCase());
-                console.log(`🔍 [Fuel API] Filtered by state "${input.state}": ${filtered.length} records`);
-              }
-              if (input.city) {
-                filtered = filtered.filter((p) => String(p.city ?? '').toLowerCase() === input.city!.toLowerCase());
-                console.log(`🔍 [Fuel API] Filtered by city "${input.city}": ${filtered.length} records`);
-              }
+              gasolinePrice = Number(data.price.toFixed(2));
+              dieselPrice = Number((data.price * 0.95).toFixed(2));
             }
-            const dieselList = filtered
-              .map((p) => Number(p.diesel ?? p.price_diesel ?? p.price))
-              .filter((n) => Number.isFinite(n) && n > 0) as number[];
-            const gasList = filtered
-              .map((p) => Number(p.gasoline ?? p.price_gasoline ?? p.price))
-              .filter((n) => Number.isFinite(n) && n > 0) as number[];
-            if (dieselList.length > 0) {
-              dieselPrice = Number((dieselList.reduce((a, b) => a + b, 0) / dieselList.length).toFixed(2));
-              dataSource = 'live_api';
-              console.log(`💰 [Fuel API] Diesel avg from ${dieselList.length} records: ${dieselPrice}`);
+            dataSource = 'live_api';
+            console.log(`💰 [Fuel API] Price from API: ${data.price} (${input.fuelType})`);
+          } else if (data.diesel || data.gasoline || data.regular) {
+            dieselPrice = data.diesel ? Number(data.diesel.toFixed(2)) : null;
+            gasolinePrice = data.gasoline || data.regular ? Number((data.gasoline || data.regular).toFixed(2)) : null;
+            dataSource = 'live_api';
+            console.log(`💰 [Fuel API] Prices from API: diesel=${dieselPrice}, gas=${gasolinePrice}`);
+          } else if (Array.isArray(data.prices) && data.prices.length > 0) {
+            const prices = data.prices;
+            const dieselPrices = prices.filter((p: any) => p.fuelType === 'diesel').map((p: any) => p.price);
+            const gasPrices = prices.filter((p: any) => p.fuelType === 'regular' || p.fuelType === 'gasoline').map((p: any) => p.price);
+            
+            if (dieselPrices.length > 0) {
+              dieselPrice = Number((dieselPrices.reduce((a: number, b: number) => a + b, 0) / dieselPrices.length).toFixed(2));
             }
-            if (gasList.length > 0) {
-              gasolinePrice = Number((gasList.reduce((a, b) => a + b, 0) / gasList.length).toFixed(2));
-              dataSource = 'live_api';
-              console.log(`💰 [Fuel API] Gasoline avg from ${gasList.length} records: ${gasolinePrice}`);
+            if (gasPrices.length > 0) {
+              gasolinePrice = Number((gasPrices.reduce((a: number, b: number) => a + b, 0) / gasPrices.length).toFixed(2));
             }
-          } else {
-            const d = Number(data?.diesel ?? data?.average_diesel);
-            const g = Number(data?.gasoline ?? data?.average_gasoline);
-            dieselPrice = Number.isFinite(d) && d > 0 ? d : null;
-            gasolinePrice = Number.isFinite(g) && g > 0 ? g : null;
-            if (dieselPrice || gasolinePrice) {
-              dataSource = 'live_api';
-              console.log(`💰 [Fuel API] Direct prices: diesel=${dieselPrice}, gas=${gasolinePrice}`);
-            }
+            dataSource = 'live_api';
+            console.log(`💰 [Fuel API] Averaged prices: diesel=${dieselPrice}, gas=${gasolinePrice}`);
           }
         } else {
           console.warn(`⚠️ [Fuel API] No data returned from API`);
@@ -228,6 +224,7 @@ export const getFuelPricesRoute = publicProcedure
       } else {
         console.warn(`⚠️ [Fuel API] No API key configured, using fallbacks`);
       }
+      
       if ((dieselPrice === null || gasolinePrice === null) && input.state && FALLBACK_BY_STATE[input.state]) {
         const fb = FALLBACK_BY_STATE[input.state];
         dieselPrice = dieselPrice ?? fb.diesel;

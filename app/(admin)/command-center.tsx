@@ -14,11 +14,12 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map as MapIcon, RotateCcw, Pause, Play, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map as MapIcon, RotateCcw, Pause, Play, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Fuel } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
 import { useDemoSimulation, SimulationConfig } from '@/hooks/useDemoSimulation';
+import { useFuelPrices } from '@/hooks/useFuelPrices';
 
 const reverseGeocodeCache = new Map<string, { city: string; state: string; timestamp: number }>();
 const CACHE_DURATION = 1000 * 60 * 60;
@@ -448,6 +449,8 @@ export default function CommandCenter() {
               <Text style={styles.driverCountText}>{drivers.length}</Text>
             </View>
           </View>
+
+          <FuelPriceWidget />
 
           {!hasDrivers && (
             <View style={styles.emptyDriversContainer}>
@@ -1759,6 +1762,34 @@ function PlaybackGhostMarker({ driver, location, progress }: PlaybackGhostMarker
   );
 }
 
+function FuelPriceWidget() {
+  const { price, loading, isUsingFallback } = useFuelPrices('diesel', { enabled: true });
+
+  return (
+    <View style={styles.fuelWidget}>
+      <View style={styles.fuelWidgetHeader}>
+        <Fuel size={16} color="#F59E0B" />
+        <Text style={styles.fuelWidgetTitle}>Diesel Price</Text>
+      </View>
+      {loading ? (
+        <View style={styles.fuelWidgetLoading}>
+          <ActivityIndicator size="small" color="#60A5FA" />
+        </View>
+      ) : (
+        <View style={styles.fuelWidgetContent}>
+          <Text style={styles.fuelWidgetPrice}>${price.toFixed(2)}</Text>
+          <Text style={styles.fuelWidgetUnit}>/gal</Text>
+          {isUsingFallback && (
+            <View style={styles.fuelWidgetBadge}>
+              <Text style={styles.fuelWidgetBadgeText}>Est.</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ProjectorOverlay({ driver, animation }: ProjectorOverlayProps) {
   const { routeData } = useDriverRoute({
     origin: { latitude: driver.location.lat, longitude: driver.location.lng },
@@ -2970,5 +3001,61 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  fuelWidget: {
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fuelWidgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  fuelWidgetTitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  fuelWidgetLoading: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  fuelWidgetContent: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  fuelWidgetPrice: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#F59E0B',
+  },
+  fuelWidgetUnit: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  fuelWidgetBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  fuelWidgetBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: '#F59E0B',
   },
 });
