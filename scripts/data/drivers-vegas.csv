@@ -4,3 +4,4 @@ DRV-LV-002,Brianna,Chen,brianna.chen@example.com,+17025550002,active,2025-10-13T
 DRV-LV-003,David,Nguyen,david.nguyen@example.com,+17025550003,active,2025-10-13T11:55:00Z,Peterbilt,579,2019,1XPBDP9X6KDZ0003,6.9,diesel,NV,53' Dry Van,53,45000,"Chains;Tarps",540.00,36.2735,-115.2065,Las Vegas,NV
 DRV-LV-004,Elena,Gonzalez,elena.gonzalez@example.com,+17025550004,active,2025-10-13T12:10:00Z,Kenworth,T680,2022,1XKYDP9X0NJZ0004,7.5,diesel,NV,53' Dry Van,53,45000,"Straps;Cones",1750.75,36.0257,-115.1227,Las Vegas,NV
 DRV-LV-005,Marcus,Johnson,marcus.johnson@example.com,+17025550005,active,2025-10-13T12:08:00Z,International,LT,2018,3HSDZAPR1JNZ0005,6.7,diesel,NV,53' Flatbed,48,48000,"Chains;Binders;Tarps",320.10,36.1273,-115.1718,Las Vegas,NV
+ scripts/data/drivers-vegas.csv
