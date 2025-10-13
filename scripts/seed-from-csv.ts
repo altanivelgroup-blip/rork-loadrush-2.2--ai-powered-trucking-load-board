@@ -113,7 +113,7 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
     if (!id) continue;
     const distance = Number(r.distance_miles ?? '0');
     const rate = Number(r.rate_usd ?? '0');
-    const payload = {
+    const payload: Record<string, any> = {
       id,
       shipperId: r.shipperId,
       shipperName: r.shipperName,
@@ -142,9 +142,14 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
       ratePerMile: rate / Math.max(1, distance || 1),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      matchedDriverId: r.matchedDriverId || undefined,
-      matchedDriverName: r.matchedDriverName || undefined,
-    } as const;
+    };
+    
+    if (r.matchedDriverId && r.matchedDriverId.trim()) {
+      payload.matchedDriverId = r.matchedDriverId.trim();
+    }
+    if (r.matchedDriverName && r.matchedDriverName.trim()) {
+      payload.matchedDriverName = r.matchedDriverName.trim();
+    }
     await setDoc(doc(db, 'loads', id), payload, { merge: true });
     ok += 1;
   }
