@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { initializeApp } = require('firebase/app');
-const { getFirestore, doc, setDoc, serverTimestamp } = require('firebase/firestore');
+const { getFirestore, doc, setDoc, serverTimestamp, Timestamp } = require('firebase/firestore');
 const fs = require('fs');
 const path = require('path');
 
@@ -51,6 +51,11 @@ function csvToObjects(csv) {
   return rows;
 }
 
+function safeNumber(val, fallback = 0) {
+  const num = Number(val);
+  return isNaN(num) || !isFinite(num) ? fallback : num;
+}
+
 async function seedDrivers(file) {
   console.log('\n📦 Seeding Drivers...');
   const content = fs.readFileSync(file, 'utf-8');
@@ -61,44 +66,45 @@ async function seedDrivers(file) {
     const id = r.id;
     if (!id) continue;
     
-    const lat = Number(r.latitude);
-    const lng = Number(r.longitude);
+    const lat = safeNumber(r.latitude, 36.1699);
+    const lng = safeNumber(r.longitude, -115.1398);
     
     const payload = {
       id,
       driverId: id,
       name: `${r.firstName} ${r.lastName}`,
-      firstName: r.firstName,
-      lastName: r.lastName,
-      email: r.email,
-      phone: r.phone,
-      status: r.status ?? 'active',
-      lastActive: r.lastActive ?? new Date().toISOString(),
+      firstName: r.firstName || 'Unknown',
+      lastName: r.lastName || 'Driver',
+      email: r.email || `${id}@example.com`,
+      phone: r.phone || '+17025550000',
+      status: r.status || 'active',
+      lastActive: serverTimestamp(),
       truckInfo: {
-        make: r.truckMake,
-        model: r.truckModel,
-        year: Number(r.truckYear ?? '2020'),
-        vin: r.vin,
-        mpg: Number(r.mpg ?? '7'),
-        fuelType: r.fuelType ?? 'diesel',
-        state: r.tractorState ?? 'NV',
-        city: r.city,
+        make: r.truckMake || 'Freightliner',
+        model: r.truckModel || 'Cascadia',
+        year: safeNumber(r.truckYear, 2020),
+        vin: r.vin || `VIN${id}`,
+        mpg: safeNumber(r.mpg, 7),
+        fuelType: r.fuelType || 'diesel',
+        state: r.tractorState || 'NV',
+        city: r.city || 'Las Vegas',
       },
       trailerInfo: {
-        type: r.trailerType ?? "53' Dry Van",
-        length: Number(r.trailerLength ?? '53'),
-        capacity: Number(r.trailerCapacity ?? '45000'),
+        type: r.trailerType || "53' Dry Van",
+        length: safeNumber(r.trailerLength, 53),
+        capacity: safeNumber(r.trailerCapacity, 45000),
       },
-      equipment: (r.equipment ?? '').split(';').map((s) => s.trim()).filter(Boolean),
-      wallet: Number(r.wallet ?? '0'),
+      equipment: (r.equipment || '').split(';').map((s) => s.trim()).filter(Boolean),
+      wallet: safeNumber(r.wallet, 0),
       location: {
         latitude: lat,
         longitude: lng,
         lat,
         lng,
-        city: r.city,
-        state: r.state,
+        city: r.city || 'Las Vegas',
+        state: r.state || 'NV',
       },
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
     
@@ -121,14 +127,15 @@ async function seedShippers(file) {
     
     const payload = {
       id,
-      companyName: r.companyName,
-      contactName: r.contactName,
-      phone: r.phone,
-      email: r.email,
-      address: r.address,
-      city: r.city,
-      state: r.state,
-      zip: r.zip,
+      companyName: r.companyName || 'Unknown Company',
+      contactName: r.contactName || 'Contact',
+      phone: r.phone || '+17025550000',
+      email: r.email || `${id}@example.com`,
+      address: r.address || '',
+      city: r.city || 'Las Vegas',
+      state: r.state || 'NV',
+      zip: r.zip || '89101',
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
     
@@ -145,46 +152,46 @@ async function seedLoads(file) {
   const rows = csvToObjects(content);
   let ok = 0;
   
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const now = Timestamp.now();
+  const expiresAt = Timestamp.fromMillis(now.toMillis() + 7 * 24 * 60 * 60 * 1000);
   
   for (const r of rows) {
     const id = r.id;
     if (!id) continue;
     
-    const distance = Number(r.distance_miles ?? '0');
-    const rate = Number(r.rate_usd ?? '0');
+    const distance = safeNumber(r.distance_miles, 0);
+    const rate = safeNumber(r.rate_usd, 0);
     
     const payload = {
       id,
-      shipperId: r.shipperId,
-      shipperName: r.shipperName,
-      status: r.status ?? 'posted',
+      shipperId: r.shipperId || 'SHP-UNKNOWN',
+      shipperName: r.shipperName || 'Unknown Shipper',
+      status: r.status || 'posted',
       pickup: {
-        location: r.pickup_location,
-        city: r.pickup_city,
-        state: r.pickup_state,
-        date: r.pickup_date,
-        time: r.pickup_time,
+        location: r.pickup_location || '',
+        city: r.pickup_city || 'Las Vegas',
+        state: r.pickup_state || 'NV',
+        date: r.pickup_date || '',
+        time: r.pickup_time || '',
       },
       dropoff: {
-        location: r.drop_location,
-        city: r.drop_city,
-        state: r.drop_state,
-        date: r.drop_date,
-        time: r.drop_time,
+        location: r.drop_location || '',
+        city: r.drop_city || 'Las Vegas',
+        state: r.drop_state || 'NV',
+        date: r.drop_date || '',
+        time: r.drop_time || '',
       },
       cargo: {
-        type: r.cargo_type,
-        weight: Number(r.weight_lbs ?? '0'),
-        description: r.description,
+        type: r.cargo_type || 'General Freight',
+        weight: safeNumber(r.weight_lbs, 0),
+        description: r.description || '',
       },
       rate,
       distance,
-      ratePerMile: rate / Math.max(1, distance || 1),
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
+      ratePerMile: distance > 0 ? rate / distance : 0,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt: expiresAt,
     };
     
     if (r.matchedDriverId && r.matchedDriverId.trim()) {
