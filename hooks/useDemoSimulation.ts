@@ -75,7 +75,7 @@ export function useDemoSimulation(): UseDemoSimulationReturn {
     setProgress(0);
 
     const maxDuration = Math.max(...configs.map(c => c.durationSeconds));
-    const updateIntervalMs = 100;
+    const updateIntervalMs = 500;
 
     intervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -90,6 +90,7 @@ export function useDemoSimulation(): UseDemoSimulationReturn {
           config.endLocation,
           configProgress
         );
+        console.log(`[DemoSimulation] Moving ${config.driverId} to (${newLocation.lat.toFixed(4)}, ${newLocation.lng.toFixed(4)}) - ${(configProgress * 100).toFixed(1)}%`);
         updateDriverLocation(config.driverId, newLocation);
       });
 

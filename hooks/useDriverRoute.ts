@@ -22,7 +22,7 @@ export interface UseDriverRouteParams {
 }
 
 const UPDATE_INTERVAL = 120000;
-const REQUEST_TIMEOUT_MS = 30000;
+const REQUEST_TIMEOUT_MS = 10000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -82,6 +82,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
 
     const now = Date.now();
     if (now - lastFetchRef.current < UPDATE_INTERVAL - 5000) {
+      console.log('[useDriverRoute] Skipping fetch - too soon since last fetch');
       return;
     }
     lastFetchRef.current = now;
