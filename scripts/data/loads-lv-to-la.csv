@@ -1,0 +1,6 @@
+id,shipperId,shipperName,status,pickup_location,pickup_city,pickup_state,pickup_date,pickup_time,drop_location,drop_city,drop_state,drop_date,drop_time,cargo_type,weight_lbs,description,rate_usd,distance_miles,matchedDriverId,matchedDriverName
+LR-LVLA-1001,SHP-LV-001,Walmart #2593,posted,3615 S Rainbow Blvd,Las Vegas,NV,2025-10-14,06:30,701 N Victory Pl,Burbank,CA,2025-10-15,08:00,Dry Goods,42000,Palletized consumables to Walmart DC,2100,270,,
+LR-LVLA-1002,SHP-LV-002,Costco Business Center,posted,222 S Martin L King Blvd,Las Vegas,NV,2025-10-14,07:00,2045 S Victoria Ave,Los Angeles,CA,2025-10-15,09:00,Refrigerated,38000,Frozen goods to Costco LA,2400,270,,
+LR-LVLA-1003,SHP-LV-003,Sam's Club #6252,posted,5101 S Pecos Rd,Las Vegas,NV,2025-10-14,08:00,1901 W Baseline Rd,La Verne,CA,2025-10-15,10:00,Dry Goods,40000,Non-perishable retail inventory,2200,260,,
+LR-LVLA-1004,SHP-LV-004,Harry Reid Int'l Airport,posted,5757 Wayne Newton Blvd,Las Vegas,NV,2025-10-14,05:30,400 World Way,Los Angeles,CA,2025-10-14,16:00,Air Cargo,12000,Air cargo transfer to LAX cargo,1800,275,,
+LR-LVLA-1005,SHP-LV-005,DICK'S Sporting Goods,posted,120 Pavilion Center Dr,Las Vegas,NV,2025-10-14,09:00,5601 E Slauson Ave,Commerce,CA,2025-10-15,07:30,Sporting Goods,35000,Retail sporting goods pallets,2000,270,,

@@ -1,0 +1,6 @@
+id,companyName,contactName,phone,email,address,city,state,zip
+SHP-LV-001,Walmart #2593,Store Manager,+17025551001,walmart2593@example.com,3615 S Rainbow Blvd,Las Vegas,NV,89103
+SHP-LV-002,Costco Business Center,Receiving,+17025551002,costco-bc@example.com,222 S Martin L King Blvd,Las Vegas,NV,89106
+SHP-LV-003,Sam's Club #6252,Logistics Lead,+17025551003,sams6252@example.com,5101 S Pecos Rd,Las Vegas,NV,89120
+SHP-LV-004,Harry Reid Int'l Airport,Air Cargo Ops,+17025551004,las-cargo@example.com,5757 Wayne Newton Blvd,Las Vegas,NV,89119
+SHP-LV-005,DICK'S Sporting Goods,Store Manager,+17025551005,dicks-veg@example.com,120 Pavilion Center Dr,Las Vegas,NV,89144

@@ -1,0 +1,6 @@
+id,firstName,lastName,email,phone,status,lastActive,truckMake,truckModel,truckYear,vin,mpg,fuelType,tractorState,trailerType,trailerLength,trailerCapacity,equipment,wallet,latitude,longitude,city,state
+DRV-LV-001,Alex,Martinez,alex.martinez@example.com,+17025550001,active,2025-10-13T12:00:00Z,Freightliner,Cascadia,2021,1FUGGLDR5HLHZ0001,7.2,diesel,NV,53' Dry Van,53,45000,"Pallet Jack;Straps;Load Bars",1250.50,36.1009,-115.2956,Las Vegas,NV
+DRV-LV-002,Brianna,Chen,brianna.chen@example.com,+17025550002,active,2025-10-13T12:05:00Z,Volvo,VNL 760,2020,4V4NC9EH0FNHZ0002,7.8,diesel,NV,53' Reefer,53,44000,"E-Track;Straps",980.20,36.0840,-115.1537,Las Vegas,NV
+DRV-LV-003,David,Nguyen,david.nguyen@example.com,+17025550003,active,2025-10-13T11:55:00Z,Peterbilt,579,2019,1XPBDP9X6KDZ0003,6.9,diesel,NV,53' Dry Van,53,45000,"Chains;Tarps",540.00,36.2735,-115.2065,Las Vegas,NV
+DRV-LV-004,Elena,Gonzalez,elena.gonzalez@example.com,+17025550004,active,2025-10-13T12:10:00Z,Kenworth,T680,2022,1XKYDP9X0NJZ0004,7.5,diesel,NV,53' Dry Van,53,45000,"Straps;Cones",1750.75,36.0257,-115.1227,Las Vegas,NV
+DRV-LV-005,Marcus,Johnson,marcus.johnson@example.com,+17025550005,active,2025-10-13T12:08:00Z,International,LT,2018,3HSDZAPR1JNZ0005,6.7,diesel,NV,53' Flatbed,48,48000,"Chains;Binders;Tarps",320.10,36.1273,-115.1718,Las Vegas,NV
