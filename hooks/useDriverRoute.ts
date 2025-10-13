@@ -21,8 +21,8 @@ export interface UseDriverRouteParams {
   enabled?: boolean;
 }
 
-const UPDATE_INTERVAL = 60000;
-const REQUEST_TIMEOUT_MS = 50000;
+const UPDATE_INTERVAL = 120000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -38,17 +38,23 @@ async function fetchRouteViaBackend(params: {
   destination: { latitude: number; longitude: number };
 }, retryAttempt = 0): Promise<any> {
   const { origin, destination } = params;
-  const MAX_RETRIES = 2;
+  const MAX_RETRIES = 1;
   
   try {
     console.log(`[useDriverRoute] Fetching route (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})...`);
-    return await trpcClient.routing.getRoute.query({ origin, destination });
+    const result = await Promise.race([
+      trpcClient.routing.getRoute.query({ origin, destination }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT_MS)
+      )
+    ]);
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[useDriverRoute] Fetch error (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1}):`, errorMessage);
     
-    if (retryAttempt < MAX_RETRIES) {
-      const delay = Math.min(2000 * Math.pow(2, retryAttempt), 8000);
+    if (retryAttempt < MAX_RETRIES && !errorMessage.includes('timeout')) {
+      const delay = 1000;
       console.log(`[useDriverRoute] Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return fetchRouteViaBackend(params, retryAttempt + 1);
