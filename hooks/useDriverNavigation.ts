@@ -425,6 +425,12 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
     }
   }, [syncLocationToFirestore]);
 
+  const currentLocationRef = useRef(currentLocation);
+  
+  useEffect(() => {
+    currentLocationRef.current = currentLocation;
+  }, [currentLocation]);
+
   useEffect(() => {
     if (routeRefreshIntervalRef.current) {
       clearInterval(routeRefreshIntervalRef.current);
@@ -437,9 +443,11 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
       getRoute(currentLocation, destination);
 
       routeRefreshIntervalRef.current = setInterval(() => {
-        if (currentLocation && destination) {
+        const loc = currentLocationRef.current;
+        const dest = destinationRef.current;
+        if (loc && dest) {
           console.log('[useDriverNavigation] Auto-refreshing route...');
-          getRoute(currentLocation, destination);
+          getRoute(loc, dest);
         }
       }, 15000);
     }
@@ -450,7 +458,7 @@ export default function useDriverNavigation(driverId: string): UseDriverNavigati
         routeRefreshIntervalRef.current = null;
       }
     };
-  }, [destination, currentLocation, getRoute]);
+  }, [destination, getRoute]);
 
   const startNavigation = useCallback((dest: NavigationLocation, loadId?: string) => {
     console.log('[useDriverNavigation] Starting navigation to:', dest);

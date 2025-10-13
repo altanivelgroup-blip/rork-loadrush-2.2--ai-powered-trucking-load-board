@@ -22,7 +22,7 @@ export interface UseDriverRouteParams {
 }
 
 const UPDATE_INTERVAL = 120000;
-const REQUEST_TIMEOUT_MS = 30000;
+const REQUEST_TIMEOUT_MS = 45000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -33,33 +33,40 @@ function isAbortError(err: unknown): boolean {
   return anyErr?.name === 'AbortError' || /aborted|AbortError|effect-cleanup|timeout|superseded/i.test(anyErr?.message ?? '');
 }
 
-async function fetchRouteViaBackend(params: {
-  origin: { latitude: number; longitude: number };
-  destination: { latitude: number; longitude: number };
-}, retryAttempt = 0): Promise<any> {
+async function fetchRouteViaBackend(
+  params: {
+    origin: { latitude: number; longitude: number };
+    destination: { latitude: number; longitude: number };
+  },
+  signal?: AbortSignal
+): Promise<any> {
   const { origin, destination } = params;
-  const MAX_RETRIES = 0;
   
   try {
-    console.log(`[useDriverRoute] Fetching route (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})...`);
+    console.log('[useDriverRoute] Fetching route...');
+    
+    const timeoutPromise = new Promise((_, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Request timeout'));
+      }, REQUEST_TIMEOUT_MS);
+      
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          clearTimeout(timeoutId);
+          reject(new Error('Request aborted'));
+        });
+      }
+    });
+    
     const result = await Promise.race([
       trpcClient.routing.getRoute.query({ origin, destination }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), REQUEST_TIMEOUT_MS)
-      )
+      timeoutPromise
     ]);
+    
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[useDriverRoute] Fetch error (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1}):`, errorMessage);
-    
-    if (retryAttempt < MAX_RETRIES && !errorMessage.includes('timeout')) {
-      const delay = 1000;
-      console.log(`[useDriverRoute] Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return fetchRouteViaBackend(params, retryAttempt + 1);
-    }
-    
+    console.error('[useDriverRoute] Fetch error:', errorMessage);
     throw error;
   }
 }
@@ -108,10 +115,13 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
         } catch {}
       }, REQUEST_TIMEOUT_MS);
 
-      const routeResult = await fetchRouteViaBackend({
-        origin,
-        destination,
-      });
+      const routeResult = await fetchRouteViaBackend(
+        {
+          origin,
+          destination,
+        },
+        controller.signal
+      );
 
       if (controller.signal.aborted) {
         console.warn('[useDriverRoute] Request was aborted, ignoring result');
