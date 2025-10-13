@@ -504,14 +504,14 @@ export default function CommandCenter() {
                   const lngDelta = region.longitudeDelta ?? 0;
                   
                   const outOfBounds =
-                    region.latitude > USA_BOUNDS.north + 3 ||
-                    region.latitude < USA_BOUNDS.south - 3 ||
-                    region.longitude < USA_BOUNDS.west - 8 ||
-                    region.longitude > USA_BOUNDS.east + 8;
+                    region.latitude > USA_BOUNDS.north + 8 ||
+                    region.latitude < USA_BOUNDS.south - 8 ||
+                    region.longitude < USA_BOUNDS.west - 20 ||
+                    region.longitude > USA_BOUNDS.east + 20;
 
-                  const tooZoomedOut = latDelta > 50 || lngDelta > 80;
+                  const tooZoomedOut = latDelta > 60 || lngDelta > 100;
                   const now = Date.now();
-                  const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 1000;
+                  const cooldownPassed = now - correctingRef.current.__lastCorrectionTs > 2000;
 
                   if ((outOfBounds || tooZoomedOut) && mapRef.current?.animateToRegion && !correctingRef.current.__isCorrecting && cooldownPassed) {
                     console.log('[Map] Correcting bounds - lat:', region.latitude, 'lng:', region.longitude, 'latDelta:', latDelta, 'lngDelta:', lngDelta);
