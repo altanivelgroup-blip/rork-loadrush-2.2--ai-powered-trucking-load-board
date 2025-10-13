@@ -104,12 +104,15 @@ async function seedShippers(file: string, db: ReturnType<typeof getFirestore>) {
 }
 
 async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
+  console.log(`[seedLoads] Reading ${file}`);
   const content = fs.readFileSync(file, 'utf-8');
   const rows = csvToObjects(content);
   let ok = 0;
   for (const r of rows) {
     const id = r.id;
     if (!id) continue;
+    const distance = Number(r.distance_miles ?? '0');
+    const rate = Number(r.rate_usd ?? '0');
     const payload = {
       id,
       shipperId: r.shipperId,
@@ -134,18 +137,18 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
         weight: Number(r.weight_lbs ?? '0'),
         description: r.description,
       },
-      rate: Number(r.rate_usd ?? '0'),
-      distance: Number(r.distance_miles ?? '0'),
-      ratePerMile: Number(r.rate_usd ?? '0') / Math.max(1, Number(r.distance_miles ?? '1')),
+      rate,
+      distance,
+      ratePerMile: rate / Math.max(1, distance || 1),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       matchedDriverId: r.matchedDriverId || undefined,
       matchedDriverName: r.matchedDriverName || undefined,
-    };
+    } as const;
     await setDoc(doc(db, 'loads', id), payload, { merge: true });
     ok += 1;
   }
-  console.log(`Loads seeded: ${ok}`);
+  console.log(`Loads seeded from ${path.basename(file)}: ${ok}`);
 }
 
 async function main() {
@@ -154,15 +157,21 @@ async function main() {
   const root = path.resolve(process.cwd(), 'scripts', 'data');
   const driversPath = path.join(root, 'drivers-vegas.csv');
   const shippersPath = path.join(root, 'shippers-vegas.csv');
-  const loadsPath = path.join(root, 'loads-lv-to-la.csv');
 
   if (!fs.existsSync(driversPath)) throw new Error(`Missing file: ${driversPath}`);
   if (!fs.existsSync(shippersPath)) throw new Error(`Missing file: ${shippersPath}`);
-  if (!fs.existsSync(loadsPath)) throw new Error(`Missing file: ${loadsPath}`);
 
   await seedDrivers(driversPath, db);
   await seedShippers(shippersPath, db);
-  await seedLoads(loadsPath, db);
+
+  const allFiles = fs.readdirSync(root);
+  const loadCsvs = allFiles.filter((f) => f.startsWith('loads-') && f.endsWith('.csv'));
+  if (loadCsvs.length === 0) {
+    throw new Error(`No load CSV files found in ${root}. Expected files like 'loads-*.csv'`);
+  }
+  for (const f of loadCsvs) {
+    await seedLoads(path.join(root, f), db);
+  }
 
   console.log('Seeding complete.');
 }
