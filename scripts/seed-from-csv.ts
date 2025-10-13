@@ -1,24 +1,8 @@
 /* eslint-disable no-console */
-import { initializeApp, type FirebaseOptions } from 'firebase/app';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getFirestore } from 'firebase/firestore';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-interface Env {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-}
-
-function getEnv(): Env {
-  const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? '';
-  const authDomain = process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? '';
-  const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? '';
-  if (!apiKey || !authDomain || !projectId) {
-    throw new Error('Missing Firebase env vars');
-  }
-  return { apiKey, authDomain, projectId };
-}
+import app from './firebase-node';
 
 function csvToObjects(csv: string): Record<string, string>[] {
   const lines = csv.trim().split(/\r?\n/);
@@ -165,14 +149,20 @@ async function seedLoads(file: string, db: ReturnType<typeof getFirestore>) {
 }
 
 async function main() {
-  const env = getEnv();
-  const app = initializeApp(env as FirebaseOptions);
   const db = getFirestore(app);
 
   const root = path.resolve(process.cwd(), 'scripts', 'data');
-  await seedDrivers(path.join(root, 'drivers-vegas.csv'), db);
-  await seedShippers(path.join(root, 'shippers-vegas.csv'), db);
-  await seedLoads(path.join(root, 'loads-lv-to-la.csv'), db);
+  const driversPath = path.join(root, 'drivers-vegas.csv');
+  const shippersPath = path.join(root, 'shippers-vegas.csv');
+  const loadsPath = path.join(root, 'loads-lv-to-la.csv');
+
+  if (!fs.existsSync(driversPath)) throw new Error(`Missing file: ${driversPath}`);
+  if (!fs.existsSync(shippersPath)) throw new Error(`Missing file: ${shippersPath}`);
+  if (!fs.existsSync(loadsPath)) throw new Error(`Missing file: ${loadsPath}`);
+
+  await seedDrivers(driversPath, db);
+  await seedShippers(shippersPath, db);
+  await seedLoads(loadsPath, db);
 
   console.log('Seeding complete.');
 }
