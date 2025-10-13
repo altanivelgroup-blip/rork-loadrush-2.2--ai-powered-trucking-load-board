@@ -11,6 +11,7 @@ export interface User {
 }
 
 export interface DriverProfile {
+  driverId?: string;
   firstName: string;
   lastName: string;
   phone: string;

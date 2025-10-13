@@ -46,14 +46,17 @@ async function resolveUserRole(
 
     try {
       const { db } = await import('@/config/firebase');
-      const { doc, getDoc } = await import('firebase/firestore');
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
 
       const collectionName = emailHint === 'shipper' ? 'shippers' : emailHint === 'admin' ? 'admins' : 'drivers';
-      console.log(`🔍 [resolveUserRole] Checking ${collectionName} collection for enhanced profile...`);
+      console.log(`🔍 [resolveUserRole] Querying ${collectionName} by email: ${email}`);
       
-      const userDoc = await getDoc(doc(db, collectionName, uid));
-      if (userDoc.exists()) {
-        console.log(`✅ [resolveUserRole] Enhanced profile found in ${collectionName}!`);
+      const q = query(collection(db, collectionName), where('email', '==', email));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0];
+        console.log(`✅ [resolveUserRole] Enhanced profile found in ${collectionName}! Doc ID: ${userDoc.id}`);
         const data = userDoc.data() as any;
         
         if (emailHint === 'shipper') {
@@ -68,6 +71,7 @@ async function resolveUserRole(
             ...data,
             firstName: data?.firstName || data?.name || 'Driver',
             lastName: data?.lastName || '',
+            driverId: data?.driverId || data?.id || userDoc.id,
           };
         } else {
           profile = {
@@ -76,7 +80,7 @@ async function resolveUserRole(
           };
         }
       } else {
-        console.log(`⚠️ [resolveUserRole] No Firestore document found - using default ${emailHint} profile`);
+        console.log(`⚠️ [resolveUserRole] No Firestore document found for email ${email} - using default ${emailHint} profile`);
       }
     } catch (firestoreError) {
       const errorMsg = firestoreError instanceof Error ? firestoreError.message : String(firestoreError);
@@ -95,7 +99,7 @@ async function resolveUserRole(
 
   try {
     const { db } = await import('@/config/firebase');
-    const { doc, getDoc } = await import('firebase/firestore');
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
 
     const collections: { name: string; role: UserRole }[] = [
       { name: 'drivers', role: 'driver' },
@@ -104,10 +108,13 @@ async function resolveUserRole(
     ];
 
     for (const { name, role } of collections) {
-      console.log(`🔍 [resolveUserRole] Checking ${name} collection...`);
-      const userDoc = await getDoc(doc(db, name, uid));
-      if (userDoc.exists()) {
-        console.log(`✅ [resolveUserRole] Found in ${name}!`);
+      console.log(`🔍 [resolveUserRole] Querying ${name} by email: ${email}`);
+      const q = query(collection(db, name), where('email', '==', email));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0];
+        console.log(`✅ [resolveUserRole] Found in ${name}! Doc ID: ${userDoc.id}`);
         detectedRole = role;
         const data = userDoc.data() as any;
         
@@ -123,6 +130,7 @@ async function resolveUserRole(
             ...data,
             firstName: data?.firstName || data?.name || 'Driver',
             lastName: data?.lastName || '',
+            driverId: data?.driverId || data?.id || userDoc.id,
           };
         } else {
           profile = {

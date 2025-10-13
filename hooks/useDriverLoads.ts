@@ -13,7 +13,9 @@ export interface DriverLoadMetrics {
 
 export function useDriverLoads() {
   const { user } = useAuth();
-  const driverId = user?.id;
+  const driverId = user?.role === 'driver' && user?.profile && 'driverId' in user.profile 
+    ? user.profile.driverId 
+    : user?.id;
   const [rawData, setRawData] = useState<Load[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
