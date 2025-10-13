@@ -1256,8 +1256,7 @@ function DriverPopup({ driver, animation, onClose }: DriverPopupProps) {
             <MapPin size={16} color="#60A5FA" />
             <Text style={styles.popupLabel}>Current Location</Text>
           </View>
-          <Text style={styles.popupValue}>{locationName.city}</Text>
-          {locationName.state && <Text style={styles.popupSubvalue}>{locationName.state}</Text>}
+          <Text style={styles.popupValue}>{locationName.city}{locationName.state ? `, ${locationName.state}` : ''}</Text>
         </View>
 
         {driver.currentLoad && (

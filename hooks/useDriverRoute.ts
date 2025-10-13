@@ -22,7 +22,7 @@ export interface UseDriverRouteParams {
 }
 
 const UPDATE_INTERVAL = 120000;
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 function isAbortError(err: unknown): boolean {
   if (!err) return false;
@@ -38,7 +38,7 @@ async function fetchRouteViaBackend(params: {
   destination: { latitude: number; longitude: number };
 }, retryAttempt = 0): Promise<any> {
   const { origin, destination } = params;
-  const MAX_RETRIES = 1;
+  const MAX_RETRIES = 0;
   
   try {
     console.log(`[useDriverRoute] Fetching route (attempt ${retryAttempt + 1}/${MAX_RETRIES + 1})...`);

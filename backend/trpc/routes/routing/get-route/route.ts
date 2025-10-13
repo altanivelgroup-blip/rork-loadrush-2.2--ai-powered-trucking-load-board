@@ -71,9 +71,6 @@ export const getRouteProcedure = publicProcedure
       return calculateStraightLineRoute(origin, destination);
     }
 
-    console.log('[getRouteProcedure] Using fallback straight-line route (ORS disabled for stability)');
-    return calculateStraightLineRoute(origin, destination);
-
     const body = {
       coordinates: [
         [origin.longitude, origin.latitude],
