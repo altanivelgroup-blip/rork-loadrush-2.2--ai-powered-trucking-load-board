@@ -29,19 +29,20 @@ export function useDriverLoads() {
 
     const now = Timestamp.now();
 
-    const constraintsAssigned: QueryConstraint[] = [
-      where('assignedDriverId', '==', driverId),
-      where('expiresAt', '>=', now),
-    ];
+    let qAssigned: ReturnType<typeof query> | null = null;
+    let qMatched: ReturnType<typeof query> | null = null;
 
-    const qAssigned = query(collection(db, 'loads'), ...constraintsAssigned);
+    if (driverId) {
+      const constraintsAssigned: QueryConstraint[] = [
+        where('assignedDriverId', '==', driverId),
+      ];
+      qAssigned = query(collection(db, 'loads'), ...constraintsAssigned);
 
-    const constraintsMatched: QueryConstraint[] = [
-      where('matchedDriverId', '==', driverId),
-      where('expiresAt', '>=', now),
-    ];
-
-    const qMatched = query(collection(db, 'loads'), ...constraintsMatched);
+      const constraintsMatched: QueryConstraint[] = [
+        where('matchedDriverId', '==', driverId),
+      ];
+      qMatched = query(collection(db, 'loads'), ...constraintsMatched);
+    }
 
     const nowIso = new Date().toISOString();
     const statuses = ['posted', 'matched', 'in_transit'] as const;
@@ -50,7 +51,6 @@ export function useDriverLoads() {
     try {
       // Always enable public loads for all drivers to see Command Center loads
       const constraintsPublic: QueryConstraint[] = [
-        where('expiresAt', '>=', Timestamp.now()),
         where('status', 'in', statuses as unknown as string[]),
       ];
       const qPublic = query(collection(db, 'loads'), ...constraintsPublic);
@@ -66,8 +66,11 @@ export function useDriverLoads() {
               updatedAt: data?.updatedAt?.toDate?.()?.toISOString?.() ?? data?.updatedAt ?? nowIso,
               expiresAt: data?.expiresAt?.toDate?.()?.toISOString?.() ?? data?.expiresAt ?? nowIso,
             } as Load;
+          }).filter((l) => {
+            const exp = l?.expiresAt ? new Date(l.expiresAt).getTime() : 0;
+            return exp >= new Date().getTime();
           });
-          console.log('[Driver Loads] Public loads snapshot:', list.length);
+          console.log('[Driver Loads] Public loads snapshot (filtered by expiresAt>=now):', list.length);
           setPublicData(list);
         },
         (err) => {
@@ -99,46 +102,62 @@ export function useDriverLoads() {
 
     let combined: Record<string, Load> = {};
 
-    const unsubAssigned = onSnapshot(
-      qAssigned,
-      (snapshot) => {
-        combined = nextStateFromSnapshot(combined, snapshot.docs);
-        const arr = Object.values(combined);
-        hasOwnLoadsRef.current = arr.length > 0;
-        console.log('[Driver Loads] Assigned loads snapshot:', arr.length);
-        setRawData(arr);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('[Driver Loads] Assigned listener error:', err);
-        setError(err as Error);
-        setLoading(false);
-      }
-    );
+    const unsubAssigned = qAssigned
+      ? onSnapshot(
+          qAssigned,
+          (snapshot) => {
+            combined = nextStateFromSnapshot(combined, snapshot.docs);
+            let arr = Object.values(combined);
+            arr = arr.filter((l) => {
+              const exp = l?.expiresAt ? new Date(l.expiresAt).getTime() : 0;
+              return exp >= new Date().getTime();
+            });
+            hasOwnLoadsRef.current = arr.length > 0;
+            console.log('[Driver Loads] Assigned loads snapshot (filtered by expiresAt>=now):', arr.length);
+            setRawData(arr);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error('[Driver Loads] Assigned listener error:', err);
+            setError(err as Error);
+            setLoading(false);
+          }
+        )
+      : () => {};
 
-    const unsubMatched = onSnapshot(
-      qMatched,
-      (snapshot) => {
-        combined = nextStateFromSnapshot(combined, snapshot.docs);
-        const arr = Object.values(combined);
-        hasOwnLoadsRef.current = hasOwnLoadsRef.current || arr.length > 0;
-        console.log('[Driver Loads] Matched loads snapshot merged:', arr.length);
-        setRawData(arr);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('[Driver Loads] Matched listener error:', err);
-        setError(err as Error);
-        setLoading(false);
-      }
-    );
+    const unsubMatched = qMatched
+      ? onSnapshot(
+          qMatched,
+          (snapshot) => {
+            combined = nextStateFromSnapshot(combined, snapshot.docs);
+            let arr = Object.values(combined);
+            arr = arr.filter((l) => {
+              const exp = l?.expiresAt ? new Date(l.expiresAt).getTime() : 0;
+              return exp >= new Date().getTime();
+            });
+            hasOwnLoadsRef.current = hasOwnLoadsRef.current || arr.length > 0;
+            console.log('[Driver Loads] Matched loads snapshot merged (filtered by expiresAt>=now):', arr.length);
+            setRawData(arr);
+            setLoading(false);
+            setError(null);
+          },
+          (err) => {
+            console.error('[Driver Loads] Matched listener error:', err);
+            setError(err as Error);
+            setLoading(false);
+          }
+        )
+      : () => {};
 
     return () => {
       console.log('[Driver Loads] Cleaning up listeners');
-      unsubAssigned();
-      unsubMatched();
+      if (unsubAssigned) {
+        try { unsubAssigned(); } catch (e) { console.log('[Driver Loads] Assigned unsubscribe error', e); }
+      }
+      if (unsubMatched) {
+        try { unsubMatched(); } catch (e) { console.log('[Driver Loads] Matched unsubscribe error', e); }
+      }
       if (unsubPublic) {
         try { unsubPublic(); } catch (e) { console.log('[Driver Loads] Public unsubscribe error', e); }
       }
