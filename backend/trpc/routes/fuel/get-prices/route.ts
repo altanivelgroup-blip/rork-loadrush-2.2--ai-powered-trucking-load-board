@@ -46,8 +46,8 @@ function makeKey(opts: { state?: string; city?: string; lat?: number; lon?: numb
 }
 
 async function fetchWithRetry(params: { fuelType?: 'diesel' | 'gasoline'; state?: string; city?: string; lat?: number; lon?: number }, attempt = 1): Promise<any | null> {
-  const MAX_ATTEMPTS = 4;
-  const TIMEOUT_MS = 15000;
+  const MAX_ATTEMPTS = 2;
+  const TIMEOUT_MS = 8000;
   try {
     console.log(`⛽ [Fuel API] Fetch attempt ${attempt}/${MAX_ATTEMPTS}`);
     const controller = new AbortController();
@@ -133,6 +133,33 @@ export const getFuelPricesRoute = publicProcedure
       console.log(`✅ [Fuel API] Response ready in ${elapsed}ms (source: memory_cache)`);
       return cached.data;
     }
+    
+    const getFallbackPayload = (): FuelPayload => {
+      let dieselPrice = 3.59;
+      let gasolinePrice = 3.45;
+      let dataSource = 'national_default';
+      
+      if (input.state && FALLBACK_BY_STATE[input.state]) {
+        const fb = FALLBACK_BY_STATE[input.state];
+        dieselPrice = fb.diesel;
+        gasolinePrice = fb.gasoline;
+        dataSource = 'state_fallback';
+      }
+      
+      return {
+        diesel: dieselPrice,
+        gasoline: gasolinePrice,
+        updatedAt: new Date().toISOString(),
+        scope: {
+          state: input.state ?? null,
+          city: input.city ?? null,
+          lat: input.lat ?? null,
+          lon: input.lon ?? null,
+        },
+        dataSource,
+      };
+    };
+    
     try {
       console.log(`⛽ [Fuel API] Request: fuelType=${input.fuelType}, state=${input.state ?? 'none'}, city=${input.city ?? 'none'}, lat=${input.lat ?? 'none'}, lon=${input.lon ?? 'none'}`);
       console.log(`🔗 [Fuel API] URL: ${FUEL_API_URL}`);
@@ -140,7 +167,7 @@ export const getFuelPricesRoute = publicProcedure
       let dieselPrice: number | null = null;
       let gasolinePrice: number | null = null;
       let dataSource = 'national_default';
-      if (FUEL_API_KEY) {
+      if (FUEL_API_KEY && FUEL_API_KEY !== '[YOUR_ACTUAL_API_KEY]') {
         const data = await fetchWithRetry({ fuelType: input.fuelType, state: input.state, city: input.city, lat: input.lat, lon: input.lon });
         if (data) {
           console.log(`✅ [Fuel API] Data received, parsing...`);
@@ -240,18 +267,10 @@ export const getFuelPricesRoute = publicProcedure
         console.log('🗄️ [Fuel API] Serving stale cache on error');
         return cachedError.data;
       }
-      return {
-        diesel: 3.59,
-        gasoline: 3.45,
-        updatedAt: new Date().toISOString(),
-        scope: {
-          state: input.state ?? null,
-          city: input.city ?? null,
-          lat: input.lat ?? null,
-          lon: input.lon ?? null,
-        },
-        dataSource: 'error_fallback',
-      };
+      const fallbackPayload = getFallbackPayload();
+      fallbackPayload.dataSource = 'error_fallback';
+      memoryCache.set(key, { data: fallbackPayload, savedAt: Date.now() });
+      return fallbackPayload;
     }
   });
 

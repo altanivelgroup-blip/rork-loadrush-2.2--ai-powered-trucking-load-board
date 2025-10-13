@@ -71,12 +71,12 @@ export function useFuelPrices(
     staleTime: CACHE_TTL_MS,
     gcTime: 30 * 60 * 1000,
     refetchInterval: 10 * 60 * 1000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(750 * Math.pow(2, attempt), 5000),
+    retry: 1,
+    retryDelay: 2000,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    networkMode: 'always',
+    networkMode: 'online',
     keepPreviousData: true,
   });
 
