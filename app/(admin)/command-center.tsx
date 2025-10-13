@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 
-import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map as MapIcon, RotateCcw, Pause, Play, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { RadioTower, MapPin, X, Navigation, Package, Clock, TrendingUp, Route, Monitor, Map as MapIcon, RotateCcw, Pause, Play, ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react-native';
 import { useCommandCenterDrivers, DriverStatus } from '@/hooks/useCommandCenterDrivers';
 import { useDriverRoute } from '@/hooks/useDriverRoute';
 import { useDriverPlayback, PlaybackLocation } from '@/hooks/useDriverPlayback';
@@ -400,7 +400,7 @@ export default function CommandCenter() {
       )}
 
       <View style={styles.content}>
-        {!projectorMode && Platform.OS === 'web' && (
+        {!projectorMode && (
           <TouchableOpacity
             style={[
               styles.sidebarToggleButton,
@@ -408,11 +408,12 @@ export default function CommandCenter() {
             ]}
             onPress={toggleSidebar}
             activeOpacity={0.8}
+            testID="sidebarToggleButton"
           >
             {sidebarCollapsed ? (
-              <ChevronRight size={20} color="#60A5FA" />
+              <PanelLeftOpen size={20} color="#60A5FA" />
             ) : (
-              <ChevronLeft size={20} color="#60A5FA" />
+              <PanelLeftClose size={20} color="#60A5FA" />
             )}
           </TouchableOpacity>
         )}
@@ -422,7 +423,7 @@ export default function CommandCenter() {
               styles.sidebar,
               isSmallScreen && styles.sidebarSmall,
               { opacity: fadeAnim },
-              Platform.OS === 'web' && {
+              {
                 width: sidebarAnimation.interpolate({
                   inputRange: [0, 1],
                   outputRange: [0, isTablet ? 320 : (isSmallScreen ? width * 0.35 : 400)],
@@ -1971,27 +1972,30 @@ const styles = StyleSheet.create({
     left: isTablet ? 320 : (isSmallScreen ? 280 : 400),
     top: '50%',
     zIndex: 1001,
-    width: 36,
-    height: 80,
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    width: 40,
+    height: 90,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
     borderWidth: 1,
     borderLeftWidth: 0,
-    borderColor: 'rgba(37, 99, 235, 0.4)',
+    borderColor: 'rgba(37, 99, 235, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#2563EB',
     shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
     ...(Platform.OS === 'web' && {
-      backdropFilter: 'blur(8px)',
+      backdropFilter: 'blur(10px)',
       transform: [{ translateY: '-50%' }],
     }),
   },
   sidebarToggleButtonCollapsed: {
     left: 0,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
   },
   sidebarSmall: {
     width: '35%',
