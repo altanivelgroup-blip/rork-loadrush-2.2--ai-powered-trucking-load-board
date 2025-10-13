@@ -61,10 +61,16 @@ export default function AdminSettings() {
           </View>
         ))}
 
-        <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-          <LogOut size={20} color={Colors.light.danger} />
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.signOutButtonBottom}
+            onPress={signOut}
+            activeOpacity={0.7}
+          >
+            <LogOut size={20} color="#fff" />
+            <Text style={styles.signOutButtonBottomText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -137,20 +143,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.light.textSecondary,
   },
-  logoutButton: {
+  signOutButtonBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.light.cardBackground,
+    backgroundColor: '#EF4444',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.light.danger + '40',
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  logoutText: {
+  signOutButtonBottomText: {
     fontSize: 16,
     fontWeight: '600' as const,
-    color: Colors.light.danger,
+    color: '#fff',
   },
 });
