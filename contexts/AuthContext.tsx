@@ -189,7 +189,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         console.log('⚠️ Auth timeout reached - proceeding without Firebase');
         setLoading(false);
       }
-    }, 2000);
+    }, 1000);
 
     let unsubscribe: (() => void) | null = null;
 
