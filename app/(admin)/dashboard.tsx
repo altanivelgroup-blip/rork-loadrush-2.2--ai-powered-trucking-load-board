@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensio
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Users, Package, CheckCircle, AlertTriangle, Truck, TrendingUp, LayoutDashboard, Menu, X } from 'lucide-react-native';
-import { useAdminAnalytics } from '@/hooks/useAdminAnalytics';
+import { useAdminRealtime } from '@/contexts/AdminRealtimeContext';
 
 type NavItem = {
   id: string;
@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const { width } = useWindowDimensions();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [timePeriod, setTimePeriod] = useState<'am' | 'pm'>('pm');
-  const analytics = useAdminAnalytics();
+  const analytics = useAdminRealtime();
 
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
