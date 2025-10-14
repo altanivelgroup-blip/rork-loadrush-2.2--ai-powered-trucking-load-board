@@ -11,13 +11,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { FileText, Download, Upload, ChevronDown, History, Save, BookmarkPlus } from 'lucide-react-native';
+import { FileText, Download, Upload, ChevronDown, History, Save, BookmarkPlus, CheckCircle } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { db } from '@/config/firebase';
+import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TemplateType = 'simple' | 'standard' | 'complete';
 
 export default function BulkUploadScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('simple');
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [showImportHistory, setShowImportHistory] = useState(false);
@@ -25,6 +30,8 @@ export default function BulkUploadScreen() {
   const [templateName, setTemplateName] = useState('');
   const [isPickingFile, setIsPickingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ success: number; failed: number } | null>(null);
 
   const templates = [
     {
@@ -104,13 +111,152 @@ export default function BulkUploadScreen() {
     }
   };
 
-  const handleProcessFile = (file: DocumentPicker.DocumentPickerAsset) => {
-    console.log('Processing file:', file.name);
-    Alert.alert(
-      'Processing File',
-      `File: ${file.name}\nTemplate: ${getTemplateInfo(selectedTemplate)?.name}\n\nIn production, this would:\n1. Parse CSV/Excel data\n2. Validate against template\n3. Create loads in Firestore\n4. Show import summary`,
-      [{ text: 'OK' }]
-    );
+  const parseCSV = (text: string): string[][] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    return lines.map(line => {
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      values.push(current.trim());
+      return values;
+    });
+  };
+
+  const handleProcessFile = async (file: DocumentPicker.DocumentPickerAsset) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to upload loads');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      console.log('[Bulk Upload] Processing file:', file.name);
+
+      const fileContent = await FileSystem.readAsStringAsync(file.uri);
+      console.log('[Bulk Upload] File content length:', fileContent.length);
+
+      const rows = parseCSV(fileContent);
+      console.log('[Bulk Upload] Parsed rows:', rows.length);
+
+      if (rows.length < 2) {
+        Alert.alert('Error', 'CSV file must have at least a header row and one data row');
+        setIsProcessing(false);
+        return;
+      }
+
+      const headers = rows[0].map(h => h.toLowerCase().trim());
+      const dataRows = rows.slice(1);
+
+      console.log('[Bulk Upload] Headers:', headers);
+      console.log('[Bulk Upload] Data rows:', dataRows.length);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      const now = Timestamp.now();
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+
+      for (const row of dataRows) {
+        try {
+          const rowData: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            rowData[header] = row[index] || '';
+          });
+
+          const originCity = rowData['origin'] || rowData['origin city'] || rowData['pickup city'] || '';
+          const originState = rowData['origin state'] || rowData['pickup state'] || '';
+          const destCity = rowData['destination'] || rowData['dest city'] || rowData['delivery city'] || '';
+          const destState = rowData['destination state'] || rowData['dest state'] || rowData['delivery state'] || '';
+          const vehicleType = rowData['vehicletype'] || rowData['vehicle type'] || rowData['vehicle'] || 'Flatbed';
+          const weight = parseFloat(rowData['weight'] || '0');
+          const price = parseFloat(rowData['price'] || '0');
+
+          if (!originCity || !destCity) {
+            console.warn('[Bulk Upload] Skipping row - missing origin or destination:', rowData);
+            failCount++;
+            continue;
+          }
+
+          const loadData = {
+            shipperId: user.id,
+            shipperEmail: user.email || '',
+            status: 'posted',
+            vehicleType,
+            weight,
+            price,
+            pickup: {
+              city: originCity,
+              state: originState,
+              address: rowData['origin address'] || rowData['pickup address'] || '',
+              date: rowData['pickup date'] || new Date().toISOString(),
+              time: rowData['pickup time'] || '08:00',
+              coordinates: {
+                latitude: parseFloat(rowData['origin lat'] || '0'),
+                longitude: parseFloat(rowData['origin lng'] || '0'),
+              },
+            },
+            dropoff: {
+              city: destCity,
+              state: destState,
+              address: rowData['destination address'] || rowData['delivery address'] || '',
+              date: rowData['delivery date'] || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+              time: rowData['delivery time'] || '17:00',
+              coordinates: {
+                latitude: parseFloat(rowData['destination lat'] || '0'),
+                longitude: parseFloat(rowData['destination lng'] || '0'),
+              },
+            },
+            distance: parseFloat(rowData['distance'] || '0'),
+            description: rowData['description'] || '',
+            requirements: rowData['requirements'] || '',
+            createdAt: now,
+            updatedAt: now,
+            expiresAt,
+          };
+
+          await addDoc(collection(db, 'loads'), loadData);
+          successCount++;
+          console.log('[Bulk Upload] Created load:', `${originCity} → ${destCity}`);
+        } catch (error) {
+          console.error('[Bulk Upload] Error creating load:', error);
+          failCount++;
+        }
+      }
+
+      setUploadResult({ success: successCount, failed: failCount });
+      setIsProcessing(false);
+
+      Alert.alert(
+        'Upload Complete',
+        `Successfully uploaded ${successCount} load(s).${failCount > 0 ? `\n${failCount} load(s) failed.` : ''}\n\nLoads are now live on your Loads page!`,
+        [
+          { text: 'View Loads', onPress: () => router.push('/(shipper)/loads') },
+          { text: 'OK' },
+        ]
+      );
+
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('[Bulk Upload] Error processing file:', error);
+      setIsProcessing(false);
+      Alert.alert(
+        'Error',
+        `Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const getTemplateInfo = (templateId: TemplateType) => {
@@ -281,14 +427,45 @@ export default function BulkUploadScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.processButton}
+                style={[styles.processButton, isProcessing && styles.processButtonDisabled]}
                 onPress={() => handleProcessFile(selectedFile)}
                 activeOpacity={0.8}
+                disabled={isProcessing}
               >
-                <Upload size={20} color="#fff" strokeWidth={2.5} />
-                <Text style={styles.processButtonText}>Process & Upload File</Text>
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Upload size={20} color="#fff" strokeWidth={2.5} />
+                )}
+                <Text style={styles.processButtonText}>
+                  {isProcessing ? 'Processing & Uploading...' : 'Process & Upload File'}
+                </Text>
               </TouchableOpacity>
             </>
+          )}
+
+          {uploadResult && (
+            <View style={styles.resultCard}>
+              <View style={styles.resultHeader}>
+                <CheckCircle size={24} color="#10B981" strokeWidth={2} />
+                <Text style={styles.resultTitle}>Upload Complete</Text>
+              </View>
+              <Text style={styles.resultText}>
+                ✅ {uploadResult.success} load(s) uploaded successfully
+              </Text>
+              {uploadResult.failed > 0 && (
+                <Text style={styles.resultTextFailed}>
+                  ❌ {uploadResult.failed} load(s) failed
+                </Text>
+              )}
+              <TouchableOpacity
+                style={styles.viewLoadsButton}
+                onPress={() => router.push('/(shipper)/loads')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.viewLoadsButtonText}>View Loads</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           <TouchableOpacity
@@ -623,6 +800,54 @@ const styles = StyleSheet.create({
   },
   processButtonText: {
     fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#fff',
+  },
+  processButtonDisabled: {
+    backgroundColor: '#6EE7B7',
+    opacity: 0.7,
+  },
+  resultCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  resultTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#065F46',
+  },
+  resultText: {
+    fontSize: 15,
+    color: '#047857',
+    marginBottom: 6,
+    fontWeight: '600' as const,
+  },
+  resultTextFailed: {
+    fontSize: 15,
+    color: '#DC2626',
+    marginBottom: 12,
+    fontWeight: '600' as const,
+  },
+  viewLoadsButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  viewLoadsButtonText: {
+    fontSize: 15,
     fontWeight: '700' as const,
     color: '#fff',
   },
