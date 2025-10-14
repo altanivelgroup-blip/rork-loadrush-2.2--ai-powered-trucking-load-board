@@ -92,17 +92,28 @@ export default function DriverDashboard() {
     );
   }
 
-  if (!profileLoading && !firestoreProfile && user?.id && !user.id.startsWith('test-') && !user.id.startsWith('DRIVER_TEST_')) {
+  if (!profileLoading && !firestoreProfile && user?.id) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <View style={styles.container}>
         <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
-        <AlertCircle size={64} color={Colors.light.danger} />
-        <Text style={styles.errorTitle}>No Profile Found</Text>
-        <Text style={styles.errorText}>Please contact admin to set up your driver profile.</Text>
-        <Text style={styles.errorSubtext}>UID: {user.id}</Text>
-        <TouchableOpacity style={styles.logoutButtonError} onPress={signOut}>
-          <Text style={styles.logoutButtonText}>Sign Out</Text>
-        </TouchableOpacity>
+        <View style={[styles.noProfileHeader, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.noProfileBadge}>
+            <Text style={styles.noProfileBadgeText}>DRIVER</Text>
+          </View>
+          <Text style={styles.noProfileTitle}>Dashboard</Text>
+          <Text style={styles.noProfileSubtitle}>Driver Portal</Text>
+        </View>
+        <View style={styles.noProfileContent}>
+          <View style={styles.noProfileIconContainer}>
+            <AlertCircle size={64} color={Colors.light.danger} strokeWidth={2} />
+          </View>
+          <Text style={styles.noProfileErrorTitle}>No Profile Found</Text>
+          <Text style={styles.noProfileErrorText}>Please contact admin to set up your driver profile.</Text>
+          <Text style={styles.noProfileErrorSubtext}>UID: {user.id}</Text>
+          <TouchableOpacity style={styles.noProfileSignOutButton} onPress={signOut}>
+            <Text style={styles.noProfileSignOutButtonText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -524,6 +535,86 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
+  },
+  noProfileHeader: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+    alignItems: 'flex-start',
+  },
+  noProfileBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  noProfileBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  noProfileTitle: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#000000',
+    marginBottom: 4,
+  },
+  noProfileSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  noProfileContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    backgroundColor: '#F9FAFB',
+  },
+  noProfileIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  noProfileErrorTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  noProfileErrorText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  noProfileErrorSubtext: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontFamily: 'monospace' as const,
+    marginBottom: 32,
+  },
+  noProfileSignOutButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 8,
+    minWidth: 140,
+    alignItems: 'center',
+  },
+  noProfileSignOutButtonText: {
+    fontSize: 15,
     fontWeight: '600' as const,
     color: '#FFFFFF',
   },
