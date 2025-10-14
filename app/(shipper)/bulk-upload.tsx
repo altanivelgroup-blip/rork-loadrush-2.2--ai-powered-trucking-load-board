@@ -88,17 +88,7 @@ export default function BulkUploadScreen() {
           uri: file.uri,
         });
 
-        Alert.alert(
-          'File Selected',
-          `${file.name}\n\nSize: ${(file.size / 1024).toFixed(2)} KB\n\nReady to process. In production, this would parse and validate the CSV/Excel data.`,
-          [
-            { text: 'OK' },
-            { 
-              text: 'Process File', 
-              onPress: () => handleProcessFile(file)
-            }
-          ]
-        );
+        console.log('File ready to process. User can now tap "Process & Upload File" button.');
       } else {
         console.log('File selection canceled');
       }
@@ -278,16 +268,27 @@ export default function BulkUploadScreen() {
           </TouchableOpacity>
 
           {selectedFile && (
-            <View style={styles.selectedFileCard}>
-              <View style={styles.selectedFileHeader}>
-                <FileText size={20} color="#10B981" strokeWidth={2} />
-                <Text style={styles.selectedFileTitle}>Selected File</Text>
+            <>
+              <View style={styles.selectedFileCard}>
+                <View style={styles.selectedFileHeader}>
+                  <FileText size={20} color="#10B981" strokeWidth={2} />
+                  <Text style={styles.selectedFileTitle}>Selected File</Text>
+                </View>
+                <Text style={styles.selectedFileName}>{selectedFile.name}</Text>
+                <Text style={styles.selectedFileSize}>
+                  {(selectedFile.size / 1024).toFixed(2)} KB
+                </Text>
               </View>
-              <Text style={styles.selectedFileName}>{selectedFile.name}</Text>
-              <Text style={styles.selectedFileSize}>
-                {(selectedFile.size / 1024).toFixed(2)} KB
-              </Text>
-            </View>
+
+              <TouchableOpacity
+                style={styles.processButton}
+                onPress={() => handleProcessFile(selectedFile)}
+                activeOpacity={0.8}
+              >
+                <Upload size={20} color="#fff" strokeWidth={2.5} />
+                <Text style={styles.processButtonText}>Process & Upload File</Text>
+              </TouchableOpacity>
+            </>
           )}
 
           <TouchableOpacity
@@ -603,6 +604,27 @@ const styles = StyleSheet.create({
   selectedFileSize: {
     fontSize: 13,
     color: '#059669',
+  },
+  processButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    gap: 10,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  processButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#fff',
   },
   historyButton: {
     flexDirection: 'row',
