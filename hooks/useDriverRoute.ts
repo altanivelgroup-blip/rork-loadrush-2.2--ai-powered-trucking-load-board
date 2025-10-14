@@ -65,6 +65,10 @@ async function fetchRouteViaBackend(
     
     return result;
   } catch (error) {
+    if (isAbortError(error)) {
+      console.log('[useDriverRoute] Request aborted (expected)');
+      throw error;
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[useDriverRoute] Fetch error:', errorMessage);
     throw error;
@@ -138,7 +142,7 @@ export function useDriverRoute({ origin, destination, enabled = true }: UseDrive
       setError(null);
     } catch (err) {
       if (isAbortError(err)) {
-        console.warn('[useDriverRoute] Request aborted');
+        console.log('[useDriverRoute] Request aborted (cleanup)');
         return;
       }
       console.error('[useDriverRoute] Error fetching route:', err);
