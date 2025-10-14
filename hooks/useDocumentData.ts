@@ -3,14 +3,30 @@ import { doc, onSnapshot, DocumentData } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
 export function useDocumentData<T = DocumentData>(
-  collectionName: string,
-  documentId: string | null
+  path: string
 ) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (!path) {
+      console.log(`[Firestore Listener] No path provided`);
+      setData(null);
+      setLoading(false);
+      return;
+    }
+
+    const pathParts = path.split('/');
+    if (pathParts.length !== 2) {
+      console.error(`[Firestore Listener] Invalid path format: ${path}. Expected format: collection/documentId`);
+      setData(null);
+      setLoading(false);
+      return;
+    }
+
+    const [collectionName, documentId] = pathParts;
+
     if (!documentId) {
       console.log(`[Firestore Listener] No document ID provided for ${collectionName}`);
       setData(null);
@@ -57,7 +73,7 @@ export function useDocumentData<T = DocumentData>(
       setError(err as Error);
       setLoading(false);
     }
-  }, [collectionName, documentId]);
+  }, [path]);
 
   return { data, loading, error };
 }
