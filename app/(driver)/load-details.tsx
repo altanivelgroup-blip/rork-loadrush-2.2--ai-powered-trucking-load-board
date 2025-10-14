@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDriverLoads } from '@/hooks/useDriverLoads';
@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DriverProfile } from '@/types';
 import { X, MapPin, Clock, DollarSign, TrendingUp, Fuel } from 'lucide-react-native';
 import { useFuelPrices } from '@/hooks/useFuelPrices';
+import PhotoUploader from '@/components/PhotoUploader';
 
 export default function LoadDetails() {
   const insets = useSafeAreaInsets();
@@ -43,16 +44,17 @@ export default function LoadDetails() {
       return null;
     }
 
+    const safeFuelPrice = Number.isFinite(fuelPrice) ? (fuelPrice as number) : 0;
     const gallonsNeeded = miles / mpg;
-    const fuelCost = gallonsNeeded * fuelPrice;
+    const fuelCost = gallonsNeeded * safeFuelPrice;
     const netProfit = rate - fuelCost;
-    const profitPerMile = netProfit / miles;
+    const profitPerMile = miles > 0 ? netProfit / miles : 0;
 
     return {
       miles,
       mpg,
       fuelType,
-      fuelPrice,
+      fuelPrice: safeFuelPrice,
       gallonsNeeded: gallonsNeeded.toFixed(1),
       fuelCost: fuelCost.toFixed(0),
       gross: rate,
@@ -62,10 +64,21 @@ export default function LoadDetails() {
   }, [load, mpg, fuelType, fuelPrice]);
 
   const handleAcceptLoad = async () => {
+    console.log('[LoadDetails] Accept Load pressed', { id, rate: load?.rate, distance: load?.distance });
     setIsAccepting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsAccepting(false);
     router.back();
+  };
+
+  const [photosModalVisible, setPhotosModalVisible] = useState<boolean>(false);
+  const openPhotos = () => {
+    console.log('[LoadDetails] Open Pickup/Delivery Photos modal');
+    setPhotosModalVisible(true);
+  };
+  const closePhotos = () => {
+    console.log('[LoadDetails] Close Photos modal');
+    setPhotosModalVisible(false);
   };
 
   if (loading || !load) {
@@ -109,7 +122,7 @@ export default function LoadDetails() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.statusBadgeContainer}>
@@ -213,16 +226,20 @@ export default function LoadDetails() {
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pickup/Delivery Photos</Text>
-          <View style={styles.photosPlaceholder}>
-            <Text style={styles.photosPlaceholderText}>Photos will be uploaded during pickup/delivery</Text>
-          </View>
-        </View>
+
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
         <TouchableOpacity
+          testID="photosButton"
+          style={styles.secondaryButton}
+          onPress={openPhotos}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.secondaryButtonText}>Pickup/Delivery Photos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          testID="acceptLoadButton"
           style={[styles.acceptButton, isAccepting && styles.acceptButtonDisabled]}
           onPress={handleAcceptLoad}
           disabled={isAccepting}
@@ -235,6 +252,31 @@ export default function LoadDetails() {
           )}
         </TouchableOpacity>
       </View>
+
+      <Modal
+        animationType="slide"
+        visible={photosModalVisible}
+        onRequestClose={closePhotos}
+        transparent
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pickup/Delivery Photos</Text>
+              <TouchableOpacity onPress={closePhotos} accessibilityRole="button" testID="closePhotosModal">
+                <X size={22} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <PhotoUploader
+              userId={user?.id ?? 'unknown-user'}
+              role="driver"
+              onUploaded={(url) => {
+                console.log('[LoadDetails] Photo uploaded for load', { loadId: load.id, url });
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -334,21 +376,14 @@ const styles = StyleSheet.create({
     color: '#92400E',
     textAlign: 'center',
   },
-  photosPlaceholder: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-  },
-  photosPlaceholderText: { fontSize: 13, fontWeight: '500', color: '#9CA3AF', textAlign: 'center' },
+
   footer: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    gap: 12,
   },
   acceptButton: {
     backgroundColor: '#2563EB',
@@ -357,6 +392,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  secondaryButton: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  secondaryButtonText: { fontSize: 16, fontWeight: '700', color: '#1D4ED8' },
   acceptButtonDisabled: { backgroundColor: '#93C5FD' },
   acceptButtonText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
 });
