@@ -8,9 +8,11 @@ import {
   Alert,
   TextInput,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { FileText, Download, Upload, ChevronDown, History, Save, BookmarkPlus } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
 
 type TemplateType = 'simple' | 'standard' | 'complete';
 
@@ -21,6 +23,8 @@ export default function BulkUploadScreen() {
   const [showImportHistory, setShowImportHistory] = useState(false);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [isPickingFile, setIsPickingFile] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
   const templates = [
     {
@@ -56,13 +60,67 @@ export default function BulkUploadScreen() {
     console.log(`Downloading template: ${templateId}`);
   };
 
-  const handleSelectFile = () => {
+  const handleSelectFile = async () => {
+    try {
+      setIsPickingFile(true);
+      console.log('Opening file picker...');
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      console.log('Document picker result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setSelectedFile(file);
+        
+        console.log('File selected:', {
+          name: file.name,
+          size: file.size,
+          mimeType: file.mimeType,
+          uri: file.uri,
+        });
+
+        Alert.alert(
+          'File Selected',
+          `${file.name}\n\nSize: ${(file.size / 1024).toFixed(2)} KB\n\nReady to process. In production, this would parse and validate the CSV/Excel data.`,
+          [
+            { text: 'OK' },
+            { 
+              text: 'Process File', 
+              onPress: () => handleProcessFile(file)
+            }
+          ]
+        );
+      } else {
+        console.log('File selection canceled');
+      }
+    } catch (error) {
+      console.error('Error picking file:', error);
+      Alert.alert(
+        'Error',
+        'Failed to select file. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPickingFile(false);
+    }
+  };
+
+  const handleProcessFile = (file: DocumentPicker.DocumentPickerAsset) => {
+    console.log('Processing file:', file.name);
     Alert.alert(
-      'Select File',
-      'File picker will open to select CSV/Excel file',
+      'Processing File',
+      `File: ${file.name}\nTemplate: ${getTemplateInfo(selectedTemplate)?.name}\n\nIn production, this would:\n1. Parse CSV/Excel data\n2. Validate against template\n3. Create loads in Firestore\n4. Show import summary`,
       [{ text: 'OK' }]
     );
-    console.log('Opening file picker');
   };
 
   const getTemplateInfo = (templateId: TemplateType) => {
@@ -204,13 +262,33 @@ export default function BulkUploadScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.selectFileButton}
+            style={[styles.selectFileButton, isPickingFile && styles.selectFileButtonDisabled]}
             onPress={handleSelectFile}
             activeOpacity={0.8}
+            disabled={isPickingFile}
           >
-            <Upload size={20} color="#fff" strokeWidth={2.5} />
-            <Text style={styles.selectFileButtonText}>Select CSV/Excel File</Text>
+            {isPickingFile ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Upload size={20} color="#fff" strokeWidth={2.5} />
+            )}
+            <Text style={styles.selectFileButtonText}>
+              {isPickingFile ? 'Opening File Picker...' : 'Select CSV/Excel File'}
+            </Text>
           </TouchableOpacity>
+
+          {selectedFile && (
+            <View style={styles.selectedFileCard}>
+              <View style={styles.selectedFileHeader}>
+                <FileText size={20} color="#10B981" strokeWidth={2} />
+                <Text style={styles.selectedFileTitle}>Selected File</Text>
+              </View>
+              <Text style={styles.selectedFileName}>{selectedFile.name}</Text>
+              <Text style={styles.selectedFileSize}>
+                {(selectedFile.size / 1024).toFixed(2)} KB
+              </Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.historyButton}
@@ -488,10 +566,43 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
   },
+  selectFileButtonDisabled: {
+    backgroundColor: '#93C5FD',
+    opacity: 0.7,
+  },
   selectFileButtonText: {
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#fff',
+  },
+  selectedFileCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  selectedFileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  selectedFileTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#065F46',
+  },
+  selectedFileName: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#047857',
+    marginBottom: 4,
+  },
+  selectedFileSize: {
+    fontSize: 13,
+    color: '#059669',
   },
   historyButton: {
     flexDirection: 'row',
