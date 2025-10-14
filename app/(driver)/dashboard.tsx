@@ -92,7 +92,9 @@ export default function DriverDashboard() {
     );
   }
 
-  if (!profileLoading && !firestoreProfile && user?.id) {
+  const isBypassUser = user?.id === 'driver-bypass' || user?.id === 'shipper-bypass' || user?.id === 'admin-bypass';
+  
+  if (!profileLoading && !firestoreProfile && user?.id && !isBypassUser && !profile) {
     return (
       <View style={styles.container}>
         <Stack.Screen options={{ title: 'Dashboard', headerShown: false }} />
