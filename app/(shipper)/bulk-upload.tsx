@@ -13,7 +13,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { FileText, Download, Upload, ChevronDown, History, Save, BookmarkPlus, CheckCircle } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 import { db } from '@/config/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
@@ -144,7 +144,17 @@ export default function BulkUploadScreen() {
       setIsProcessing(true);
       console.log('[Bulk Upload] Processing file:', file.name);
 
-      const fileContent = await FileSystem.readAsStringAsync(file.uri);
+      let fileContent: string;
+      
+      if (Platform.OS === 'web') {
+        const response = await fetch(file.uri);
+        const blob = await response.blob();
+        fileContent = await blob.text();
+      } else {
+        const FileSystem = await import('expo-file-system');
+        fileContent = await FileSystem.readAsStringAsync(file.uri);
+      }
+      
       console.log('[Bulk Upload] File content length:', fileContent.length);
 
       const rows = parseCSV(fileContent);
