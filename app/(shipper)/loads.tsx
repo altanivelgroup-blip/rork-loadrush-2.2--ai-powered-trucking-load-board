@@ -213,7 +213,7 @@ function LoadCardItem({ load }: { load: Load }) {
             </View>
             <View style={styles.loadRow}>
               <Text style={styles.loadLabel}>Rate:</Text>
-              <Text style={styles.loadValue}>${load.rate.toLocaleString()}</Text>
+              <Text style={styles.loadValue}>${load.rate?.toLocaleString() ?? 'N/A'}</Text>
             </View>
             <View style={styles.loadRow}>
               <Text style={styles.loadLabel}>Route:</Text>
