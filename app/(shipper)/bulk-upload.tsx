@@ -432,7 +432,7 @@ export default function BulkUploadScreen() {
                 </View>
                 <Text style={styles.selectedFileName}>{selectedFile.name}</Text>
                 <Text style={styles.selectedFileSize}>
-                  {(selectedFile.size / 1024).toFixed(2)} KB
+                  {selectedFile.size ? (selectedFile.size / 1024).toFixed(2) + ' KB' : 'Size unknown'}
                 </Text>
               </View>
 
