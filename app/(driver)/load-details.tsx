@@ -1,31 +1,46 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, TrendingUp, MapPin, Clock, Navigation, CheckCircle, Camera, ArrowRight } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { dummyLoads } from '@/mocks/dummyData';
+import { useDocumentData } from '@/hooks/useDocumentData';
+import { Load } from '@/types';
 import LoadCard from '@/components/LoadCard';
-
+	
 export default function LoadDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [loadAccepted, setLoadAccepted] = useState(false);
 
-  const load = dummyLoads.find((l) => l.id === id);
+  const { data: load, loading } = useDocumentData<Load>(`loads/${id}`);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Loading load details...</Text>
+      </View>
+    );
+  }
 
   if (!load) {
     return (
-      <View style={styles.container}>
-        <Text>Load not found</Text>
+      <View style={[styles.container, styles.centerContent]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Text style={styles.errorText}>Load not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   const handleAcceptLoad = () => {
     setLoadAccepted(true);
-    console.log('Load accepted');
+    console.log('Load accepted:', load.id);
   };
 
   const handleNavigateToPickup = () => {
@@ -33,9 +48,9 @@ export default function LoadDetailsScreen() {
     router.push({
       pathname: '/(driver)/navigation-screen',
       params: {
-        destinationLat: 32.7767,
-        destinationLng: -96.7970,
-        destinationName: `${load.pickup.city}, ${load.pickup.state}`,
+        destinationLat: load.pickup?.coordinates?.lat || 32.7767,
+        destinationLng: load.pickup?.coordinates?.lng || -96.7970,
+        destinationName: `${load.pickup?.city || 'Pickup'}, ${load.pickup?.state || ''}`,
       },
     });
   };
@@ -79,10 +94,10 @@ export default function LoadDetailsScreen() {
             <MapPin size={18} color="#10B981" />
             <View style={styles.locationInfo}>
               <Text style={styles.locationLabel}>Pickup</Text>
-              <Text style={styles.locationValue}>{load.pickup.city}, {load.pickup.state}</Text>
+              <Text style={styles.locationValue}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}</Text>
               <View style={styles.dateTimeRow}>
                 <Clock size={12} color="#6B7280" />
-                <Text style={styles.dateTimeText}>{load.pickup.date} • {load.pickup.time}</Text>
+                <Text style={styles.dateTimeText}>{load.pickup?.date || 'TBD'} • {load.pickup?.time || 'TBD'}</Text>
               </View>
             </View>
           </View>
@@ -93,10 +108,10 @@ export default function LoadDetailsScreen() {
             <MapPin size={18} color="#EF4444" />
             <View style={styles.locationInfo}>
               <Text style={styles.locationLabel}>Delivery</Text>
-              <Text style={styles.locationValue}>{load.dropoff.city}, {load.dropoff.state}</Text>
+              <Text style={styles.locationValue}>{load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}</Text>
               <View style={styles.dateTimeRow}>
                 <Clock size={12} color="#6B7280" />
-                <Text style={styles.dateTimeText}>{load.dropoff.date} • {load.dropoff.time}</Text>
+                <Text style={styles.dateTimeText}>{load.dropoff?.date || 'TBD'} • {load.dropoff?.time || 'TBD'}</Text>
               </View>
             </View>
           </View>
@@ -106,15 +121,15 @@ export default function LoadDetailsScreen() {
           <Text style={styles.cargoTitle}>Cargo Details</Text>
           <View style={styles.cargoRow}>
             <Text style={styles.cargoLabel}>Type:</Text>
-            <Text style={styles.cargoValue}>{load.cargo.type}</Text>
+            <Text style={styles.cargoValue}>{load.cargo?.type || 'N/A'}</Text>
           </View>
           <View style={styles.cargoRow}>
             <Text style={styles.cargoLabel}>Weight:</Text>
-            <Text style={styles.cargoValue}>{(load.cargo.weight / 1000).toFixed(1)}k lbs</Text>
+            <Text style={styles.cargoValue}>{load.cargo?.weight ? `${(load.cargo.weight / 1000).toFixed(1)}k lbs` : 'N/A'}</Text>
           </View>
           <View style={styles.cargoRow}>
             <Text style={styles.cargoLabel}>Description:</Text>
-            <Text style={styles.cargoValue}>{load.cargo.description}</Text>
+            <Text style={styles.cargoValue}>{load.cargo?.description || 'N/A'}</Text>
           </View>
         </View>
 
@@ -173,6 +188,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.light.background,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    marginBottom: 16,
+  },
+  backButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
