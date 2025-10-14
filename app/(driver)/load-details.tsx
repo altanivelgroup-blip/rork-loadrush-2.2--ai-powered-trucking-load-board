@@ -1,20 +1,69 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, TrendingUp, MapPin, Clock, Navigation, CheckCircle, Camera, ArrowRight } from 'lucide-react-native';
+import { X, MapPin, Clock, Navigation, CheckCircle, Truck, Package, DollarSign, Fuel, Zap, Volume2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useDocumentData } from '@/hooks/useDocumentData';
-import { Load } from '@/types';
-import LoadCard from '@/components/LoadCard';
+import { Load, DriverProfile } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { generateText } from '@rork/toolkit-sdk';
 	
+interface BackhaulLoad {
+  origin: string;
+  destination: string;
+  miles: number;
+  rate: number;
+  profitPerMile: number;
+  eta: string;
+  deadheadMiles: number;
+}
+
 export default function LoadDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [loadAccepted, setLoadAccepted] = useState(false);
+  const [showBackhaulModal, setShowBackhaulModal] = useState(false);
+  const [backhaulLoads, setBackhaulLoads] = useState<BackhaulLoad[]>([]);
+  const [loadingBackhaul, setLoadingBackhaul] = useState(false);
+  const [voiceGuidanceOn, setVoiceGuidanceOn] = useState(false);
+  const [showPhotosModal, setShowPhotosModal] = useState(false);
 
   const { data: load, loading } = useDocumentData<Load>(`loads/${id}`);
+
+  const analytics = useMemo(() => {
+    if (!load) return null;
+    
+    const driverProfile = user?.role === 'driver' ? (user.profile as DriverProfile) : null;
+    const mpg = driverProfile?.truckInfo?.mpg || 7.1;
+    const fuelType = driverProfile?.truckInfo?.fuelType || 'Diesel';
+    const fuelPrice = 3.85;
+    const miles = load?.distance || 0;
+    const rate = load?.rate || 0;
+
+    if (!miles || !rate) {
+      return null;
+    }
+
+    const gallonsNeeded = miles / mpg;
+    const fuelCost = gallonsNeeded * fuelPrice;
+    const netProfit = rate - fuelCost;
+    const profitPerMile = netProfit / miles;
+
+    return {
+      miles,
+      mpg,
+      fuelType,
+      fuelPrice,
+      gallonsNeeded: gallonsNeeded.toFixed(1),
+      fuelCost: fuelCost.toFixed(0),
+      gross: rate,
+      netProfit: netProfit.toFixed(0),
+      profitPerMile: profitPerMile.toFixed(2),
+    };
+  }, [load, user]);
 
   if (loading) {
     return (
@@ -59,8 +108,80 @@ export default function LoadDetailsScreen() {
     console.log('Confirm pickup with photos');
   };
 
-  const handleBackhaul = () => {
-    console.log('View backhaul options');
+  const handleBackhaul = async () => {
+    const driverProfile = user?.role === 'driver' ? (user.profile as DriverProfile) : null;
+    
+    if (!driverProfile?.truckInfo?.mpg || !load) {
+      return;
+    }
+
+    setShowBackhaulModal(true);
+    setLoadingBackhaul(true);
+
+    try {
+      const deliveryLocation = `${load.dropoff.city}, ${load.dropoff.state}`;
+      const vehicleType = driverProfile.truckInfo?.make + ' ' + driverProfile.truckInfo?.model || 'Semi Truck';
+      const trailerType = driverProfile.trailerInfo?.type || 'Dry Van';
+      const mpg = driverProfile.truckInfo?.mpg || 8.5;
+
+      const prompt = `You are a logistics AI assistant. Generate 5 realistic backhaul load opportunities for a truck driver.
+
+Driver Profile:
+- Vehicle: ${vehicleType}
+- Trailer: ${trailerType}
+- MPG: ${mpg}
+- Current Delivery Location: ${deliveryLocation}
+
+Find backhaul loads within 50 miles of ${deliveryLocation}.
+
+For each load, provide:
+1. Origin city and state (within 50 miles of ${deliveryLocation})
+2. Destination city and state (realistic long-haul destination)
+3. Miles (realistic distance)
+4. Rate (realistic rate based on miles, typically $1.50-$3.00 per mile)
+5. Deadhead miles (distance from ${deliveryLocation} to pickup)
+
+Calculate:
+- Fuel cost using ${mpg} MPG and $3.85/gallon
+- Net profit (rate - fuel cost)
+- Profit per mile (net profit / miles)
+- ETA (assume 55 mph average speed)
+
+Rank by best profit per mile.
+
+Return ONLY valid JSON array with this exact structure:
+[
+  {
+    "origin": "City, ST",
+    "destination": "City, ST",
+    "miles": 450,
+    "rate": 1350,
+    "profitPerMile": 2.15,
+    "eta": "Fri 3:45 PM",
+    "deadheadMiles": 12
+  }
+]
+
+No markdown, no explanation, just the JSON array.`;
+
+      const response = await generateText(prompt);
+      let cleanedResponse = response.trim();
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/```\n?/g, '');
+      }
+      
+      const parsedLoads = JSON.parse(cleanedResponse);
+      
+      if (Array.isArray(parsedLoads) && parsedLoads.length > 0) {
+        setBackhaulLoads(parsedLoads);
+      }
+    } catch (error) {
+      console.error('Error fetching backhaul loads:', error);
+    } finally {
+      setLoadingBackhaul(false);
+    }
   };
 
   return (
@@ -80,98 +201,240 @@ export default function LoadDetailsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <LoadCard 
-          load={load} 
-          mode="expanded" 
-          showAIScore={false}
-          onPress={() => {}}
-        />
-
-        <View style={styles.routeCard}>
-          <Text style={styles.routeCardTitle}>Route Details</Text>
-          
-          <View style={styles.locationRow}>
-            <MapPin size={18} color="#10B981" />
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationLabel}>Pickup</Text>
-              <Text style={styles.locationValue}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}</Text>
-              <View style={styles.dateTimeRow}>
-                <Clock size={12} color="#6B7280" />
-                <Text style={styles.dateTimeText}>{load.pickup?.date || 'TBD'} • {load.pickup?.time || 'TBD'}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.routeDivider} />
-
-          <View style={styles.locationRow}>
-            <MapPin size={18} color="#EF4444" />
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationLabel}>Delivery</Text>
-              <Text style={styles.locationValue}>{load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}</Text>
-              <View style={styles.dateTimeRow}>
-                <Clock size={12} color="#6B7280" />
-                <Text style={styles.dateTimeText}>{load.dropoff?.date || 'TBD'} • {load.dropoff?.time || 'TBD'}</Text>
-              </View>
-            </View>
-          </View>
+        <View style={styles.vehicleTypeBadge}>
+          <Truck size={14} color="#FFFFFF" />
+          <Text style={styles.vehicleTypeText}>{load.cargo?.type || 'FLATBED'}</Text>
         </View>
 
-        <View style={styles.cargoCard}>
-          <Text style={styles.cargoTitle}>Cargo Details</Text>
-          <View style={styles.cargoRow}>
-            <Text style={styles.cargoLabel}>Type:</Text>
-            <Text style={styles.cargoValue}>{load.cargo?.type || 'N/A'}</Text>
-          </View>
-          <View style={styles.cargoRow}>
-            <Text style={styles.cargoLabel}>Weight:</Text>
-            <Text style={styles.cargoValue}>{load.cargo?.weight ? `${(load.cargo.weight / 1000).toFixed(1)}k lbs` : 'N/A'}</Text>
-          </View>
-          <View style={styles.cargoRow}>
-            <Text style={styles.cargoLabel}>Description:</Text>
-            <Text style={styles.cargoValue}>{load.cargo?.description || 'N/A'}</Text>
-          </View>
+        <View style={styles.shipperSection}>
+          <Text style={styles.shipperLabel}>Unknown Shipper</Text>
+          <Text style={styles.routeText}>{load.pickup?.city || 'N/A'} to {load.dropoff?.city || 'N/A'}</Text>
         </View>
 
-        {load.aiScore && load.aiScore > 80 && (
-          <TouchableOpacity style={styles.backhaulBanner} onPress={handleBackhaul}>
-            <View style={styles.backhaulContent}>
-              <TrendingUp size={20} color="#FFFFFF" />
-              <View style={styles.backhaulTextContainer}>
-                <Text style={styles.backhaulTitle}>Smart Backhaul Available</Text>
-                <Text style={styles.backhaulSubtitle}>3 matches within 5 miles • Up to $950</Text>
+        <View style={styles.rateCard}>
+          <Text style={styles.rateLabel}>Total Rate</Text>
+          <Text style={styles.rateAmount}>${(load.rate || 0).toLocaleString()}</Text>
+          <Text style={styles.ratePerMile}>${(load.ratePerMile || 0).toFixed(2)} per mile</Text>
+        </View>
+
+        {analytics && (
+          <View style={styles.analyticsCard}>
+            <Text style={styles.analyticsTitle}>Live Analytics</Text>
+            
+            <View style={styles.analyticsRow}>
+              <View style={styles.analyticsItem}>
+                <Fuel size={16} color="#F59E0B" />
+                <Text style={styles.analyticsLabel}>Fuel Cost</Text>
+                <Text style={styles.analyticsCost}>${analytics.fuelCost}</Text>
+                <Text style={styles.analyticsSubtext}>{analytics.gallonsNeeded} gal @ {analytics.mpg} mpg (Driver)</Text>
               </View>
             </View>
-            <ArrowRight size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+
+            <View style={styles.analyticsRow}>
+              <View style={styles.analyticsItem}>
+                <DollarSign size={16} color="#10B981" />
+                <Text style={styles.analyticsLabel}>Net After Fuel</Text>
+                <Text style={styles.analyticsProfit}>${analytics.netProfit}</Text>
+              </View>
+            </View>
+          </View>
         )}
 
+        <View style={styles.detailsCard}>
+          <Text style={styles.detailsTitle}>{load.distance || 0} miles</Text>
+          
+          <View style={styles.detailRow}>
+            <Clock size={16} color="#6B7280" />
+            <Text style={styles.detailLabel}>ETA</Text>
+            <Text style={styles.detailValue}>—</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <MapPin size={16} color="#EF4444" />
+            <Text style={styles.detailLabel}>Delivery Location</Text>
+          </View>
+          <Text style={styles.detailLocationValue}>{load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}</Text>
+          <View style={styles.detailRow}>
+            <Clock size={14} color="#6B7280" />
+            <Text style={styles.detailDateText}>{load.dropoff?.date || 'TBD'}</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.backhaulBanner} onPress={handleBackhaul}>
+          <View style={styles.backhaulIconContainer}>
+            <Zap size={20} color="#FFFFFF" />
+          </View>
+          <View style={styles.backhaulTextContainer}>
+            <Text style={styles.backhaulTitle}>Smart Backhaul (560mi, 1492)</Text>
+            <Text style={styles.backhaulSubtitle}>5 smart matches found</Text>
+          </View>
+          <Zap size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <View style={styles.loadInfoCard}>
+          <Text style={styles.loadInfoTitle}>Load Information</Text>
+          
+          <View style={styles.loadInfoRow}>
+            <Package size={16} color="#6B7280" />
+            <Text style={styles.loadInfoLabel}>Weight</Text>
+            <Text style={styles.loadInfoValue}>{load.cargo?.weight ? `${(load.cargo.weight / 1000).toFixed(1)}k` : '0.0k'} lbs</Text>
+          </View>
+
+          <View style={styles.loadInfoRow}>
+            <Fuel size={16} color="#6B7280" />
+            <Text style={styles.loadInfoLabel}>Estimated Fuel</Text>
+            <Text style={styles.loadInfoValue}>—</Text>
+          </View>
+        </View>
+
+        <View style={styles.driverMetricsCard}>
+          <Text style={styles.driverMetricsTitle}>Driver Metrics</Text>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.photosButton}
+          onPress={() => setShowPhotosModal(true)}
+        >
+          <Text style={styles.photosButtonText}>Pickup/Delivery Photos</Text>
+        </TouchableOpacity>
+
         {loadAccepted && (
-          <View style={styles.acceptedSection}>
-            <View style={styles.acceptedHeader}>
-              <CheckCircle size={24} color="#10B981" />
-              <Text style={styles.acceptedTitle}>Load Accepted!</Text>
+          <View style={styles.navigationCard}>
+            <View style={styles.navigationHeader}>
+              <View style={styles.navigationIconBadge}>
+                <Text style={styles.navigationIconText}>⭕</Text>
+              </View>
+              <Text style={styles.navigationTitle}>Navigate to Pickup</Text>
             </View>
 
-            <TouchableOpacity style={styles.navigationButton} onPress={handleNavigateToPickup}>
+            <View style={styles.pickupLocationCard}>
+              <Text style={styles.pickupLocationLabel}>Pickup Location:</Text>
+              <Text style={styles.pickupLocationValue}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.navigateButton} onPress={handleNavigateToPickup}>
               <Navigation size={20} color="#FFFFFF" />
-              <Text style={styles.navigationButtonText}>Navigate to Pickup</Text>
+              <Text style={styles.navigateButtonText}>Navigate to Pickup</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.confirmPickupButton} onPress={handleConfirmPickup}>
-              <Camera size={20} color="#FFFFFF" />
-              <Text style={styles.confirmPickupButtonText}>Confirm Pickup with Photos</Text>
+            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmPickup}>
+              <CheckCircle size={20} color="#FFFFFF" />
+              <Text style={styles.confirmButtonText}>Confirm Pickup</Text>
             </TouchableOpacity>
 
-            {load.aiScore && load.aiScore > 80 && (
-              <TouchableOpacity style={styles.backhaulButton} onPress={handleBackhaul}>
-                <TrendingUp size={18} color="#FF9500" />
-                <Text style={styles.backhaulButtonText}>View Backhaul Options</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity 
+              style={styles.voiceButton}
+              onPress={() => setVoiceGuidanceOn(!voiceGuidanceOn)}
+            >
+              <Volume2 size={18} color="#6B7280" />
+              <Text style={styles.voiceButtonText}>Voice Guidance {voiceGuidanceOn ? 'On' : 'Off'}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.enhancedNavCard}>
+              <Clock size={14} color="#6B7280" />
+              <Text style={styles.enhancedNavText}>Enhanced navigation ready - tap to start pickup route</Text>
+            </View>
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={showBackhaulModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowBackhaulModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Smart Backhaul Matches</Text>
+            <TouchableOpacity onPress={() => setShowBackhaulModal(false)}>
+              <X size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {loadingBackhaul ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FF9500" />
+                <Text style={styles.loadingModalText}>Finding backhaul loads...</Text>
+              </View>
+            ) : backhaulLoads.length > 0 ? (
+              <>
+                <View style={styles.backhaulInfoBanner}>
+                  <Text style={styles.backhaulInfoText}>
+                    Showing loads within 50 miles of {load.dropoff.city}, {load.dropoff.state}
+                  </Text>
+                </View>
+                {backhaulLoads.map((backhaulLoad, index) => (
+                  <View key={index} style={styles.backhaulLoadCard}>
+                    <View style={styles.backhaulLoadHeader}>
+                      <View style={styles.backhaulRankBadge}>
+                        <Text style={styles.backhaulRankText}>#{index + 1}</Text>
+                      </View>
+                      <View style={styles.backhaulRateContainer}>
+                        <Text style={styles.backhaulRate}>${backhaulLoad.rate.toLocaleString()}</Text>
+                        <Text style={styles.backhaulProfitPerMile}>${backhaulLoad.profitPerMile}/mi</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.backhaulRouteContainer}>
+                      <View style={styles.backhaulLocationRow}>
+                        <MapPin size={14} color="#10B981" />
+                        <Text style={styles.backhaulLocationText}>{backhaulLoad.origin}</Text>
+                      </View>
+                      <View style={styles.backhaulArrow}>
+                        <Text style={styles.backhaulArrowText}>→</Text>
+                      </View>
+                      <View style={styles.backhaulLocationRow}>
+                        <MapPin size={14} color="#EF4444" />
+                        <Text style={styles.backhaulLocationText}>{backhaulLoad.destination}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.backhaulStatsGrid}>
+                      <View style={styles.backhaulStatItem}>
+                        <Text style={styles.backhaulStatLabel}>Miles</Text>
+                        <Text style={styles.backhaulStatValue}>{backhaulLoad.miles}</Text>
+                      </View>
+                      <View style={styles.backhaulStatItem}>
+                        <Text style={styles.backhaulStatLabel}>Deadhead</Text>
+                        <Text style={styles.backhaulStatValue}>{backhaulLoad.deadheadMiles} mi</Text>
+                      </View>
+                      <View style={styles.backhaulStatItem}>
+                        <Text style={styles.backhaulStatLabel}>ETA</Text>
+                        <Text style={styles.backhaulStatValue}>{backhaulLoad.eta}</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity style={styles.backhaulViewButton}>
+                      <Text style={styles.backhaulViewButtonText}>View Details</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </>
+            ) : null}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPhotosModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPhotosModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Pickup/Delivery Photos</Text>
+            <TouchableOpacity onPress={() => setShowPhotosModal(false)}>
+              <X size={24} color={Colors.light.text} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            <Text style={styles.photosPlaceholder}>Photo upload feature coming soon</Text>
+          </View>
+        </View>
+      </Modal>
 
       {!loadAccepted && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
@@ -239,78 +502,144 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
-
-  routeCard: {
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  routeCardTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.light.text,
-    marginBottom: 16,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  locationInfo: {
-    flex: 1,
-  },
-  locationLabel: {
-    fontSize: 12,
-    color: Colors.light.textSecondary,
-    marginBottom: 4,
-  },
-  locationValue: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.light.text,
-    marginBottom: 6,
-  },
-  dateTimeRow: {
+  vehicleTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-  },
-  dateTimeText: {
-    fontSize: 13,
-    color: Colors.light.textSecondary,
-  },
-  routeDivider: {
-    height: 1,
-    backgroundColor: Colors.light.border,
-    marginVertical: 16,
-  },
-  cargoCard: {
-    backgroundColor: Colors.light.cardBackground,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  cargoTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.light.text,
+    backgroundColor: '#1E40AF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
     marginBottom: 16,
   },
-  cargoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  vehicleTypeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  shipperSection: {
+    marginBottom: 20,
+  },
+  shipperLabel: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#1E40AF',
+    marginBottom: 4,
+  },
+  routeText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  rateCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  rateLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  rateAmount: {
+    fontSize: 36,
+    fontWeight: '700' as const,
+    color: '#10B981',
+    marginBottom: 4,
+  },
+  ratePerMile: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  analyticsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  analyticsTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  analyticsRow: {
     marginBottom: 12,
   },
-  cargoLabel: {
-    fontSize: 14,
-    color: Colors.light.textSecondary,
+  analyticsItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
   },
-  cargoValue: {
+  analyticsLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  analyticsCost: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#EF4444',
+    marginBottom: 4,
+  },
+  analyticsProfit: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  analyticsSubtext: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  detailsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  detailsTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+  },
+  detailValue: {
     fontSize: 14,
     fontWeight: '600' as const,
-    color: Colors.light.text,
-    flex: 1,
-    textAlign: 'right',
+    color: '#1F2937',
+  },
+  detailLocationValue: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#1F2937',
+    marginLeft: 24,
+    marginBottom: 4,
+  },
+  detailDateText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginLeft: 4,
   },
   backhaulBanner: {
     flexDirection: 'row',
@@ -318,93 +647,182 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#FF9500',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 20,
   },
-  backhaulContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
+  backhaulIconContainer: {
+    marginRight: 12,
   },
   backhaulTextContainer: {
     flex: 1,
   },
   backhaulTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700' as const,
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   backhaulSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#FFFFFF',
     opacity: 0.95,
   },
-  acceptedSection: {
-    backgroundColor: '#DCFCE7',
+  loadInfoCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
-    marginTop: 8,
-    borderWidth: 2,
-    borderColor: '#10B981',
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  acceptedHeader: {
+  loadInfoTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  loadInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  loadInfoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+  },
+  loadInfoValue: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#1F2937',
+  },
+  driverMetricsCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 20,
   },
-  acceptedTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: '#10B981',
-  },
-  navigationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#1E40AF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginBottom: 12,
-  },
-  navigationButtonText: {
+  driverMetricsTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
-    color: '#FFFFFF',
+    color: '#1F2937',
   },
-  confirmPickupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginBottom: 12,
-  },
-  confirmPickupButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#FFFFFF',
-  },
-  backhaulButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#FFFFFF',
+  photosButton: {
+    backgroundColor: '#E0E7FF',
     borderRadius: 12,
     paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  photosButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#3730A3',
+  },
+  navigationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
     borderWidth: 2,
     borderColor: '#FF9500',
   },
-  backhaulButtonText: {
+  navigationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  navigationIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navigationIconText: {
+    fontSize: 18,
+  },
+  navigationTitle: {
     fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1F2937',
+  },
+  pickupLocationCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  pickupLocationLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  pickupLocationValue: {
+    fontSize: 14,
     fontWeight: '600' as const,
-    color: '#FF9500',
+    color: '#1F2937',
+  },
+  navigateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#1E40AF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  navigateButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  confirmButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  voiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  voiceButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#6B7280',
+  },
+  enhancedNavCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 10,
+  },
+  enhancedNavText: {
+    fontSize: 12,
+    color: '#6B7280',
+    flex: 1,
   },
   footer: {
     backgroundColor: Colors.light.cardBackground,
@@ -423,5 +841,155 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700' as const,
     color: '#FFFFFF',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.light.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: Colors.light.cardBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  loadingModalText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.light.textSecondary,
+    marginTop: 16,
+  },
+  backhaulInfoBanner: {
+    backgroundColor: '#E0F2FE',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#7DD3FC',
+  },
+  backhaulInfoText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: '#0369A1',
+    textAlign: 'center',
+  },
+  backhaulLoadCard: {
+    backgroundColor: Colors.light.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FF9500',
+  },
+  backhaulLoadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backhaulRankBadge: {
+    backgroundColor: '#FF9500',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  backhaulRankText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  backhaulRateContainer: {
+    alignItems: 'flex-end',
+  },
+  backhaulRate: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#10B981',
+  },
+  backhaulProfitPerMile: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#059669',
+  },
+  backhaulRouteContainer: {
+    marginBottom: 12,
+  },
+  backhaulLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  backhaulLocationText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.light.text,
+  },
+  backhaulArrow: {
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  backhaulArrowText: {
+    fontSize: 18,
+    color: Colors.light.textSecondary,
+  },
+  backhaulStatsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  backhaulStatItem: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  backhaulStatLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  backhaulStatValue: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.light.text,
+  },
+  backhaulViewButton: {
+    backgroundColor: '#FF9500',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  backhaulViewButtonText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  photosPlaceholder: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 40,
   },
 });
