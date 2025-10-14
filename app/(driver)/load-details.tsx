@@ -1,14 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, MapPin, Clock, Navigation, CheckCircle, Truck, Package, DollarSign, Fuel, Zap, Volume2 } from 'lucide-react-native';
+import { X, MapPin, Clock, Navigation, CheckCircle, Truck, Package, DollarSign, Fuel, Zap, Volume2, Phone, MessageCircle, AlertCircle, Camera } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useDocumentData } from '@/hooks/useDocumentData';
 import { Load, DriverProfile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateText } from '@rork/toolkit-sdk';
-	
+import { db } from '@/config/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+
 interface BackhaulLoad {
   origin: string;
   destination: string;
@@ -30,6 +32,7 @@ export default function LoadDetailsScreen() {
   const [loadingBackhaul, setLoadingBackhaul] = useState(false);
   const [voiceGuidanceOn, setVoiceGuidanceOn] = useState(false);
   const [showPhotosModal, setShowPhotosModal] = useState(false);
+  const [accepting, setAccepting] = useState(false);
 
   const { data: load, loading } = useDocumentData<Load>(`loads/${id}`);
 
@@ -79,7 +82,9 @@ export default function LoadDetailsScreen() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Stack.Screen options={{ headerShown: false }} />
+        <AlertCircle size={64} color="#EF4444" />
         <Text style={styles.errorText}>Load not found</Text>
+        <Text style={styles.errorSubtext}>This load may have been removed or is no longer available</Text>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -87,31 +92,66 @@ export default function LoadDetailsScreen() {
     );
   }
 
-  const handleAcceptLoad = () => {
-    setLoadAccepted(true);
-    console.log('Load accepted:', load.id);
+  const handleAcceptLoad = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to accept loads');
+      return;
+    }
+
+    setAccepting(true);
+    try {
+      const loadRef = doc(db, 'loads', load.id);
+      await updateDoc(loadRef, {
+        status: 'matched',
+        matchedDriverId: user.id,
+        matchedDriverName: user.role === 'driver' && user.profile 
+          ? `${(user.profile as DriverProfile).firstName} ${(user.profile as DriverProfile).lastName}`
+          : user.email,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      setLoadAccepted(true);
+      Alert.alert('Success', 'Load accepted! Navigate to pickup location to begin.');
+      console.log('[Load Details] Load accepted:', load.id);
+    } catch (error) {
+      console.error('[Load Details] Error accepting load:', error);
+      Alert.alert('Error', 'Failed to accept load. Please try again.');
+    } finally {
+      setAccepting(false);
+    }
   };
 
   const handleNavigateToPickup = () => {
-    console.log('Navigate to pickup');
+    console.log('[Load Details] Navigate to pickup');
     router.push({
       pathname: '/(driver)/navigation-screen',
       params: {
-        destinationLat: load.pickup?.coordinates?.lat || 32.7767,
-        destinationLng: load.pickup?.coordinates?.lng || -96.7970,
+        destinationLat: load.pickup?.coordinates?.lat || 36.1699,
+        destinationLng: load.pickup?.coordinates?.lng || -115.1398,
         destinationName: `${load.pickup?.city || 'Pickup'}, ${load.pickup?.state || ''}`,
       },
     });
   };
 
   const handleConfirmPickup = () => {
-    console.log('Confirm pickup with photos');
+    Alert.alert(
+      'Confirm Pickup',
+      'Have you picked up the load? Please upload photos to confirm.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Upload Photos', 
+          onPress: () => setShowPhotosModal(true)
+        },
+      ]
+    );
   };
 
   const handleBackhaul = async () => {
     const driverProfile = user?.role === 'driver' ? (user.profile as DriverProfile) : null;
     
     if (!driverProfile?.truckInfo?.mpg || !load) {
+      Alert.alert('Setup Required', 'Add MPG in your Vehicle Profile to unlock Backhaul analytics.');
       return;
     }
 
@@ -178,11 +218,22 @@ No markdown, no explanation, just the JSON array.`;
         setBackhaulLoads(parsedLoads);
       }
     } catch (error) {
-      console.error('Error fetching backhaul loads:', error);
+      console.error('[Load Details] Error fetching backhaul loads:', error);
+      Alert.alert('Error', 'Failed to load backhaul options. Please try again.');
     } finally {
       setLoadingBackhaul(false);
     }
   };
+
+  const handleCallShipper = () => {
+    Alert.alert('Call Shipper', 'Contact shipper at: (555) 123-4567');
+  };
+
+  const handleMessageShipper = () => {
+    Alert.alert('Message Shipper', 'Messaging feature coming soon');
+  };
+
+  const isLoadAccepted = loadAccepted || load.status === 'matched' || load.status === 'in_transit';
 
   return (
     <View style={styles.container}>
@@ -201,62 +252,99 @@ No markdown, no explanation, just the JSON array.`;
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.vehicleTypeBadge}>
-          <Truck size={14} color="#FFFFFF" />
-          <Text style={styles.vehicleTypeText}>{load.cargo?.type || 'FLATBED'}</Text>
+        <View style={styles.statusHeader}>
+          <View style={styles.vehicleTypeBadge}>
+            <Truck size={14} color="#FFFFFF" />
+            <Text style={styles.vehicleTypeText}>{load.cargo?.type || 'FLATBED'}</Text>
+          </View>
+          
+          {isLoadAccepted && (
+            <View style={styles.acceptedBadge}>
+              <CheckCircle size={14} color="#FFFFFF" />
+              <Text style={styles.acceptedBadgeText}>ACCEPTED</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.shipperSection}>
-          <Text style={styles.shipperLabel}>Unknown Shipper</Text>
-          <Text style={styles.routeText}>{load.pickup?.city || 'N/A'} to {load.dropoff?.city || 'N/A'}</Text>
+          <Text style={styles.shipperLabel}>{load.shipperName || 'Unknown Shipper'}</Text>
+          <Text style={styles.routeText}>
+            {load.pickup?.city || 'N/A'}, {load.pickup?.state || ''} → {load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}
+          </Text>
+          <Text style={styles.loadIdText}>Load ID: {load.id}</Text>
         </View>
 
         <View style={styles.rateCard}>
           <Text style={styles.rateLabel}>Total Rate</Text>
           <Text style={styles.rateAmount}>${(load.rate || 0).toLocaleString()}</Text>
           <Text style={styles.ratePerMile}>${(load.ratePerMile || 0).toFixed(2)} per mile</Text>
+          <Text style={styles.distanceText}>{load.distance || 0} miles</Text>
         </View>
 
         {analytics && (
           <View style={styles.analyticsCard}>
-            <Text style={styles.analyticsTitle}>Live Analytics</Text>
+            <Text style={styles.analyticsTitle}>💰 Live Fuel Analytics</Text>
             
-            <View style={styles.analyticsRow}>
+            <View style={styles.analyticsGrid}>
               <View style={styles.analyticsItem}>
-                <Fuel size={16} color="#F59E0B" />
+                <Fuel size={18} color="#F59E0B" />
                 <Text style={styles.analyticsLabel}>Fuel Cost</Text>
                 <Text style={styles.analyticsCost}>${analytics.fuelCost}</Text>
-                <Text style={styles.analyticsSubtext}>{analytics.gallonsNeeded} gal @ {analytics.mpg} mpg (Driver)</Text>
+                <Text style={styles.analyticsSubtext}>{analytics.gallonsNeeded} gal @ {analytics.mpg} mpg</Text>
               </View>
-            </View>
 
-            <View style={styles.analyticsRow}>
               <View style={styles.analyticsItem}>
-                <DollarSign size={16} color="#10B981" />
-                <Text style={styles.analyticsLabel}>Net After Fuel</Text>
+                <DollarSign size={18} color="#10B981" />
+                <Text style={styles.analyticsLabel}>Net Profit</Text>
                 <Text style={styles.analyticsProfit}>${analytics.netProfit}</Text>
+                <Text style={styles.analyticsSubtext}>After fuel costs</Text>
+              </View>
+
+              <View style={styles.analyticsItem}>
+                <Zap size={18} color="#3B82F6" />
+                <Text style={styles.analyticsLabel}>Profit/Mile</Text>
+                <Text style={styles.analyticsValue}>${analytics.profitPerMile}</Text>
+                <Text style={styles.analyticsSubtext}>Per mile driven</Text>
               </View>
             </View>
           </View>
         )}
 
         <View style={styles.detailsCard}>
-          <Text style={styles.detailsTitle}>{load.distance || 0} miles</Text>
+          <Text style={styles.detailsTitle}>📍 Pickup Location</Text>
           
-          <View style={styles.detailRow}>
-            <Clock size={16} color="#6B7280" />
-            <Text style={styles.detailLabel}>ETA</Text>
-            <Text style={styles.detailValue}>—</Text>
+          <View style={styles.locationRow}>
+            <MapPin size={16} color="#10B981" />
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationCity}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}</Text>
+              <Text style={styles.locationAddress}>{load.pickup?.location || 'Address not provided'}</Text>
+            </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <MapPin size={16} color="#EF4444" />
-            <Text style={styles.detailLabel}>Delivery Location</Text>
-          </View>
-          <Text style={styles.detailLocationValue}>{load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}</Text>
-          <View style={styles.detailRow}>
+          <View style={styles.timeRow}>
             <Clock size={14} color="#6B7280" />
-            <Text style={styles.detailDateText}>{load.dropoff?.date || 'TBD'}</Text>
+            <Text style={styles.timeText}>
+              {load.pickup?.date || 'TBD'} at {load.pickup?.time || 'TBD'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.detailsCard}>
+          <Text style={styles.detailsTitle}>🎯 Delivery Location</Text>
+          
+          <View style={styles.locationRow}>
+            <MapPin size={16} color="#EF4444" />
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationCity}>{load.dropoff?.city || 'N/A'}, {load.dropoff?.state || ''}</Text>
+              <Text style={styles.locationAddress}>{load.dropoff?.location || 'Address not provided'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.timeRow}>
+            <Clock size={14} color="#6B7280" />
+            <Text style={styles.timeText}>
+              {load.dropoff?.date || 'TBD'} at {load.dropoff?.time || 'TBD'}
+            </Text>
           </View>
         </View>
 
@@ -265,61 +353,78 @@ No markdown, no explanation, just the JSON array.`;
             <Zap size={20} color="#FFFFFF" />
           </View>
           <View style={styles.backhaulTextContainer}>
-            <Text style={styles.backhaulTitle}>Smart Backhaul (560mi, 1492)</Text>
-            <Text style={styles.backhaulSubtitle}>5 smart matches found</Text>
+            <Text style={styles.backhaulTitle}>🚀 Smart Backhaul Finder</Text>
+            <Text style={styles.backhaulSubtitle}>Find your next load after delivery</Text>
           </View>
           <Zap size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.loadInfoCard}>
-          <Text style={styles.loadInfoTitle}>Load Information</Text>
+          <Text style={styles.loadInfoTitle}>📦 Cargo Information</Text>
           
           <View style={styles.loadInfoRow}>
             <Package size={16} color="#6B7280" />
-            <Text style={styles.loadInfoLabel}>Weight</Text>
-            <Text style={styles.loadInfoValue}>{load.cargo?.weight ? `${(load.cargo.weight / 1000).toFixed(1)}k` : '0.0k'} lbs</Text>
+            <Text style={styles.loadInfoLabel}>Type</Text>
+            <Text style={styles.loadInfoValue}>{load.cargo?.type || 'N/A'}</Text>
           </View>
 
           <View style={styles.loadInfoRow}>
-            <Fuel size={16} color="#6B7280" />
-            <Text style={styles.loadInfoLabel}>Estimated Fuel</Text>
-            <Text style={styles.loadInfoValue}>—</Text>
+            <Package size={16} color="#6B7280" />
+            <Text style={styles.loadInfoLabel}>Weight</Text>
+            <Text style={styles.loadInfoValue}>
+              {load.cargo?.weight ? `${(load.cargo.weight / 1000).toFixed(1)}k lbs` : 'N/A'}
+            </Text>
+          </View>
+
+          <View style={styles.loadInfoRow}>
+            <Package size={16} color="#6B7280" />
+            <Text style={styles.loadInfoLabel}>Description</Text>
+          </View>
+          <Text style={styles.loadInfoDescription}>
+            {load.cargo?.description || 'No description provided'}
+          </Text>
+        </View>
+
+        <View style={styles.contactCard}>
+          <Text style={styles.contactTitle}>📞 Contact Shipper</Text>
+          
+          <View style={styles.contactButtons}>
+            <TouchableOpacity style={styles.contactButton} onPress={handleCallShipper}>
+              <Phone size={18} color="#FFFFFF" />
+              <Text style={styles.contactButtonText}>Call</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.contactButton} onPress={handleMessageShipper}>
+              <MessageCircle size={18} color="#FFFFFF" />
+              <Text style={styles.contactButtonText}>Message</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.driverMetricsCard}>
-          <Text style={styles.driverMetricsTitle}>Driver Metrics</Text>
-        </View>
-
-        <TouchableOpacity 
-          style={styles.photosButton}
-          onPress={() => setShowPhotosModal(true)}
-        >
-          <Text style={styles.photosButtonText}>Pickup/Delivery Photos</Text>
-        </TouchableOpacity>
-
-        {loadAccepted && (
+        {isLoadAccepted && (
           <View style={styles.navigationCard}>
             <View style={styles.navigationHeader}>
               <View style={styles.navigationIconBadge}>
-                <Text style={styles.navigationIconText}>⭕</Text>
+                <Navigation size={20} color="#1E40AF" />
               </View>
-              <Text style={styles.navigationTitle}>Navigate to Pickup</Text>
+              <Text style={styles.navigationTitle}>Navigation & Tracking</Text>
             </View>
 
             <View style={styles.pickupLocationCard}>
-              <Text style={styles.pickupLocationLabel}>Pickup Location:</Text>
-              <Text style={styles.pickupLocationValue}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}</Text>
+              <Text style={styles.pickupLocationLabel}>Next Stop: Pickup Location</Text>
+              <Text style={styles.pickupLocationValue}>
+                {load.pickup?.city || 'N/A'}, {load.pickup?.state || ''}
+              </Text>
             </View>
 
             <TouchableOpacity style={styles.navigateButton} onPress={handleNavigateToPickup}>
               <Navigation size={20} color="#FFFFFF" />
-              <Text style={styles.navigateButtonText}>Navigate to Pickup</Text>
+              <Text style={styles.navigateButtonText}>Start Navigation</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmPickup}>
-              <CheckCircle size={20} color="#FFFFFF" />
-              <Text style={styles.confirmButtonText}>Confirm Pickup</Text>
+              <Camera size={20} color="#FFFFFF" />
+              <Text style={styles.confirmButtonText}>Confirm Pickup (Upload Photos)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -327,13 +432,10 @@ No markdown, no explanation, just the JSON array.`;
               onPress={() => setVoiceGuidanceOn(!voiceGuidanceOn)}
             >
               <Volume2 size={18} color="#6B7280" />
-              <Text style={styles.voiceButtonText}>Voice Guidance {voiceGuidanceOn ? 'On' : 'Off'}</Text>
+              <Text style={styles.voiceButtonText}>
+                Voice Guidance {voiceGuidanceOn ? 'On' : 'Off'}
+              </Text>
             </TouchableOpacity>
-
-            <View style={styles.enhancedNavCard}>
-              <Clock size={14} color="#6B7280" />
-              <Text style={styles.enhancedNavText}>Enhanced navigation ready - tap to start pickup route</Text>
-            </View>
           </View>
         )}
       </ScrollView>
@@ -425,21 +527,36 @@ No markdown, no explanation, just the JSON array.`;
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Pickup/Delivery Photos</Text>
+            <Text style={styles.modalTitle}>Upload Pickup Photos</Text>
             <TouchableOpacity onPress={() => setShowPhotosModal(false)}>
               <X size={24} color={Colors.light.text} />
             </TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
-            <Text style={styles.photosPlaceholder}>Photo upload feature coming soon</Text>
+            <View style={styles.photoUploadPlaceholder}>
+              <Camera size={64} color="#9CA3AF" />
+              <Text style={styles.photosPlaceholder}>Photo upload feature coming soon</Text>
+              <Text style={styles.photosSubtext}>Take photos of the cargo and BOL</Text>
+            </View>
           </View>
         </View>
       </Modal>
 
-      {!loadAccepted && (
+      {!isLoadAccepted && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <TouchableOpacity style={styles.acceptButton} onPress={handleAcceptLoad}>
-            <Text style={styles.acceptButtonText}>Accept Load</Text>
+          <TouchableOpacity 
+            style={[styles.acceptButton, accepting && styles.acceptButtonDisabled]} 
+            onPress={handleAcceptLoad}
+            disabled={accepting}
+          >
+            {accepting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <CheckCircle size={20} color="#FFFFFF" />
+                <Text style={styles.acceptButtonText}>Accept Load</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -463,18 +580,26 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   errorText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '700' as const,
     color: '#EF4444',
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
   },
   backButton: {
     backgroundColor: '#2563EB',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
   },
   backButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600' as const,
     color: '#FFFFFF',
   },
@@ -502,6 +627,12 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   vehicleTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -510,10 +641,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 16,
   },
   vehicleTypeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  acceptedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  acceptedBadgeText: {
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#FFFFFF',
@@ -522,21 +665,29 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   shipperLabel: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700' as const,
     color: '#1E40AF',
     marginBottom: 4,
   },
   routeText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 15,
+    fontWeight: '500' as const,
+    color: '#4B5563',
+    marginBottom: 4,
+  },
+  loadIdText: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   rateCard: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F0FDF4',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
     marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#10B981',
   },
   rateLabel: {
     fontSize: 14,
@@ -544,12 +695,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rateAmount: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '700' as const,
     color: '#10B981',
     marginBottom: 4,
   },
   ratePerMile: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#059669',
+    marginBottom: 4,
+  },
+  distanceText: {
     fontSize: 14,
     color: '#6B7280',
   },
@@ -568,34 +725,43 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
   },
-  analyticsRow: {
-    marginBottom: 12,
+  analyticsGrid: {
+    flexDirection: 'row',
+    gap: 12,
   },
   analyticsItem: {
+    flex: 1,
     backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   analyticsLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     marginTop: 8,
     marginBottom: 4,
   },
   analyticsCost: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700' as const,
     color: '#EF4444',
     marginBottom: 4,
   },
   analyticsProfit: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700' as const,
     color: '#10B981',
+    marginBottom: 4,
+  },
+  analyticsValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#3B82F6',
+    marginBottom: 4,
   },
   analyticsSubtext: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#9CA3AF',
     textAlign: 'center',
   },
@@ -603,43 +769,44 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   detailsTitle: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: '#1F2937',
     marginBottom: 12,
   },
-  detailRow: {
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 8,
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationCity: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  locationAddress: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
+    marginTop: 8,
   },
-  detailLabel: {
-    fontSize: 14,
+  timeText: {
+    fontSize: 13,
     color: '#6B7280',
-    flex: 1,
-  },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#1F2937',
-  },
-  detailLocationValue: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#1F2937',
-    marginLeft: 24,
-    marginBottom: 4,
-  },
-  detailDateText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginLeft: 4,
   },
   backhaulBanner: {
     flexDirection: 'row',
@@ -697,28 +864,45 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#1F2937',
   },
-  driverMetricsCard: {
-    backgroundColor: '#F3F4F6',
+  loadInfoDescription: {
+    fontSize: 13,
+    color: '#4B5563',
+    marginLeft: 24,
+    marginTop: 4,
+  },
+  contactCard: {
+    backgroundColor: '#EFF6FF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
-  driverMetricsTitle: {
+  contactTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
     color: '#1F2937',
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  photosButton: {
-    backgroundColor: '#E0E7FF',
+  contactButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  contactButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
     borderRadius: 12,
     paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 20,
   },
-  photosButtonText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#3730A3',
+  contactButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   navigationCard: {
     backgroundColor: '#FFFFFF',
@@ -735,15 +919,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   navigationIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEF3C7',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  navigationIconText: {
-    fontSize: 18,
   },
   navigationTitle: {
     fontSize: 16,
@@ -762,7 +943,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pickupLocationValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600' as const,
     color: '#1F2937',
   },
@@ -804,25 +985,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     paddingVertical: 12,
-    marginBottom: 12,
   },
   voiceButtonText: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: '#6B7280',
-  },
-  enhancedNavCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 10,
-  },
-  enhancedNavText: {
-    fontSize: 12,
-    color: '#6B7280',
-    flex: 1,
   },
   footer: {
     backgroundColor: Colors.light.cardBackground,
@@ -832,10 +999,16 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.light.border,
   },
   acceptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#1E40AF',
     borderRadius: 12,
     paddingVertical: 16,
-    alignItems: 'center',
+  },
+  acceptButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
   acceptButtonText: {
     fontSize: 18,
@@ -986,10 +1159,22 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
+  photoUploadPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
   photosPlaceholder: {
     fontSize: 16,
+    fontWeight: '600' as const,
     color: '#6B7280',
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: 16,
+  },
+  photosSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
