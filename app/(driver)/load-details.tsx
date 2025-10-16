@@ -74,8 +74,7 @@ export default function LoadDetails() {
     setIsAccepting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsAccepting(false);
-    Alert.alert('Success', 'Load accepted successfully!');
-    router.back();
+    Alert.alert('Success', 'Load accepted successfully! You can now navigate to pickup.');
   };
 
   const handleNavigateToPickup = () => {
