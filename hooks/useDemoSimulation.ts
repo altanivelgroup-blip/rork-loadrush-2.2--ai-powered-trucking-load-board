@@ -160,7 +160,7 @@ export function useDemoSimulation(): UseDemoSimulationReturn {
     setProgress(0);
 
     const maxDuration = Math.max(...configs.map(c => c.durationSeconds));
-    const updateIntervalMs = 200;
+    const updateIntervalMs = 2000;
 
     intervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
