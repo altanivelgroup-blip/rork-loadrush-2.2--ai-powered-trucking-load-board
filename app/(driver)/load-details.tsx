@@ -84,8 +84,24 @@ export default function LoadDetails() {
       return;
     }
     console.log('[LoadDetails] Navigate to pickup:', load.pickup.location);
-    setNavigationReady(true);
-    Alert.alert('Navigation', 'Enhanced navigation ready - tap to start pickup route');
+    
+    const destinationName = `${load.pickup.city}, ${load.pickup.state}`;
+    const destinationLat = load.pickup.lat || 0;
+    const destinationLng = load.pickup.lng || 0;
+
+    if (destinationLat === 0 || destinationLng === 0) {
+      Alert.alert('Error', 'Pickup coordinates not available');
+      return;
+    }
+
+    router.push({
+      pathname: '/(driver)/navigation-screen',
+      params: {
+        destinationLat: destinationLat.toString(),
+        destinationLng: destinationLng.toString(),
+        destinationName: destinationName,
+      },
+    });
   };
 
   const handleConfirmPickup = () => {
