@@ -16,6 +16,7 @@ export interface EnhancedDriverData {
   state: string;
   highway: string;
   active: boolean;
+  avgMPG: number;
   simulationRoute?: Array<{ lat: number; lng: number; timestamp: number }>;
 }
 
@@ -34,6 +35,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "TX",
     highway: "I-45 N",
     active: true,
+    avgMPG: 6.8,
   },
   {
     driverId: "DRV-031",
@@ -49,6 +51,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "TX",
     highway: "I-35 N",
     active: true,
+    avgMPG: 7.2,
   },
   {
     driverId: "DRV-032",
@@ -64,6 +67,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "AZ",
     highway: "I-10 W",
     active: true,
+    avgMPG: 6.5,
   },
   {
     driverId: "DRV-033",
@@ -79,6 +83,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "CA",
     highway: "I-10 W",
     active: true,
+    avgMPG: 7.1,
   },
   {
     driverId: "DRV-034",
@@ -94,6 +99,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "CO",
     highway: "I-70 E",
     active: true,
+    avgMPG: 6.9,
   },
   {
     driverId: "DRV-035",
@@ -109,6 +115,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "IL",
     highway: "I-80 E",
     active: true,
+    avgMPG: 7.4,
   },
   {
     driverId: "DRV-036",
@@ -124,6 +131,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "NY",
     highway: "I-80 E",
     active: true,
+    avgMPG: 6.6,
   },
   {
     driverId: "DRV-037",
@@ -139,6 +147,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "FL",
     highway: "I-95 N",
     active: true,
+    avgMPG: 7.0,
   },
   {
     driverId: "DRV-038",
@@ -154,6 +163,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "GA",
     highway: "I-75 N",
     active: true,
+    avgMPG: 6.7,
   },
   {
     driverId: "DRV-039",
@@ -169,6 +179,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "WA",
     highway: "I-5 N",
     active: true,
+    avgMPG: 7.3,
   },
   {
     driverId: "DRV-040",
@@ -184,6 +195,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "OR",
     highway: "I-5 S",
     active: true,
+    avgMPG: 6.4,
   },
   {
     driverId: "DRV-041",
@@ -199,6 +211,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "CA",
     highway: "I-5 S",
     active: true,
+    avgMPG: 7.5,
   },
   {
     driverId: "DRV-042",
@@ -214,6 +227,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "CA",
     highway: "I-5 S",
     active: true,
+    avgMPG: 6.3,
   },
   {
     driverId: "DRV-043",
@@ -229,6 +243,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "NV",
     highway: "I-15 N",
     active: true,
+    avgMPG: 7.6,
   },
   {
     driverId: "DRV-044",
@@ -244,6 +259,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "UT",
     highway: "I-15 N",
     active: true,
+    avgMPG: 6.2,
   },
   {
     driverId: "DRV-045",
@@ -259,6 +275,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "NC",
     highway: "I-85 N",
     active: true,
+    avgMPG: 7.8,
   },
   {
     driverId: "DRV-046",
@@ -274,6 +291,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "PA",
     highway: "I-95 S",
     active: true,
+    avgMPG: 6.1,
   },
   {
     driverId: "DRV-047",
@@ -289,6 +307,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "MA",
     highway: "I-95 S",
     active: true,
+    avgMPG: 7.7,
   },
   {
     driverId: "DRV-048",
@@ -304,6 +323,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "DC",
     highway: "I-95 S",
     active: true,
+    avgMPG: 6.9,
   },
   {
     driverId: "DRV-049",
@@ -319,6 +339,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "TN",
     highway: "I-40 W",
     active: true,
+    avgMPG: 7.1,
   },
   {
     driverId: "DRV-050",
@@ -334,6 +355,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "TN",
     highway: "I-65 N",
     active: true,
+    avgMPG: 6.5,
   },
   {
     driverId: "DRV-051",
@@ -349,6 +371,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "IN",
     highway: "I-65 N",
     active: true,
+    avgMPG: 7.9,
   },
   {
     driverId: "DRV-052",
@@ -364,6 +387,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "MO",
     highway: "I-70 W",
     active: true,
+    avgMPG: 6.8,
   },
   {
     driverId: "DRV-053",
@@ -379,6 +403,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "WI",
     highway: "I-94 N",
     active: true,
+    avgMPG: 7.4,
   },
   {
     driverId: "DRV-054",
@@ -394,6 +419,7 @@ export const enhancedDriversData: EnhancedDriverData[] = [
     state: "MN",
     highway: "I-35 S",
     active: true,
+    avgMPG: 6.6,
   },
 ];
 
