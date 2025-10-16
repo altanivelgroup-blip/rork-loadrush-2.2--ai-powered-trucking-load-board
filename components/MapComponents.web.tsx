@@ -133,7 +133,7 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
             latLngBounds: { north: USA_BOUNDS.north, south: USA_BOUNDS.south, west: USA_BOUNDS.west, east: USA_BOUNDS.east },
             strictBounds: false,
           },
-          styles: darkMapStyles,
+          styles: lightMapStyles,
         });
         console.log('[WebMap] Map initialized with draggable: true, gestureHandling: greedy');
         googleMapRef.current = map;
@@ -581,14 +581,21 @@ function injectPulseCSS() {
   document.head.appendChild(style);
 }
 
-const darkMapStyles: any = [
-  { elementType: 'geometry', stylers: [{ color: '#0b1224' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#94A3B8' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0b1224' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+const lightMapStyles: any = [
+  { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'on' }] },
+  { featureType: 'administrative.land_parcel', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#fefefe' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
+  { featureType: 'road.highway', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.local', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1f2a44' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2b3a5e' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0a142b' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e6f5' }] },
+  { featureType: 'water', elementType: 'labels.text', stylers: [{ visibility: 'off' }] },
 ];
