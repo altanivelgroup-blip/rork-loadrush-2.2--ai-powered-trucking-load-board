@@ -172,57 +172,71 @@ export default function AdminDashboard() {
         <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
           <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
             <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Total Active Loads</Text>
-              <Text style={styles.metricValue}>{analytics.activeLoads.toLocaleString()}</Text>
+              <Text style={styles.metricTitle}>All Active Drivers</Text>
+              <Text style={styles.metricValue}>{analytics.driverStatusCounts.total.toLocaleString()}</Text>
             </View>
             <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
-              <Package size={40} color="#2563EB" />
+              <Users size={40} color="#2563EB" />
             </View>
             <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
           </View>
 
           <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
             <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Delivered Loads</Text>
-              <Text style={styles.metricValue}>{analytics.deliveredLoads.toLocaleString()}</Text>
-              <Text style={styles.metricSubtitle}>
-                {analytics.loadCounts.total > 0
-                  ? ((analytics.deliveredLoads / analytics.loadCounts.total) * 100).toFixed(2)
-                  : '0.00'}%
-              </Text>
+              <Text style={styles.metricTitle}>Pickup Status</Text>
+              <Text style={styles.metricValue}>{analytics.driverStatusCounts.pickup.toLocaleString()}</Text>
             </View>
             <View style={[styles.metricIconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <CheckCircle size={40} color="#10B981" />
+              <Package size={40} color="#22C55E" />
             </View>
-            <View style={[styles.progressBar, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.progressBar, { backgroundColor: '#22C55E' }]} />
           </View>
 
           <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
             <View style={styles.metricContent}>
-              <Text style={styles.metricTitle}>Delayed or Pending</Text>
-              <Text style={styles.metricValue}>{analytics.delayedLoads.toLocaleString()}</Text>
-              <Text style={styles.metricSubtitle}>
-                {analytics.loadCounts.total > 0
-                  ? ((analytics.delayedLoads / analytics.loadCounts.total) * 100).toFixed(2)
-                  : '0.00'}%
-              </Text>
+              <Text style={styles.metricTitle}>Breakdown / Delay</Text>
+              <Text style={styles.metricValue}>{analytics.driverStatusCounts.breakdown.toLocaleString()}</Text>
             </View>
             <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
-              <AlertTriangle size={40} color="#F59E0B" />
+              <AlertTriangle size={40} color="#EF4444" />
             </View>
-            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
+            <View style={[styles.progressBar, { backgroundColor: '#EF4444' }]} />
           </View>
         </View>
 
-        <View style={[styles.metricCard, { marginBottom: 24 }]}>
-          <View style={styles.metricContent}>
-            <Text style={styles.metricTitle}>In-Transit Shipments</Text>
-            <Text style={styles.metricValue}>{analytics.inTransitLoads.toLocaleString()}</Text>
+        <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>In Transit</Text>
+              <Text style={styles.metricValue}>{analytics.driverStatusCounts.in_transit.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Truck size={40} color="#F59E0B" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#F59E0B' }]} />
           </View>
-          <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
-            <Truck size={40} color="#8B5CF6" />
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Accomplished</Text>
+              <Text style={styles.metricValue}>{analytics.driverStatusCounts.accomplished.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#EDE9FE' }]}>
+              <CheckCircle size={40} color="#8B5CF6" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
           </View>
-          <View style={[styles.progressBar, { backgroundColor: '#8B5CF6' }]} />
+
+          <View style={[styles.metricCard, isMobile && styles.metricCardMobile]}>
+            <View style={styles.metricContent}>
+              <Text style={styles.metricTitle}>Total Active Loads</Text>
+              <Text style={styles.metricValue}>{analytics.loadCounts.total.toLocaleString()}</Text>
+            </View>
+            <View style={[styles.metricIconContainer, { backgroundColor: '#DBEAFE' }]}>
+              <Package size={40} color="#2563EB" />
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: '#2563EB' }]} />
+          </View>
         </View>
 
         <View style={[styles.metricsRow, isMobile && styles.metricsColumn]}>
@@ -268,7 +282,7 @@ export default function AdminDashboard() {
             <Text style={styles.aiInsightTitle}>LoadRush AI Insight</Text>
           </View>
           <Text style={styles.aiInsightContent}>
-            Live data connected. {analytics.loadCounts.total} total loads tracked. Average rate of ${analytics.avgRate.toFixed(2)}/mile with {analytics.avgMPG.toFixed(1)} MPG efficiency. {analytics.activeLoads} loads currently active.
+            Live data connected. {analytics.driverStatusCounts.total} total drivers tracked. Pickup: {analytics.driverStatusCounts.pickup}, In Transit: {analytics.driverStatusCounts.in_transit}, Accomplished: {analytics.driverStatusCounts.accomplished}, Breakdown: {analytics.driverStatusCounts.breakdown}. Average rate of ${analytics.avgRate.toFixed(2)}/mile with {analytics.avgMPG.toFixed(1)} MPG efficiency. {analytics.loadCounts.total} total loads tracked.
           </Text>
         </View>
       </>

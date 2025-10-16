@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { collection, onSnapshot, orderBy, query, Timestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -27,9 +27,18 @@ export interface AdminStatusCounts {
   total: number;
 }
 
+export interface AdminDriverStatusCounts {
+  pickup: number;
+  in_transit: number;
+  accomplished: number;
+  breakdown: number;
+  total: number;
+}
+
 export interface AdminRealtimeState {
   loadCounts: AdminStatusCounts;
   driverCount: number;
+  driverStatusCounts: AdminDriverStatusCounts;
   shipperCount: number;
   recentLoads: AdminRecentLoad[];
   loadsByDay: { date: string; count: number }[];
@@ -64,6 +73,7 @@ export const [AdminRealtimeProvider, useAdminRealtime] = createContextHook<Admin
   const [state, setState] = useState<AdminRealtimeState>({
     loadCounts: { active: 0, pending: 0, delivered: 0, cancelled: 0, total: 0 },
     driverCount: 0,
+    driverStatusCounts: { pickup: 0, in_transit: 0, accomplished: 0, breakdown: 0, total: 0 },
     shipperCount: 0,
     recentLoads: [],
     loadsByDay: [],
@@ -157,7 +167,26 @@ export const [AdminRealtimeProvider, useAdminRealtime] = createContextHook<Admin
       driversQ,
       (snap) => {
         console.log('[AdminRealtime][drivers] snapshot size:', snap.size);
-        setState((p) => ({ ...p, driverCount: snap.size }));
+        
+        const driverStatusCounts: AdminDriverStatusCounts = { pickup: 0, in_transit: 0, accomplished: 0, breakdown: 0, total: snap.size };
+        
+        snap.forEach((doc) => {
+          const data = doc.data();
+          const status = data.status?.toLowerCase();
+          
+          if (status === 'pickup') {
+            driverStatusCounts.pickup++;
+          } else if (status === 'in_transit' || status === 'active') {
+            driverStatusCounts.in_transit++;
+          } else if (status === 'accomplished' || status === 'completed') {
+            driverStatusCounts.accomplished++;
+          } else if (status === 'breakdown') {
+            driverStatusCounts.breakdown++;
+          }
+        });
+        
+        console.log('[AdminRealtime][drivers] status counts:', driverStatusCounts);
+        setState((p) => ({ ...p, driverCount: snap.size, driverStatusCounts }));
       },
       (err) => console.error('[AdminRealtime][drivers] error:', err)
     );
