@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Package, TrendingUp, Eye, PlusCircle, Upload, FileText } from 'lucide-react-native';
 
 interface StatCardProps {
@@ -69,8 +70,32 @@ export default function PostLoadsScreen() {
     router.push('/(shipper)/load-templates');
   };
 
+  const handleQuickPostLoad = () => {
+    router.push('/(shipper)/post-single-load');
+  };
+
+  const handleQuickBulkUpload = () => {
+    router.push('/(shipper)/bulk-upload');
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Post & Manage Loads',
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTitleStyle: {
+            fontSize: 20,
+            fontWeight: '700' as const,
+            color: '#1a1a1a',
+          },
+
+        }}
+      />
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={styles.subtitle}>Create new postings and manage existing ones</Text>
@@ -105,9 +130,9 @@ export default function PostLoadsScreen() {
             />
 
             <ActionCard
-              icon={<Upload size={28} color="#3b82f6" />}
+              icon={<Upload size={28} color="#10b981" />}
               title="Bulk Upload (CSV)"
-              description="Import multiple loads from CSV file"
+              description="Upload multiple loads via CSV or Excel file"
               onPress={handleBulkUpload}
             />
 
@@ -119,31 +144,10 @@ export default function PostLoadsScreen() {
             />
           </View>
 
-          <View style={styles.quickActionsSection}>
-            <Text style={styles.quickActionsTitle}>Quick Actions</Text>
-            <View style={styles.quickActionsButtons}>
-              <TouchableOpacity 
-                style={styles.quickActionButton}
-                onPress={handlePostSingleLoad}
-                activeOpacity={0.8}
-              >
-                <PlusCircle size={20} color="#fff" />
-                <Text style={styles.quickActionButtonText}>Post Load</Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.quickActionButtonOutline}
-                onPress={handleBulkUpload}
-                activeOpacity={0.8}
-              >
-                <Upload size={20} color="#3b82f6" />
-                <Text style={styles.quickActionButtonOutlineText}>Bulk Upload</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -157,8 +161,8 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
   },
+
   subtitle: {
     fontSize: 14,
     color: '#6b7280',
@@ -203,7 +207,7 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     gap: 16,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   actionCard: {
     backgroundColor: '#fff',
@@ -240,54 +244,5 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     lineHeight: 18,
   },
-  quickActionsSection: {
-    marginTop: 8,
-  },
-  quickActionsTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#1a1a1a',
-    marginBottom: 16,
-  },
-  quickActionsButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  quickActionButton: {
-    flex: 1,
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  quickActionButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#fff',
-  },
-  quickActionButtonOutline: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: '#3b82f6',
-  },
-  quickActionButtonOutlineText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#3b82f6',
-  },
+
 });
