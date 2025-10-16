@@ -17,6 +17,7 @@ export default function LoadDetails() {
   const { activeLoads, loading } = useDriverLoads();
   const { user } = useAuth();
   const [isAccepting, setIsAccepting] = useState(false);
+  const [loadAccepted, setLoadAccepted] = useState(false);
   const [voiceGuidanceOn, setVoiceGuidanceOn] = useState(false);
   const [navigationReady, setNavigationReady] = useState(false);
   const [showBackhaulModal, setShowBackhaulModal] = useState(false);
@@ -74,6 +75,7 @@ export default function LoadDetails() {
     setIsAccepting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsAccepting(false);
+    setLoadAccepted(true);
     Alert.alert('Success', 'Load accepted successfully! You can now navigate to pickup.');
   };
 
@@ -381,59 +383,63 @@ No markdown, just JSON.`;
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Navigate to Pickup</Text>
-          <View style={styles.navigationCard}>
-            <View style={styles.navigationIconBadge}>
-              <Navigation size={22} color="#FFFFFF" />
+        {loadAccepted && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Navigate to Pickup</Text>
+            <View style={styles.navigationCard}>
+              <View style={styles.navigationIconBadge}>
+                <Navigation size={22} color="#FFFFFF" />
+              </View>
+              <View style={styles.navigationInfo}>
+                <Text style={styles.navigationLabel}>Pickup Location:</Text>
+                <Text style={styles.navigationCity}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || 'N/A'}</Text>
+              </View>
             </View>
-            <View style={styles.navigationInfo}>
-              <Text style={styles.navigationLabel}>Pickup Location:</Text>
-              <Text style={styles.navigationCity}>{load.pickup?.city || 'N/A'}, {load.pickup?.state || 'N/A'}</Text>
+
+            <TouchableOpacity 
+              style={styles.navigateButton}
+              onPress={handleNavigateToPickup}
+              activeOpacity={0.8}
+            >
+              <Navigation size={18} color="#FFFFFF" />
+              <Text style={styles.navigateButtonText}>Navigate to Pickup</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.confirmPickupButton}
+              onPress={handleConfirmPickup}
+              activeOpacity={0.8}
+            >
+              <CheckCircle size={18} color="#FFFFFF" />
+              <Text style={styles.confirmPickupButtonText}>Confirm Pickup</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.voiceButton}
+              onPress={() => setVoiceGuidanceOn(!voiceGuidanceOn)}
+              activeOpacity={0.8}
+            >
+              <Volume2 size={16} color="#1D4ED8" />
+              <Text style={styles.voiceButtonText}>Voice Guidance {voiceGuidanceOn ? 'On' : 'Off'}</Text>
+            </TouchableOpacity>
+
+            {navigationReady && (
+              <View style={styles.navigationReadyBanner}>
+                <Clock size={14} color="#059669" />
+                <Text style={styles.navigationReadyText}>Enhanced navigation ready - tap to start pickup route</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {loadAccepted && (
+          <View style={styles.capacitySection}>
+            <View style={styles.capacityRow}>
+              <Text style={styles.capacityLabel}>capacity (gal)</Text>
+              <Text style={styles.capacityValue}>150</Text>
             </View>
           </View>
-
-          <TouchableOpacity 
-            style={styles.navigateButton}
-            onPress={handleNavigateToPickup}
-            activeOpacity={0.8}
-          >
-            <Navigation size={18} color="#FFFFFF" />
-            <Text style={styles.navigateButtonText}>Navigate to Pickup</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.confirmPickupButton}
-            onPress={handleConfirmPickup}
-            activeOpacity={0.8}
-          >
-            <CheckCircle size={18} color="#FFFFFF" />
-            <Text style={styles.confirmPickupButtonText}>Confirm Pickup</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.voiceButton}
-            onPress={() => setVoiceGuidanceOn(!voiceGuidanceOn)}
-            activeOpacity={0.8}
-          >
-            <Volume2 size={16} color="#1D4ED8" />
-            <Text style={styles.voiceButtonText}>Voice Guidance {voiceGuidanceOn ? 'On' : 'Off'}</Text>
-          </TouchableOpacity>
-
-          {navigationReady && (
-            <View style={styles.navigationReadyBanner}>
-              <Clock size={14} color="#059669" />
-              <Text style={styles.navigationReadyText}>Enhanced navigation ready - tap to start pickup route</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.capacitySection}>
-          <View style={styles.capacityRow}>
-            <Text style={styles.capacityLabel}>capacity (gal)</Text>
-            <Text style={styles.capacityValue}>150</Text>
-          </View>
-        </View>
+        )}
 
       </ScrollView>
 
