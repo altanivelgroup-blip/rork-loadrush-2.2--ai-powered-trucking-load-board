@@ -76,10 +76,8 @@ export function useDriverProfile() {
   const { user } = useAuth();
   const driverId = user?.id;
 
-  const { data, loading, error } = useDocumentData<DriverFirestoreProfile>(
-    'drivers',
-    driverId || null
-  );
+  const path = driverId ? `drivers/${driverId}` : '';
+  const { data, loading, error } = useDocumentData<DriverFirestoreProfile>(path);
 
   console.log('[Driver Firestore] Profile fetch:', {
     uid: driverId,
@@ -95,10 +93,8 @@ export function useDriverStats() {
   const { user } = useAuth();
   const driverId = user?.id;
 
-  const { data, loading, error } = useDocumentData<DriverStats>(
-    'driverStats',
-    driverId || null
-  );
+  const path = driverId ? `driverStats/${driverId}` : '';
+  const { data, loading, error } = useDocumentData<DriverStats>(path);
 
   console.log('[Driver Firestore] Stats fetch:', {
     uid: driverId,
@@ -163,10 +159,8 @@ export function useDriverAnalytics() {
   const { user } = useAuth();
   const driverId = user?.id;
 
-  const { data, loading, error } = useDocumentData<AnalyticsData>(
-    'driverAnalytics',
-    driverId || null
-  );
+  const path = driverId ? `driverAnalytics/${driverId}` : '';
+  const { data, loading, error } = useDocumentData<AnalyticsData>(path);
 
   console.log('[Driver Firestore] Analytics fetch:', {
     uid: driverId,
