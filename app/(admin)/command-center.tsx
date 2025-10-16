@@ -314,15 +314,31 @@ export default function CommandCenter() {
                   const demoConfigs: SimulationConfig[] = filteredDrivers
                     .filter(d => d.pickupLocation && d.dropoffLocation)
                     .slice(0, 6)
-                    .map(d => ({
-                      driverId: d.id,
-                      startLocation: d.location,
-                      endLocation: { lat: d.dropoffLocation!.latitude, lng: d.dropoffLocation!.longitude },
-                      durationSeconds: 30 + Math.random() * 15,
-                    }));
+                    .map(d => {
+                      const startLat = d.location.lat;
+                      const startLng = d.location.lng;
+                      const endLat = d.dropoffLocation!.latitude;
+                      const endLng = d.dropoffLocation!.longitude;
+                      
+                      const distance = Math.sqrt(
+                        Math.pow(endLat - startLat, 2) + Math.pow(endLng - startLng, 2)
+                      );
+                      
+                      const extendedEndLat = startLat + (endLat - startLat) * 2.5;
+                      const extendedEndLng = startLng + (endLng - startLng) * 2.5;
+                      
+                      const duration = 20 + Math.random() * 10;
+                      
+                      return {
+                        driverId: d.id,
+                        startLocation: d.location,
+                        endLocation: { lat: extendedEndLat, lng: extendedEndLng },
+                        durationSeconds: duration,
+                      };
+                    });
                   
                   if (demoConfigs.length > 0) {
-                    console.log('[CommandCenter] Starting demo with', demoConfigs.length, 'drivers');
+                    console.log('[CommandCenter] Starting enhanced demo with', demoConfigs.length, 'drivers');
                     startSimulation(demoConfigs);
                   }
                 } else {
