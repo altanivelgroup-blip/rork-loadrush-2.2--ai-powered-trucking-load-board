@@ -495,7 +495,7 @@ No markdown, no explanation, just the JSON array.`;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#E8F4F8',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
