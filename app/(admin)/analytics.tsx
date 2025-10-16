@@ -13,6 +13,7 @@ import { useInsightSummary } from '@/hooks/useInsightSummary';
 import { useTripPerformance } from '@/hooks/useTripPerformance';
 import { useTripTrends } from '@/hooks/useTripTrends';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminRealtime } from '@/contexts/AdminRealtimeContext';
 
 export default function AdminAnalytics() {
   const insets = useSafeAreaInsets();
@@ -24,6 +25,7 @@ export default function AdminAnalytics() {
   const [insightFadeAnim] = useState(new Animated.Value(0));
   const [trendChartFadeAnim] = useState(new Animated.Value(1));
 
+  const adminRealtime = useAdminRealtime();
   const revenue = usePlatformRevenue();
   const subscriptions = useSubscriptionAnalytics();
   const usage = useUsageAnalytics();
@@ -564,7 +566,7 @@ export default function AdminAnalytics() {
             <View style={styles.cardWithTrend}>
               <AnalyticsCard
                 title="Total Revenue"
-                value={revenue.formattedRevenue}
+                value={`${adminRealtime.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 icon={<DollarSign size={18} color={Colors.light.success} />}
                 color={Colors.light.success}
               />
@@ -574,7 +576,7 @@ export default function AdminAnalytics() {
           <View style={styles.gridItem}>
             <AnalyticsCard
               title="Total Users"
-              value={totalUsers.toLocaleString()}
+              value={(adminRealtime.driverCount + adminRealtime.shipperCount).toLocaleString()}
               icon={<Users size={18} color={Colors.light.primary} />}
               color={Colors.light.primary}
             />
@@ -583,7 +585,7 @@ export default function AdminAnalytics() {
             <View style={styles.cardWithTrend}>
               <AnalyticsCard
                 title="Active Loads"
-                value={metrics.totalActive}
+                value={adminRealtime.loadCounts.total.toLocaleString()}
                 icon={<Package size={18} color={Colors.light.accent} />}
                 color={Colors.light.accent}
               />
@@ -594,7 +596,7 @@ export default function AdminAnalytics() {
             <View style={styles.cardWithTrend}>
               <AnalyticsCard
                 title="Completed Loads"
-                value={metrics.totalDelivered.toLocaleString()}
+                value={adminRealtime.loadCounts.delivered.toLocaleString()}
                 color={Colors.light.success}
               />
               {renderTrendIndicator(trends.completedLoads)}
@@ -608,7 +610,7 @@ export default function AdminAnalytics() {
             <View style={styles.cardWithTrend}>
               <AnalyticsCard
                 title="Drivers"
-                value={subscriptions.driverCount}
+                value={adminRealtime.driverCount}
                 subtitle="registered"
                 icon={<Truck size={18} color='#2563EB' />}
                 color='#2563EB'
@@ -620,7 +622,7 @@ export default function AdminAnalytics() {
             <View style={styles.cardWithTrend}>
               <AnalyticsCard
                 title="Shippers"
-                value={subscriptions.shipperCount}
+                value={adminRealtime.shipperCount}
                 subtitle="registered"
                 icon={<Building2 size={18} color='#4F46E5' />}
                 color='#4F46E5'
