@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#1E3A8A',
+    borderColor: '#60A5FA',
     position: 'relative' as const,
     shadowColor: '#000000',
     shadowOpacity: 0.12,
