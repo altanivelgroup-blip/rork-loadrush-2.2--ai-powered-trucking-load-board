@@ -13,6 +13,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import { FileText, Download, Upload, ChevronDown, History, Save, BookmarkPlus, CheckCircle } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import { db } from '@/config/firebase';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
@@ -151,7 +152,6 @@ export default function BulkUploadScreen() {
         const blob = await response.blob();
         fileContent = await blob.text();
       } else {
-        const FileSystem = await import('expo-file-system');
         fileContent = await FileSystem.readAsStringAsync(file.uri);
       }
       
