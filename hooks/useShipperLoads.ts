@@ -24,11 +24,14 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
 
   useEffect(() => {
     if (!shipperId) {
+      console.log('[Shipper Loads] No shipperId - user not authenticated');
       setLoading(false);
       return;
     }
 
     console.log('[Shipper Loads] Setting up query for shipperId:', shipperId);
+    console.log('[Shipper Loads] User email:', user?.email);
+    console.log('[Shipper Loads] User role:', user?.role);
 
     const now = Timestamp.now();
     const nowIso = new Date().toISOString();
@@ -59,6 +62,13 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
         const loads: Load[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
+          console.log('[Shipper Loads] Raw document data:', {
+            id: doc.id,
+            shipperId: data.shipperId,
+            status: data.status,
+            pickup: data.pickup?.city,
+            dropoff: data.dropoff?.city,
+          });
           loads.push({
             ...data,
             id: doc.id,
@@ -68,6 +78,10 @@ export function useShipperLoads(statusFilter?: ShipperLoadFilter) {
           } as unknown as Load);
         });
         console.log('[Shipper Loads] Received', loads.length, 'own loads from Firestore');
+        if (loads.length === 0) {
+          console.warn('[Shipper Loads] No loads found for shipperId:', shipperId);
+          console.warn('[Shipper Loads] Query constraints:', `shipperId == ${shipperId}, expiresAt >= now, status filter: ${statusFilter || 'none'}`);
+        }
         setRawData(loads);
         setLoading(false);
         setError(null);

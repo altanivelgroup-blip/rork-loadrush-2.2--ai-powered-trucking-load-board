@@ -144,6 +144,9 @@ export default function BulkUploadScreen() {
     try {
       setIsProcessing(true);
       console.log('[Bulk Upload] Processing file:', file.name);
+      console.log('[Bulk Upload] Authenticated user ID:', user.id);
+      console.log('[Bulk Upload] Authenticated user email:', user.email);
+      console.log('[Bulk Upload] Authenticated user role:', user.role);
 
       let fileContent: string;
       
@@ -202,6 +205,7 @@ export default function BulkUploadScreen() {
           const loadData = {
             shipperId: user.id,
             shipperEmail: user.email || '',
+            shipperName: (user.profile as any)?.companyName || user.email || 'Unknown Shipper',
             status: 'posted',
             vehicleType,
             weight,
@@ -236,9 +240,14 @@ export default function BulkUploadScreen() {
             expiresAt,
           };
 
-          await addDoc(collection(db, 'loads'), loadData);
+          const docRef = await addDoc(collection(db, 'loads'), loadData);
           successCount++;
-          console.log('[Bulk Upload] Created load:', `${originCity} → ${destCity}`);
+          console.log('[Bulk Upload] Created load:', {
+            id: docRef.id,
+            route: `${originCity} → ${destCity}`,
+            shipperId: user.id,
+            status: 'posted'
+          });
         } catch (error) {
           console.error('[Bulk Upload] Error creating load:', error);
           failCount++;
