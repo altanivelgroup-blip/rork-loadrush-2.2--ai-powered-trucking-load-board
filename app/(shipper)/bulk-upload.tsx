@@ -185,13 +185,13 @@ export default function BulkUploadScreen() {
             rowData[header] = row[index] || '';
           });
 
-          const originCity = rowData['origin'] || rowData['origin city'] || rowData['pickup city'] || '';
-          const originState = rowData['origin state'] || rowData['pickup state'] || '';
-          const destCity = rowData['destination'] || rowData['dest city'] || rowData['delivery city'] || '';
-          const destState = rowData['destination state'] || rowData['dest state'] || rowData['delivery state'] || '';
-          const vehicleType = rowData['vehicletype'] || rowData['vehicle type'] || rowData['vehicle'] || 'Flatbed';
-          const weight = parseFloat(rowData['weight'] || '0');
-          const price = parseFloat(rowData['price'] || '0');
+          const originCity = rowData['origin'] || rowData['origin city'] || rowData['pickup city'] || rowData['pickup_city'] || '';
+          const originState = rowData['origin state'] || rowData['pickup state'] || rowData['pickup_state'] || '';
+          const destCity = rowData['destination'] || rowData['dest city'] || rowData['delivery city'] || rowData['drop city'] || rowData['drop_city'] || '';
+          const destState = rowData['destination state'] || rowData['dest state'] || rowData['delivery state'] || rowData['drop state'] || rowData['drop_state'] || '';
+          const vehicleType = rowData['vehicletype'] || rowData['vehicle type'] || rowData['vehicle'] || rowData['cargo_type'] || rowData['cargo type'] || 'Flatbed';
+          const weight = parseFloat(rowData['weight'] || rowData['weight_lbs'] || rowData['weight lbs'] || '0');
+          const price = parseFloat(rowData['price'] || rowData['rate'] || rowData['rate_usd'] || rowData['rate usd'] || '0');
 
           if (!originCity || !destCity) {
             console.warn('[Bulk Upload] Skipping row - missing origin or destination:', rowData);
@@ -209,26 +209,26 @@ export default function BulkUploadScreen() {
             pickup: {
               city: originCity,
               state: originState,
-              address: rowData['origin address'] || rowData['pickup address'] || '',
-              date: rowData['pickup date'] || new Date().toISOString(),
-              time: rowData['pickup time'] || '08:00',
+              address: rowData['origin address'] || rowData['pickup address'] || rowData['pickup_location'] || rowData['pickup location'] || '',
+              date: rowData['pickup date'] || rowData['pickup_date'] || new Date().toISOString(),
+              time: rowData['pickup time'] || rowData['pickup_time'] || '08:00',
               coordinates: {
-                latitude: parseFloat(rowData['origin lat'] || '0'),
-                longitude: parseFloat(rowData['origin lng'] || '0'),
+                latitude: parseFloat(rowData['origin lat'] || rowData['origin_lat'] || '0'),
+                longitude: parseFloat(rowData['origin lng'] || rowData['origin_lng'] || '0'),
               },
             },
             dropoff: {
               city: destCity,
               state: destState,
-              address: rowData['destination address'] || rowData['delivery address'] || '',
-              date: rowData['delivery date'] || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-              time: rowData['delivery time'] || '17:00',
+              address: rowData['destination address'] || rowData['delivery address'] || rowData['drop address'] || rowData['drop_location'] || rowData['drop location'] || '',
+              date: rowData['delivery date'] || rowData['drop date'] || rowData['drop_date'] || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+              time: rowData['delivery time'] || rowData['drop time'] || rowData['drop_time'] || '17:00',
               coordinates: {
-                latitude: parseFloat(rowData['destination lat'] || '0'),
-                longitude: parseFloat(rowData['destination lng'] || '0'),
+                latitude: parseFloat(rowData['destination lat'] || rowData['drop lat'] || rowData['drop_lat'] || '0'),
+                longitude: parseFloat(rowData['destination lng'] || rowData['drop lng'] || rowData['drop_lng'] || '0'),
               },
             },
-            distance: parseFloat(rowData['distance'] || '0'),
+            distance: parseFloat(rowData['distance'] || rowData['distance_miles'] || rowData['distance miles'] || '0'),
             description: rowData['description'] || '',
             requirements: rowData['requirements'] || '',
             createdAt: now,
