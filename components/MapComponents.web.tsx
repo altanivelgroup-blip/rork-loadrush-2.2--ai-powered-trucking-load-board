@@ -208,8 +208,8 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
         console.error('[WebMap] Failed to load Google Maps JS', e);
         const msg = String((e && (e.message || e.status || (e.toString && e.toString()))) ?? 'Unknown error');
         if (msg.includes('RefererNotAllowedMapError')) {
-          const href = typeof window !== 'undefined' ? window.location.origin + '/*' : '';
-          setLoadError(`Google Maps API key HTTP referrer is not allowed for this origin. Add this origin to your key restrictions: ${href}`);
+          const href = typeof window !== 'undefined' ? window.location.origin : '';
+          setLoadError(`REFERRER BLOCKED: Your Google Maps API key doesn't allow: ${href}`);
         } else {
           setLoadError('Failed to load map. Check your Google Maps API key and referrer restrictions.');
         }
@@ -337,22 +337,35 @@ export const MapView = forwardRef<any, MapViewProps>(function MapView(
       {children}
       {loadError ? (
         <View style={styles.errorOverlay} testID="webGoogleMapError">
-          <Text style={styles.errorTitle}>Map failed to load</Text>
-          <Text style={styles.errorText}>{loadError}</Text>
-          <Text style={styles.errorText}>Env var: EXPO_PUBLIC_GOOGLE_MAPS_API_KEY must be set and allow these referrers:</Text>
-          <Text style={styles.errorList}>- http://localhost:8081/*</Text>
-          <Text style={styles.errorList}>- http://localhost:8080/*</Text>
-          <Text style={styles.errorList}>- https://*.exp.direct/*</Text>
-          <Text style={styles.errorList}>- https://*.expo.dev/*</Text>
-          <Text style={styles.errorList}>- https://*.ngrok-free.app/* (if used)</Text>
-          <Pressable onPress={() => {
-            setLoadError(null);
-            const s = document.getElementById('google-maps-js');
-            if (s && s.parentNode) s.parentNode.removeChild(s);
-            (window as any).google = undefined;
-          }} style={styles.retryBtn} testID="retryMapLoad">
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
+          <View style={styles.errorContent}>
+            <Text style={styles.errorTitle}>🔒 Google Maps API Key Issue</Text>
+            <Text style={styles.errorText}>{loadError}</Text>
+            
+            <View style={styles.instructionBox}>
+              <Text style={styles.instructionTitle}>QUICK FIX:</Text>
+              <Text style={styles.instructionStep}>1. Go to: console.cloud.google.com/apis/credentials</Text>
+              <Text style={styles.instructionStep}>2. Select your API key: {process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY?.substring(0, 20)}...</Text>
+              <Text style={styles.instructionStep}>3. Under &quot;Website restrictions&quot;, add these referrers:</Text>
+              <View style={styles.referrerBox}>
+                <Text style={styles.referrerText}>{typeof window !== 'undefined' ? window.location.origin + '/*' : ''}</Text>
+                <Text style={styles.referrerText}>http://localhost:8081/*</Text>
+                <Text style={styles.referrerText}>http://localhost:8080/*</Text>
+                <Text style={styles.referrerText}>https://*.exp.direct/*</Text>
+                <Text style={styles.referrerText}>https://*.expo.dev/*</Text>
+              </View>
+              <Text style={styles.instructionStep}>4. Save changes and wait 1-2 minutes</Text>
+            </View>
+            
+            <Pressable onPress={() => {
+              setLoadError(null);
+              const s = document.getElementById('google-maps-js');
+              if (s && s.parentNode) s.parentNode.removeChild(s);
+              (window as any).google = undefined;
+              window.location.reload();
+            }} style={styles.retryBtn} testID="retryMapLoad">
+              <Text style={styles.retryText}>I&apos;ve Added the Referrers - Reload</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </View>
@@ -368,7 +381,6 @@ export type MarkerProps = {
 
 export function Marker({ coordinate, onPress }: MarkerProps) {
   const markerRef = useRef<any>(null);
-  const mapRef = (window as any)?.google?.maps;
 
   useEffect(() => {
     return () => {
@@ -505,43 +517,79 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   errorOverlay: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
-    backgroundColor: 'rgba(15,23,42,0.96)',
-    borderRadius: 12,
-    padding: 16,
-    borderColor: 'rgba(148,163,184,0.25)',
-    borderWidth: 1,
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorContent: {
+    maxWidth: 600,
+    width: '100%',
   },
   errorTitle: {
-    color: '#F87171',
-    fontSize: 16,
+    color: '#FBBF24',
+    fontSize: 20,
     fontWeight: '700' as const,
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center' as const,
   },
   errorText: {
-    color: '#E2E8F0',
-    fontSize: 12,
-    marginBottom: 6,
+    color: '#F87171',
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center' as const,
+    fontWeight: '600' as const,
   },
-  errorList: {
-    color: '#94A3B8',
+  instructionBox: {
+    backgroundColor: 'rgba(30,41,59,0.8)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.3)',
+    marginBottom: 20,
+  },
+  instructionTitle: {
+    color: '#60A5FA',
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 12,
+  },
+  instructionStep: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  referrerBox: {
+    backgroundColor: 'rgba(15,23,42,0.8)',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(96,165,250,0.3)',
+  },
+  referrerText: {
+    color: '#34D399',
     fontSize: 12,
-    marginBottom: 2,
+    fontFamily: 'monospace',
+    marginBottom: 4,
   },
   retryBtn: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    backgroundColor: '#1D4ED8',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   retryText: {
     color: 'white',
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
+    fontSize: 15,
   },
   zoomControls: {
     ...StyleSheet.absoluteFillObject,
