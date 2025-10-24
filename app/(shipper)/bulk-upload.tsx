@@ -179,7 +179,8 @@ export default function BulkUploadScreen() {
       let failCount = 0;
 
       const now = Timestamp.now();
-      const expiresAt = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+      // Set expiration to 30 days from now + 1 hour buffer to ensure it passes the query filter
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + (30 * 24 * 60 * 60 * 1000) + (60 * 60 * 1000)));
 
       for (const row of dataRows) {
         try {
